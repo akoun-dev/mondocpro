@@ -42,7 +42,12 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
+      {/* suppressHydrationWarning : l'environnement d'exécution (extension navigateur /
+          script d'intégration du preview) injecte des attributs (ex. bis_status,
+          __processed_*) sur <body> après le rendu serveur, ce qui provoque un faux
+          mismatch d'hydratation. Voir BUG-001 (.ai/BUGS.md) et ADR-002 pour le design. */}
       <body
+        suppressHydrationWarning
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-background text-foreground`}
       >
         {children}
