@@ -52,6 +52,7 @@ demandes successives de l'utilisateur, traitées via le Feature Lifecycle (`WORK
   les scripts `db:push/db:migrate/db:reset` réexportent la valeur du `.env` (cf. ADR-003 §4) ;
   le serveur dev doit être redémarré après changement de `.env` (Next ne réécrase pas l'env existant).
 - Connexion Supabase : uniquement via pooler Supavisor (host direct IPv6-only, sandbox sans IPv6).
+- **Configuration locale (machine du PO)** : copier `.env.example` (versionné, OPS-T03) → `cp .env.example .env`, remplir les placeholders Supabase (Dashboard → Settings → General/API/Database), puis `bun install && bun run db:push && bun run dev`. `.env` reste ignoré par git (`.env*`, exception `!.env.example`).
 - API routes (pas de server actions pour la consommation client), appels par chemins relatifs.
 
 ## 5. Parties prenantes (équipe virtuelle)

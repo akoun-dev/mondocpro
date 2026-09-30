@@ -5,6 +5,7 @@ Format basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) — ve
 ## [Non publié]
 
 ### Ajouté
+- **Modèle `.env.example` versionné (OPS-T03)** : reproduction facile de la configuration en local — placeholders uniquement (zéro secret, scan avant commit), exception `.gitignore` `!.env.example`, instructions pas-à-pas (`cp .env.example .env` → valeurs Dashboard Supabase → `db:push` → `dev`).
 - **Résilience boot (OPS-T02)** : flux custom `.zscripts/dev.sh` — restaure `.env` Supabase écrasé par la plateforme au cold start, puis `bun install` + `db:push` + serveur.
 - **Base de données Supabase PostgreSQL (ADR-003)** : provider Prisma `sqlite`→`postgresql`, connexion via pooler Supavisor (IPv4, session mode, région aws-1-eu-west-1), schéma `User`/`Post` synchronisé (vérifié roundtrip `SELECT 1` + REST 200), scripts `db:*` blindés contre l'override d'environnement, clés Supabase en `.env` (non versionné).
 - **Palette médicale officielle (ADR-002)** : 9 couleurs définies par le PO implémentées en tokens Tailwind 4 (`globals.css`) — bleu médical `#1565C0`, bleu foncé `#0D47A1`, vert santé `#2EBD85`, vert clair `#E8F8F1`, blanc `#FFFFFF`, gris texte `#263238`, gris clair `#F5F7FA`, rouge urgence `#D32F2F`, orange `#F59E0B`.

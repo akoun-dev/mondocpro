@@ -41,6 +41,11 @@ type(scope): description
 | 13d8d92 | fix | ui | supprime le faux mismatch d'hydratation sur body | AGENT COMMIT | 2026-09-30 | BUG-001 |
 | 4f85b0d | docs | gouvernance | registres BUG-001, avis SEC-ADV-001 (rotation token), tasks ops push | AGENT COMMIT | 2026-09-30 | BUG-001, SEC-ADV-001, OPS-T01 |
 | 90786c8 | chore | securite | retire .env et la base sqlite du suivi git | AGENT COMMIT | 2026-09-30 | SEC-ADV-001, OPS-T01 |
+| 7657ee2 | docs | gouvernance | clôture BUG-001/OPS-T01 dans les registres et worklog | AGENT COMMIT | 2026-09-30 | BUG-001, OPS-T01 |
+| ace3161 | feat | data | migration de la base vers supabase postgresql | AGENT COMMIT | 2026-09-30 | DB-T01 (Refs: ADR-003) |
+| c6b1d34 | docs | gouvernance | worklog migration supabase (Task 5) | AGENT COMMIT | 2026-09-30 | DB-T01 |
+| d1370c3 | chore | devops | flux de boot custom resistant au cold start (dev.sh) | AGENT COMMIT | 2026-09-30 | OPS-T02 |
+| 0badaee | ⚠️ hors-système | — | 92996b23-36f9-46a0-b6fc-33944f81c473 (message UUID) | Plateforme sandbox (Z User) | 2026-09-30 | — (auto-commit plateforme : .zscripts/gen_tasks_xlsx.py uniquement, audité sans secret) |
 
 
 > **Push 2026-09-30 (OPS-T01)** : `main` poussée vers `github.com/akoun-dev/mondocpro.git` (remote vide au départ) — vérification : hash remote `90786c8` = hash local. Token PO utilisé one-shot en URL de commande (non persisté : `git config` et `.git/config` audités), remote `origin` ajouté sans identifiants.

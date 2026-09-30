@@ -96,6 +96,16 @@ ROWS = [
         "ADR-003 · SEC-ADV-002 : rotation secrets Supabase conseillée · migrations versionnées avant PROD",
     ],
     [
+        "OPS-T03", "DevOps", "Config locale reproductible", "Modèle .env.example",
+        ".env.example versionné (placeholders uniquement, zéro secret — scan avant commit) + exception .gitignore !.env.example ; instructions pas-à-pas de configuration locale Supabase (cp .env.example .env → db:push → dev)",
+        "DEVOPS + Doc + Security", "TERMINÉ", "100%", "P1", "DB-T01",
+        ".env.example · .gitignore",
+        "Scan anti-secret · git check-ignore (.env/.env.supabase toujours ignorés) · lint",
+        "0 secret · tracking OK · lint 0 erreur", "0",
+        "chore(env)", "n/a (ops)", "2026-09-30", "2026-09-30",
+        "SEC-ADV-002 reste ouverte (rotation secrets = action PO)",
+    ],
+    [
         "—", "Backlog", "—", "En attente de demandes utilisateur",
         "Aucune feature métier demandée à ce jour ; le backlog sera alimenté par le PO (utilisateur)",
         "—", "À FAIRE", "0%", "—", "—", "—", "—", "—", "—", "—", "—", "", "",

@@ -147,3 +147,20 @@ Stage Summary:
 - Config Supabase désormais RÉSISTANTE au cold start (flux dev.sh validé = flux de boot plateforme)
 - Serveur dev persistant vérifié entre appels ; chemin preview (Caddy :81) opérationnel
 - test_db.ts rendu autonome (lit .env lui-même, immunisé à l'export shell hérité)
+
+---
+Task ID: 6 (ops)
+Agent: ORCHESTRATEUR + DEVOPS + DOC + SECURITY + AGENT COMMIT
+Task: Ajout du modèle .env.example versionné pour configuration locale Supabase (demande PO)
+
+Work Log:
+- Création .env.example : placeholders uniquement (<PROJECT_REF>, <MOT_DE_PASSE_DB>, <REGION>, clés), format pooler Supavisor documenté (session 5432 / transaction 6543) + alternative connexion directe en commentaire, instructions pas-à-pas locales (cp .env.example .env → Dashboard Settings → db:push → dev), avertissements sécurité (service_role jamais NEXT_PUBLIC_, référence SEC-ADV-001/002)
+- .gitignore : exception !.env.example ajoutée sous .env* ; vérifié git check-ignore → .env et .zscripts/.env.supabase toujours ignorés, .env.example trackable
+- Scan anti-secret pre-commit : grep des valeurs réelles (mot de passe DB, project ref, publishable, JWT anon/service_role, token GitHub) dans .env.example → 0 correspondance
+- Registres : TASKS.md + TASKS.xlsx (OPS-T03, validate 0 issue), CHANGELOG, PROJECT_CONTEXT §4 (guide config locale), COMMIT_LOG (comblement entrées manquantes 7657ee2/ace3161/c6b1d34/d1370c3 + audit auto-commit 0badaee = gen_tasks_xlsx.py seul, sans secret)
+- Vérifications : lint 0 erreur, serveur dev inchangé (aucun code touché)
+
+Stage Summary:
+- Configuration locale reproductible : le PO clone le repo → cp .env.example .env → remplit ses valeurs Supabase → bun run db:push → bun run dev
+- Zéro secret dans l'historique git : .env.example placeholders uniquement ; .env réel reste non versionné
+- SEC-ADV-002 (rotation secrets Supabase) reste ouverte — action PO
