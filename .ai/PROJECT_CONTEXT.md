@@ -47,6 +47,7 @@ demandes successives de l'utilisateur, traitées via le Feature Lifecycle (`WORK
 - `z-ai-web-dev-sdk` réservé au backend (routes API / mini-services).
 - Route utilisateur visible : `/` uniquement (tout nouveau module s'intègre dans la page principale).
 - Dev server : `bun run dev` (port 3000, log `dev.log`) — jamais `bun run build` en dev.
+- ⚠️ **Boot plateforme** : `/start.sh` écrase `.env` (`DATABASE_URL=file:…`) à chaque cold start → flux custom `.zscripts/dev.sh` (restaure l'env Supabase depuis `.zscripts/.env.supabase`, non versionné) puis démarre le serveur ; OPS-T02.
 - ⚠️ Le shell sandbox exporte `DATABASE_URL=file:…` (héritage scaffold) qui PRIME sur `.env` :
   les scripts `db:push/db:migrate/db:reset` réexportent la valeur du `.env` (cf. ADR-003 §4) ;
   le serveur dev doit être redémarré après changement de `.env` (Next ne réécrase pas l'env existant).

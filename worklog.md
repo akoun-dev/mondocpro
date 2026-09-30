@@ -130,3 +130,20 @@ Stage Summary:
 - Secrets en .env non versionné uniquement ; SEC-ADV-002 : PO doit rotater mot de passe DB + service_role (transmis en clair)
 - Migrations versionnées (prisma migrate + shadow DB) = prérequis PROD, planifié à la 1re feature
 - supabase-js non installé (YAGNI) — sera arbitrée par ADR si auth/realtime/storage demandés
+
+---
+Task ID: 5-b (ops resilience)
+Agent: ORCHESTRATEUR + DEVOPS/DATA
+Task: Résilience cold start de la config Supabase + relance serveur persistante
+
+Work Log:
+- Découverte : /start.sh plateforme écrase .env (DATABASE_URL=file:...) à chaque boot et exécute .zscripts/dev.sh si présent (flux custom)
+- Création .zscripts/dev.sh : restaure .env depuis .zscripts/.env.supabase (non versionné, vérifié git check-ignore → .gitignore:34 .env*), bun install, bun run db:push, exec bun run dev
+- Diagnostic mortalité des processus lancés depuis les appels outils (server down 2×) → relance via dev.sh doublement détachée (setsid + nohup + subshell)
+- Vérifications : HTTP 200 cross-session (2 appels consécutifs), Caddy :81 → 200, test_db.ts autonome (SELECT 1 OK, host aws-1-eu-west-1)
+- Registres : TASKS (OPS-T02), PROJECT_CONTEXT (boot plateforme), CHANGELOG, TASKS.xlsx régénéré (validate 0 issue)
+
+Stage Summary:
+- Config Supabase désormais RÉSISTANTE au cold start (flux dev.sh validé = flux de boot plateforme)
+- Serveur dev persistant vérifié entre appels ; chemin preview (Caddy :81) opérationnel
+- test_db.ts rendu autonome (lit .env lui-même, immunisé à l'export shell hérité)
