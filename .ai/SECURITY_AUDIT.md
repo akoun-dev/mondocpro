@@ -51,3 +51,13 @@
 - Surface d'attaque : 1 endpoint GET sans paramètre, aucune authentification requise, aucune donnée personnelle traitée.
 - Secrets : `.env` local avec `DATABASE_URL` SQLite (aucun secret réseau).
 - Prochain audit planifié : dès la première feature livrée (audit AUDIT-001), puis à chaque feature touchant API/auth/données.
+
+---
+
+## ⚠️ Recommandations actives (suivi obligatoire)
+
+| ID | Date | Recommandation | Criticité | Statut |
+|---|---|---|---|---|
+| SEC-ADV-001 | 2026-09-30 | **Rotation du token GitHub conseillée** : le PO a transmis un token d'accès personnel (PAT) en clair dans la conversation. Le token a été utilisé en mémoire uniquement (jamais écrit dans un fichier, ni `.git/config`, ni `.env`, ni le dépôt) et ne sera plus utilisé. Toutefois, une fois exposé dans un canal de chat, un token doit être considéré comme compromis → **révoquer/regénérer sur GitHub (Settings → Developer settings → Tokens)** après le push. | Moyenne (hygiène) | ⏳ Action PO |
+
+**Politique secrets appliquée (DEV SÉCURITÉ) :** aucun token/secret ne doit figurer dans le code, la config, les registres `.ai/` ou l'historique Git. Usage one-shot en variable de commande uniquement.

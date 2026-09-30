@@ -15,6 +15,9 @@ Format basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) — ve
 ### Vérifié
 - Contrastes WCAG AA calculés et consignés (texte blanc interdit sur `success`/`warning`) ; tokens contrôlés dans le navigateur (computed styles) et dans le CSS servi ; lint 0 erreur ; page `/` sans erreur (agent-browser).
 
+### Corrigé
+- **BUG-001** : faux mismatch d'hydratation sur `<body>` causé par l'injection d'attributs externes (`bis_status`, `__processed_*`) par l'environnement de preview → `suppressHydrationWarning` ajouté sur `<body>` (`src/app/layout.tsx`).
+
 ---
 
 ## [0.1.0] — Scaffold · 2026-09-30
