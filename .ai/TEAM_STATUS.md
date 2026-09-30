@@ -26,12 +26,13 @@
 | Tâche | Fichiers | Statut |
 |---|---|---|
 | OPS-T01 — Push main → github.com/akoun-dev/mondocpro.git (vérifié 90786c8) + retrait .env/db du suivi | .gitignore, remote origin | ✅ Terminé (2026-09-30) |
+| DB-T01 — Migration BDD vers Supabase PostgreSQL (diagnostic réseau, région aws-1-eu-west-1, push schéma, roundtrip vérifié, scripts blindés) | prisma/schema.prisma, .env, package.json | ✅ Terminé (2026-09-30, ADR-003) |
 
 ## 🔒 SECURITY
 
 | Tâche | Fichiers | Statut |
 |---|---|---|
-| SEC-ADV-001 — Token GitHub transmis en clair par le PO : usage one-shot audité, non persisté ; rotation recommandée | SECURITY_AUDIT.md | ✅ Consigné · ⏳ Rotation = action PO |
+| SEC-ADV-001/002 — Secrets transmis en clair par le PO (token GitHub, mot de passe DB, service_role) : usage audité, non persisté ; rotations recommandées | SECURITY_AUDIT.md | ✅ Consigné · ⏳ Rotation = action PO |
 
 ## 📝 COMMIT
 

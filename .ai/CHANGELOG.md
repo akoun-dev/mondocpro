@@ -5,6 +5,7 @@ Format basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) — ve
 ## [Non publié]
 
 ### Ajouté
+- **Base de données Supabase PostgreSQL (ADR-003)** : provider Prisma `sqlite`→`postgresql`, connexion via pooler Supavisor (IPv4, session mode, région aws-1-eu-west-1), schéma `User`/`Post` synchronisé (vérifié roundtrip `SELECT 1` + REST 200), scripts `db:*` blindés contre l'override d'environnement, clés Supabase en `.env` (non versionné).
 - **Palette médicale officielle (ADR-002)** : 9 couleurs définies par le PO implémentées en tokens Tailwind 4 (`globals.css`) — bleu médical `#1565C0`, bleu foncé `#0D47A1`, vert santé `#2EBD85`, vert clair `#E8F8F1`, blanc `#FFFFFF`, gris texte `#263238`, gris clair `#F5F7FA`, rouge urgence `#D32F2F`, orange `#F59E0B`.
 - Nouveaux tokens applicatifs : `success`, `success-foreground`, `success-light`, `warning`, `warning-foreground`, `primary-dark` (+ mapping `@theme inline` → classes `bg-success`, `bg-warning`…).
 - Séries de graphiques `--chart-1..5` alignées sur la palette.

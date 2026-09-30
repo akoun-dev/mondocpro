@@ -18,10 +18,12 @@
 │  │ TanStack Query  │  │ z-ai-web-dev-sdk  │ │   └────────────────────────┘
 │  └─────────────────┘  └─────────┬─────────┘ │
 └─────────────────────────────────┼───────────┘
-                        ┌─────────▼─────────┐
-                        │  SQLITE (Prisma)  │
-                        │  db/custom.db     │
-                        └───────────────────┘
+                        ┌─────────▼─────────────────────────┐
+                        │  SUPABASE — PostgreSQL managé     │
+                        │  pooler Supavisor (IPv4, :5432)   │
+                        │  aws-1-eu-west-1 · sslmode=require│
+                        │  (ADR-003)                        │
+                        └───────────────────────────────────┘
 ```
 
 ## 2. Séparation des couches (RÈGLE 22 — non négociable)
@@ -59,6 +61,7 @@
 |---|---|---|
 | [ADR-001](ADR/ADR-001-technologie-stack.md) | Conservation stack socle Next.js 16 / React 19 / Prisma SQLite | Accepté |
 | [ADR-002](ADR/ADR-002-palette-medicale.md) | Palette médicale officielle (9 couleurs PO) en tokens sémantiques Tailwind 4 | Accepté |
+| [ADR-003](ADR/ADR-003-supabase-postgresql.md) | BDD = Supabase PostgreSQL via Prisma (pooler Supavisor aws-1-eu-west-1) | Accepté |
 
 Les décisions majeures futures (auth NextAuth, i18n next-intl, IA, temps réel…) **doivent** faire l'objet d'un ADR.
 

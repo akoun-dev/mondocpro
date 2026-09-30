@@ -76,6 +76,16 @@ ROWS = [
         "SEC-ADV-001 : rotation du token conseillée (action PO)",
     ],
     [
+        "DB-T01", "Data", "Supabase PostgreSQL", "Migration BDD",
+        "Provider prisma sqlite→postgresql ; pooler Supavisor IPv4 (host direct IPv6-only) ; région aws-1-eu-west-1 découverte par auth réelle ; schéma User/Post synchronisé ; scripts db:* blindés ; secrets en .env non versionné",
+        "DEVOPS/DATA + Tech Lead + Security", "TERMINÉ", "100%", "P1", "OPS-T01",
+        "prisma/schema.prisma · .env · package.json · .ai/ADR/ADR-003",
+        "Roundtrip Prisma SELECT 1 · REST /rest/v1/User · GET / post-restart",
+        "Roundtrip OK · REST 200 [] · lint 0 erreur", "0",
+        "feat(data)", "APPROVED (revue interne Tech Lead)", "2026-09-30", "2026-09-30",
+        "ADR-003 · SEC-ADV-002 : rotation secrets Supabase conseillée · migrations versionnées avant PROD",
+    ],
+    [
         "—", "Backlog", "—", "En attente de demandes utilisateur",
         "Aucune feature métier demandée à ce jour ; le backlog sera alimenté par le PO (utilisateur)",
         "—", "À FAIRE", "0%", "—", "—", "—", "—", "—", "—", "—", "—", "", "",

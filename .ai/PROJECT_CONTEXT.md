@@ -20,7 +20,7 @@ demandes successives de l'utilisateur, traitées via le Feature Lifecycle (`WORK
 | Style | Tailwind CSS + tw-animate-css | 4 |
 | Composants | shadcn/ui (New York) — 44 composants dans `src/components/ui` | — |
 | Icônes | lucide-react | 0.525 |
-| ORM / DB | Prisma + SQLite (`db/custom.db`) | 6.11 |
+| ORM / DB | **Supabase (PostgreSQL managé)** via Prisma — pooler Supavisor `aws-1-eu-west-1` (ADR-003) | 6.19 |
 | Validation | Zod | 4 |
 | État client | Zustand | 5 |
 | État serveur | TanStack Query | 5 |
@@ -47,6 +47,10 @@ demandes successives de l'utilisateur, traitées via le Feature Lifecycle (`WORK
 - `z-ai-web-dev-sdk` réservé au backend (routes API / mini-services).
 - Route utilisateur visible : `/` uniquement (tout nouveau module s'intègre dans la page principale).
 - Dev server : `bun run dev` (port 3000, log `dev.log`) — jamais `bun run build` en dev.
+- ⚠️ Le shell sandbox exporte `DATABASE_URL=file:…` (héritage scaffold) qui PRIME sur `.env` :
+  les scripts `db:push/db:migrate/db:reset` réexportent la valeur du `.env` (cf. ADR-003 §4) ;
+  le serveur dev doit être redémarré après changement de `.env` (Next ne réécrase pas l'env existant).
+- Connexion Supabase : uniquement via pooler Supavisor (host direct IPv6-only, sandbox sans IPv6).
 - API routes (pas de server actions pour la consommation client), appels par chemins relatifs.
 
 ## 5. Parties prenantes (équipe virtuelle)
