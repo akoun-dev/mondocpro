@@ -1,0 +1,98 @@
+#!/usr/bin/env python3
+"""Génère .ai/TASKS.xlsx — fichier central de suivi du système multi-agents.
+Skill xlsx — scène create (LITE), design system via templates/base.py."""
+import sys, os
+
+XLSX_SKILL_DIR = "/home/z/my-project/skills/xlsx"
+for sub in [XLSX_SKILL_DIR, os.path.join(XLSX_SKILL_DIR, "templates")]:
+    if sub not in sys.path:
+        sys.path.insert(0, sub)
+
+from openpyxl import Workbook
+from openpyxl.utils import get_column_letter
+from base import (  # design tokens + style factories (single source of truth)
+    font_title, font_caption, fill_data_row, setup_sheet,
+    style_header_row, style_data_row, align_text, NEUTRAL_900,
+)
+
+OUT = "/home/z/my-project/.ai/TASKS.xlsx"
+
+HEADERS = [
+    "ID", "Epic", "Fonctionnalité", "Sous-tâche", "Description", "Rôle Assigné",
+    "Statut", "Progression", "Priorité", "Dépendance Inter-Agents", "Fichiers concernés",
+    "Tests", "Résultat test", "Bugs", "Commits liés", "Review Status",
+    "Date début", "Date fin", "Commentaires",
+]
+
+ROWS = [
+    [
+        "SYS-T01", "Système", "Analyse initiale", "Scan complet du projet",
+        "Analyse complète avant toute action (règle 2) : stack, architecture, configs, baseline qualité",
+        "Audit + Tech Lead", "TERMINÉ", "100%", "P0", "—",
+        "Tout le dépôt (lecture seule)", "bun run lint + dev.log", "Lint 0 erreur ; GET / 200",
+        "0", "—", "n/a (pré-système)", "", "", "Preuves : worklog.md Task 1",
+    ],
+    [
+        "SYS-T02", "Système", "Gouvernance", "Dossier de pilotage .ai/",
+        "Création des 38 fichiers de gouvernance (registres, handoffs, ADR, specs, audits)",
+        "Doc + Tech Lead", "TERMINÉ", "100%", "P1", "SYS-T01",
+        ".ai/**", "Vérification LS", "38 fichiers présents", "0", "—", "n/a (pré-système)",
+        "", "", "Inclut ADR-001 (stack conservée)",
+    ],
+    [
+        "SYS-T03", "Système", "Gouvernance", "TASKS.xlsx",
+        "Fichier central de suivi (20 colonnes, miroir TASKS.md)",
+        "Doc", "TERMINÉ", "100%", "P1", "SYS-T01",
+        ".ai/TASKS.xlsx", "xlsx.py inspect/validate", "OK", "0", "—", "n/a (pré-système)",
+        "", "", "Ce fichier",
+    ],
+    [
+        "—", "Backlog", "—", "En attente de demandes utilisateur",
+        "Aucune feature métier demandée à ce jour ; le backlog sera alimenté par le PO (utilisateur)",
+        "—", "À FAIRE", "0%", "—", "—", "—", "—", "—", "—", "—", "—", "", "",
+        "Feature Lifecycle (WORKFLOWS.md) appliqué à chaque demande",
+    ],
+]
+
+wb = Workbook()
+ws = wb.active
+ws.title = "TASKS"
+
+last_col = 1 + len(HEADERS)  # données à partir de la colonne B (Canvas Origin B2)
+setup_sheet(ws, title="Suivi central des tâches — Système Multi-Agents", last_col=last_col)
+
+# En-têtes (ligne 4)
+for i, h in enumerate(HEADERS, start=2):
+    ws.cell(row=4, column=i, value=h)
+style_header_row(ws, 4, 2, last_col)
+
+# Données (ligne 5+)
+for r, row in enumerate(ROWS, start=5):
+    for c, val in enumerate(row, start=2):
+        cell = ws.cell(row=r, column=c, value=val)
+        cell.alignment = align_text()
+    style_data_row(ws, r, 2, last_col, r - 5)
+
+# Notes (2 lignes sous les données)
+notes_row = 5 + len(ROWS) + 2
+note = ws.cell(row=notes_row, column=2,
+               value="Statuts : À FAIRE → EN COURS → EN REVUE → TEST QA → TERMINÉ (ou BLOQUÉ). "
+                     "Intégrité : tout statut avancé exige une preuve (commit, revue, test, audit).")
+note.font = font_caption()
+note2 = ws.cell(row=notes_row + 1, column=2,
+                value="Règles de blocage : Frontend bloqué sans contrat API validé · PROD bloquée "
+                      "sans audit global ≥ 60/100 · FRONTEND TERMINÉ exige a11y + perf validés.")
+note2.font = font_caption()
+
+# Largeurs de colonnes (lisibles, ajustées au contenu type)
+widths = [10, 14, 20, 24, 46, 18, 12, 12, 9, 24, 26, 22, 26, 8, 14, 18, 12, 12, 34]
+ws.column_dimensions["A"].width = 2
+for i, w in enumerate(widths, start=2):
+    ws.column_dimensions[get_column_letter(i)].width = w
+
+ws.freeze_panes = "C5"
+ws.auto_filter.ref = f"B4:{get_column_letter(last_col)}{4 + len(ROWS)}"
+
+wb.properties.creator = "Z.ai"
+wb.save(OUT)
+print("OK —", OUT)
