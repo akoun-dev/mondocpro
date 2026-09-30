@@ -25,3 +25,21 @@
 | 🔴 QA | État des lieux (0 bug, 0 feature) | Initialisation du système multi-agents et du dossier de pilotage ; aucun blocage | Aucun |
 
 **Synthèse orchestrateur :** système opérationnel. Prochaine étape = alimentation du backlog à partir des demandes utilisateur, puis démarrage du Feature Lifecycle (phase 0).
+
+---
+
+## STANDUP — 2026-09-30 (J+1 · palette médicale)
+
+| Rôle | Hier | Aujourd'hui | Blocages |
+|---|---|---|---|
+| 🎨 UX/UI | — | Palette médicale documentée (DESIGN_SYSTEM §1) + règles d'usage sémantique | — |
+| 🔵 Frontend | — | Tokens implémentés dans globals.css, thème sombre dérivé | — |
+| 👔 Tech Lead | — | ADR-002 accepté ; contrastes AA vérifiés | — |
+| 🔵 Backend | — | Aucun changement (aucun endpoint métier touché) | — |
+| 📝 Commit | Constat auto-commit plateforme b3c635e consigné (LL-002) | Commit conventionnel palette en cours | — |
+| 🔍 Reviewer | — | Revue interne : 0 écart palette vs demande PO | — |
+| ♿ A11Y | — | Contrastes calculés (5 combinaisons AA/AAA) ; interdiction blanc sur success/warning consignée | — |
+| ⚡ PERF | — | Impact nul (CSS variables uniquement, recompil 225 ms) | — |
+| 🔒 Security | — | Aucune surface d'attaque modifiée (CSS) | — |
+| 🕵️ Audit | — | Suivi de conformité SYS-008 ajouté | — |
+| 🔴 QA | — | Vérification agent-browser : computed styles conformes, 0 erreur page | — |

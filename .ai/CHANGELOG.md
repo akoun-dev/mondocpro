@@ -4,7 +4,16 @@ Format basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) — ve
 
 ## [Non publié]
 
-_Rien de prévu à ce stade. Les modifications non publiées sont documentées ici dès leur validation._
+### Ajouté
+- **Palette médicale officielle (ADR-002)** : 9 couleurs définies par le PO implémentées en tokens Tailwind 4 (`globals.css`) — bleu médical `#1565C0`, bleu foncé `#0D47A1`, vert santé `#2EBD85`, vert clair `#E8F8F1`, blanc `#FFFFFF`, gris texte `#263238`, gris clair `#F5F7FA`, rouge urgence `#D32F2F`, orange `#F59E0B`.
+- Nouveaux tokens applicatifs : `success`, `success-foreground`, `success-light`, `warning`, `warning-foreground`, `primary-dark` (+ mapping `@theme inline` → classes `bg-success`, `bg-warning`…).
+- Séries de graphiques `--chart-1..5` alignées sur la palette.
+
+### Modifié
+- Thème sombre recalculé par nuances dérivées documentées (`DESIGN_SYSTEM.md` §1.4).
+
+### Vérifié
+- Contrastes WCAG AA calculés et consignés (texte blanc interdit sur `success`/`warning`) ; tokens contrôlés dans le navigateur (computed styles) et dans le CSS servi ; lint 0 erreur ; page `/` sans erreur (agent-browser).
 
 ---
 

@@ -4,7 +4,7 @@
 > **Légende statuts :** ⏳ En attente · 🔄 En cours · ✅ Terminé · ❌ Bloqué · 🔁 À refaire
 
 **Dernière mise à jour :** 2026-09-30
-**Projet :** Scaffold Next.js 16.1.1 (App Router) + React 19 + TypeScript 5 — aucun backlog de features à ce jour.
+**Projet :** Next.js 16.1.1 (App Router) + React 19 + TS 5 — **design fondé** (palette médicale ADR-002) ; backlog features en attente PO.
 
 ---
 
@@ -18,7 +18,8 @@
 
 | Tâche | Fichiers | Statut |
 |---|---|---|
-| — | — | En attente de backlog (système initialisé, aucune feature demandée) |
+| DESIGN-T01 — Implémentation palette médicale (tokens) | src/app/globals.css | ✅ Terminé (vérifié navigateur + CSS servi) |
+| — | — | En attente de handoff LEAD_TO_TEAM (1re feature) |
 
 ## 🟣 DEVOPS/DATA
 
@@ -36,7 +37,8 @@
 
 | Tâche | Fichiers | Statut |
 |---|---|---|
-| — | — | En attente de backlog (système initialisé, aucune feature demandée) |
+| Commit conventionnel palette médicale | src/app/globals.css, .ai/* | 🔄 En cours |
+| Constat auto-commit plateforme b3c635e (message UUID) | COMMIT_LOG.md, LESSONS_LEARNED.md | ✅ Consigné (hors contrôle agent) |
 
 ## 🔍 REVIEWER
 
@@ -66,7 +68,8 @@
 
 | Tâche | Fichiers | Statut |
 |---|---|---|
-| — | — | En attente de backlog (système initialisé, aucune feature demandée) |
+| DESIGN-T01 — Palette médicale : mapping tokens + règles d'usage sémantique + contrastes AA | .ai/DESIGN_SYSTEM.md §1, .ai/ADR/ADR-002 | ✅ Terminé (2026-09-30) |
+| Prochain : wireframes 1re feature (phase 0) | — | ⏳ En attente demande PO |
 
 ## 🕵️ AUDIT
 

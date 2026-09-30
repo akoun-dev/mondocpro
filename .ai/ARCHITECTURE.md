@@ -58,6 +58,7 @@
 | ADR | Décision | Statut |
 |---|---|---|
 | [ADR-001](ADR/ADR-001-technologie-stack.md) | Conservation stack socle Next.js 16 / React 19 / Prisma SQLite | Accepté |
+| [ADR-002](ADR/ADR-002-palette-medicale.md) | Palette médicale officielle (9 couleurs PO) en tokens sémantiques Tailwind 4 | Accepté |
 
 Les décisions majeures futures (auth NextAuth, i18n next-intl, IA, temps réel…) **doivent** faire l'objet d'un ADR.
 

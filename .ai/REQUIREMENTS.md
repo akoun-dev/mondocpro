@@ -24,6 +24,7 @@ Feature liée: FEATURE-XXX | Specs: .ai/SPECS/FEATURE-XXX*.md
 | SYS-005 | Temps réel via mini-service socket.io + `XTransformPort` uniquement | Accepté |
 | SYS-006 | Responsive mobile-first + footer collant (règles UI/UX du système) | Accepté |
 | SYS-007 | Qualité : lint propre, revue, a11y AA, budgets perf respectés avant validation | Accepté |
+| SYS-008 | Design fondé sur la palette médicale officielle (9 couleurs, ADR-002) — tokens sémantiques uniquement, aucune couleur hors palette/nuances documentées | Accepté |
 
 ## Backlog produit
 

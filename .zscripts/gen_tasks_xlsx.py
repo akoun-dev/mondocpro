@@ -47,6 +47,16 @@ ROWS = [
         "", "", "Ce fichier",
     ],
     [
+        "DESIGN-T01", "Design", "Palette médicale", "Tokens + documentation",
+        "Implémentation des 9 couleurs du PO en tokens Tailwind 4 (globals.css) ; règles d'usage sémantique ; contrastes WCAG AA ; ADR-002",
+        "UX/UI + Frontend + Tech Lead", "TERMINÉ", "100%", "P1", "SYS-T01",
+        "src/app/globals.css · .ai/DESIGN_SYSTEM.md §1 · .ai/ADR/ADR-002",
+        "lint · CSS servi (grep hex) · agent-browser computed styles",
+        "Lint 0 erreur · 8/8 hex servis · tokens calculés conformes", "0",
+        "feat(design)", "APPROVED (revue interne Tech Lead)", "2026-09-30", "2026-09-30",
+        "Contrastes : texte blanc interdit sur success/warning",
+    ],
+    [
         "—", "Backlog", "—", "En attente de demandes utilisateur",
         "Aucune feature métier demandée à ce jour ; le backlog sera alimenté par le PO (utilisateur)",
         "—", "À FAIRE", "0%", "—", "—", "—", "—", "—", "—", "—", "—", "", "",

@@ -14,6 +14,7 @@ ID | Epic | Fonctionnalité | Sous-tâche | Description | Rôle Assigné | Statu
 | SYS-T01 | Système | Analyse initiale | Scan complet | Analyse complète du projet avant action (règle 2) | Audit + Tech Lead | TERMINÉ | 100% | P0 | — | Tout le dépôt (lecture) | Lint, dev.log | Lint 0 err., GET / 200 | 0 | — | n/a | init | init | Preuves dans worklog.md Task 1 |
 | SYS-T02 | Système | Gouvernance | Dossier .ai | Initialisation dossier de pilotage + registres | Doc + Tech Lead | TERMINÉ | 100% | P1 | SYS-T01 | .ai/** (38 fichiers) | Vérif LS | 38 fichiers présents | 0 | — | n/a | init | init | TASKS.xlsx généré séparément |
 | SYS-T03 | Système | Gouvernance | TASKS.xlsx | Fichier central de suivi (20 colonnes) | Doc | TERMINÉ | 100% | P1 | SYS-T01 | .ai/TASKS.xlsx | Inspect xlsx | OK | 0 | — | n/a | init | init | Miroir : ce fichier |
+| DESIGN-T01 | Design | Palette médicale | Tokens + docs | Implémentation des 9 couleurs PO en tokens Tailwind 4 (globals.css), règles d'usage, contrastes AA, ADR-002 | UX/UI + Frontend + Tech Lead | TERMINÉ | 100% | P1 | SYS-T01 | src/app/globals.css · .ai/DESIGN_SYSTEM.md §1 · .ai/ADR/ADR-002 | lint · CSS servi (grep hex) · agent-browser computed styles | Lint 0 err. · 8/8 hex servis · tokens calculés conformes | 0 | feat(design) | APPROVED (revue interne Tech Lead) | 2026-09-30 | 2026-09-30 | Contrastes : blanc interdit sur success/warning |
 
 ## Backlog (en attente de demandes utilisateur)
 
