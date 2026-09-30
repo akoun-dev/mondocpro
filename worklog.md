@@ -109,3 +109,24 @@ Stage Summary:
 - Historique distant contient (via b3c635e plateforme) .env bénin + db vide — retrait du suivi effectué ; nettoyage d'historique optionnel proposé au PO
 - SEC-ADV-001 : révocation du token = action PO (token utilisé 2 fois, one-shot URL, non persisté)
 - Système prêt pour la 1re feature métier (Phase 0 UX)
+
+---
+Task ID: 5 (data)
+Agent: ORCHESTRATEUR + DEVOPS/DATA + TECH LEAD + DEV SÉCURITÉ + AGENT COMMIT
+Task: Migration BDD → Supabase PostgreSQL (demande PO) — config .env, diagnostics réseau, push schéma, vérification roundtrip
+
+Work Log:
+- Diagnostic connectivité : host direct db.<ref>.supabase.co:5432 = IPv6-only (DNS sans A record) et sandbox sans IPv6 → direct impossible ; REST /auth/v1/health = 200 avec publishable key (projet actif, clés valides) ; /rest/v1/User avant push = PGRST205 (auth OK, table absente)
+- Pooler Supavisor : flotte aws-0-* → "tenant/user not found" (16 régions testées) ; flotte aws-1-* → RÉGION TROUVÉE par auth Prisma réelle : aws-1-eu-west-1
+- .env écrit (DATABASE_URL pooler session 5432 sslmode=require, NEXT_PUBLIC_SUPABASE_URL, PUBLISHABLE_KEY, ANON_KEY, SERVICE_ROLE_KEY) — non versionné (vérifié : absent du staging et du commit)
+- prisma/schema.prisma provider sqlite→postgresql ; schéma User/Post synchronisé ; client regénéré
+- Piège détecté et corrigé : le shell sandbox exporte DATABASE_URL=file:… (héritage scaffold) qui PRIME sur .env → P1012 ; correctif : scripts db:push/db:migrate/db:reset blindés (réexport depuis .env) + serveur dev redémarré avec la bonne variable
+- Vérifications : roundtrip Prisma "SELECT 1 OK" (bun .zscripts/test_db.ts) · REST /rest/v1/User = 200 [] · serveur dev Ready 866 ms + GET / 200 · lint 0 erreur
+- Registres : ADR-003 (accepté), ARCHITECTURE (diagramme + index), PROJECT_CONTEXT (stack + piège env), REQUIREMENTS SYS-009, SECURITY_AUDIT SEC-ADV-002 (rotation secrets Supabase), CHANGELOG, TASKS.md + TASKS.xlsx (DB-T01), TEAM_STATUS (DevOps/Data)
+- AGENT COMMIT : ace3161 feat(data) — commit vérifié sans .env, puis push GitHub (remote = local)
+
+Stage Summary:
+- SUPABASE OPÉRATIONNEL : PostgreSQL aws-1-eu-west-1 via Supavisor, schéma synchronisé, accès Prisma vérifié de bout en bout
+- Secrets en .env non versionné uniquement ; SEC-ADV-002 : PO doit rotater mot de passe DB + service_role (transmis en clair)
+- Migrations versionnées (prisma migrate + shadow DB) = prérequis PROD, planifié à la 1re feature
+- supabase-js non installé (YAGNI) — sera arbitrée par ADR si auth/realtime/storage demandés
