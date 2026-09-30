@@ -70,3 +70,21 @@ Stage Summary:
 - Contrat API initial ajouté : GET /api/health (VALIDÉ) — remplace le hello-world scaffold comme sonde E2E
 - Dette initiale tracée : DET-001 (page scaffold inline), DET-002 (modèles Prisma scaffold), DET-003 (allowedDevOrigins), DET-004 (ignoreBuildErrors — MAJEUR)
 - SYSTÈME MULTI-AGENTS OPÉRATIONNEL : en attente de la première demande de feature (Feature Lifecycle démarrera en phase 0 UX)
+
+---
+Task ID: 3 (design)
+Agent: ORCHESTRATEUR + UX/UI DESIGNER + DEV FRONTEND + TECH LEAD (exécution coordonnée, AGENT COMMIT inclus)
+Task: Palette médicale fournie par le PO — intégration design system + tokens + ADR + registres + commit
+
+Work Log:
+- PHASE 0/2 (UX/UI + Tech Lead) : mapping des 9 couleurs vers les tokens sémantiques shadcn ; DESIGN_SYSTEM.md §1 réécrit (usage sémantique, contrastes AA calculés, nuances dérivées) ; ADR-002 rédigé et accepté ; SYS-008 ajouté à REQUIREMENTS.md
+- PHASE 4 (Frontend) : src/app/globals.css réécrit — :root light (9 couleurs exactes) + .dark (nuances dérivées documentées) + nouveaux tokens success/warning/primary-dark + mapping @theme inline (classes bg-success, bg-warning, bg-primary-dark disponibles) ; chart-1..5 alignés palette
+- PHASE 5 (vérifications) : lint 0 erreur ; dev.log recompil OK (225 ms) ; CSS servi contrôlé (8/8 hex présents) ; agent-browser : computed styles conformes (#1565c0/#2ebd85/#f59e0b/#d32f2f, fond blanc, texte #263238), 0 erreur page, screenshot
+- Registres : TASKS.md + TASKS.xlsx (+DESIGN-T01, revalidé pipeline QA 0 issue), TEAM_STATUS, CHANGELOG (Non publié), COMMIT_LOG, LESSONS_LEARNED (LL-002 auto-commit plateforme), DAILY_STANDUP, ARCHITECTURE (index ADR)
+- AGENT COMMIT : constat auto-commit plateforme b3c635e (message UUID, 128 fichiers) consigné ; commit conventionnel aa26f1f "feat(design): adoption de la palette medicale officielle en tokens Tailwind 4" (13 fichiers, atomique)
+
+Stage Summary:
+- Palette médicale APPLIQUÉE et VÉRIFIÉE dans le navigateur — source de vérité : ADR-002 + DESIGN_SYSTEM.md §1
+- Contrainte a11y clé : texte blanc interdit sur #2EBD85 (success) et #F59E0B (warning) — foregrounds foncés imposés
+- Le code applicatif autre que globals.css reste inchangé (page scaffold intacte)
+- Prochain déclencheur : 1re demande de feature → PHASE 0 wireframes UX puis lifecycle complet
