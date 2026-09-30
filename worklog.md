@@ -164,3 +164,50 @@ Stage Summary:
 - Configuration locale reproductible : le PO clone le repo → cp .env.example .env → remplit ses valeurs Supabase → bun run db:push → bun run dev
 - Zéro secret dans l'historique git : .env.example placeholders uniquement ; .env réel reste non versionné
 - SEC-ADV-002 (rotation secrets Supabase) reste ouverte — action PO
+
+---
+Task ID: 7-d
+Agent: frontend-styling-expert
+Task: Frontend auth MondocPro (layout, page, composants auth, store, hook)
+
+Work Log:
+- Lecture worklog (Tasks 1→6), SPEC-AUTH.md, ADR-004 ; lecture contrats réels des routes /api/auth/* (login/register/me/logout) et de src/lib/auth-schemas.ts (champs zod + ZONE_LABELS) pour aligner le frontend sans toucher au backend
+- src/stores/auth-store.ts (CRÉÉ) : types AppRole/AppZone/AppUser/AuthStatus + store zustand { user, status, setStatus, setUser, clear } (ADR-004 §6)
+- src/hooks/use-auth.ts (CRÉÉ) : vérification de session GET /api/auth/me au premier montage (dédupliquée via garde status === "loading" → pas d'appel multiple malgré plusieurs consommateurs du hook) ; login/register → POST JSON, mapping details [{field,message}] → fieldErrors, réseau KO → toast destructif + { ok:false } ; logout → clear TOUJOURS (finally) même si erreur réseau ; pas de react-query
+- src/components/auth/login-form.tsx (CRÉÉ) : Input tel (inputMode/autoComplete tel), mot de passe + œil show/hide (bouton 44px aria-label/aria-pressed), h-11 partout, Alert destructive sur 401/réseau, erreurs inline aria-describedby/aria-invalid, Loader2 + bouton disabled pendant submitting, toast succès
+- src/components/auth/register-form.tsx (CRÉÉ) : nom complet, téléphone, Select zone (labels Yopougon/Songon/PK22/N'Dotré importés de ZONE_LABELS), 2 cards radio Patient (User) / Infirmier (Stethoscope) avec descriptions, mot de passe + confirmation (min 8), contrôle local zone/rôle avant POST, note « Les comptes Médecin Chef sont créés par l'administration », ADMIN jamais proposé (ADR-004 §5)
+- src/components/auth/auth-screen.tsx (CRÉÉ) : brand next/image 96px rounded-full ring-primary, titre text-primary, sous-titre muted, Tabs shadcn Connexion/Inscription, Card p-6 max-w-md
+- src/components/auth/user-dashboard.tsx (CRÉÉ) : header brand + avatar initiales + nom + badge rôle ; carte profil (nom, téléphone formaté +225 07 99 00 01 11, badge coloré PATIENT→primary / INFIRMIER→success / ADMIN→warning avec foregrounds foncés — jamais de blanc sur success/warning, zone) ; carte « Espace <rôle> » à venir (3 items Clock) contextualisée Patient/Infirmier/Médecin Chef ; bouton Se déconnecter (outline, texte destructive, LogOut, h-11)
+- src/app/layout.tsx (MODIFIÉ) : lang="fr", title « MondocPro — Votre santé, à domicile », description française métier, icons /img/mondocpro.jpeg ; suppressHydrationWarning + commentaire BUG-001 CONSERVÉS, fonts Geist + Toaster inchangés
+- src/app/page.tsx (REMPLI) : 'use client' + orchestration loading→spinner (role=status aria-live) / unauthenticated→AuthScreen / authenticated→UserDashboard ; layout commun min-h-screen flex-col + footer mt-auto commun aux 3 états (zones + © 2026, safe-area-inset-bottom) ; animations Tailwind (tw-animate) sans framer-motion
+- Correctif en cours de test : Select/RadioGroup passés en contrôlés stricts (value="" au lieu de undefined) → élimination des warnings React uncontrolled→controlled constatés au 1er passage
+- Vérifications : lint 0 erreur (3 runs) ; tsc --noEmit : 0 erreur dans src/ (seuls examples/ et skills/ scaffold ont des erreurs préexistantes) ; scan 0 console.log/TODO/FIXME dans les fichiers produits ; composants PO admin/nurses/users intacts (0 octet) ; aucun fichier backend modifié (git status vérifié)
+
+Stage Summary:
+- ÉCRAN D'AUTHENTIFICATION COMPLET LIVRÉ ET VÉRIFIÉ EN NAVIGATEUR (agent-browser, port 3000, sans redémarrage serveur)
+- Fichiers : src/stores/auth-store.ts, src/hooks/use-auth.ts, src/components/auth/{auth-screen,login-form,register-form,user-dashboard}.tsx (CRÉÉS) · src/app/layout.tsx, src/app/page.tsx (MODIFIÉS)
+- Tests browser RÉUSSIS : (1) rendu écran auth (brand, tabs, footer) ; (2) inscription Test Browser/+2250799000111/Songon/Patient → toast « Compte créé » → dashboard Patient avec badge « Patient », téléphone formaté, zone Songon ; (3) reload → session conservée (dashboard, pas de retour formulaire) ; (4) déconnexion → toast + retour écran auth ; (5) reconnexion compte test → dashboard ; (6) 401 mauvais mdp → Alert générique « Numéro ou mot de passe incorrect » (anti-énumération) ; (7) champ manquant zone → erreur inline locale ; (8) téléphone invalide → erreur zod serveur mappée inline ; (9) 409 numéro déjà inscrit → « Ce numéro est déjà inscrit. Connectez-vous. » ; (10) console/erreurs page propres, vue mobile 375px OK (captures /tmp/auth-screen-login.png, /tmp/dashboard-patient.png, /tmp/auth-mobile.png, /tmp/register-409.png)
+- lint 0 erreur / 0 warning ; aucune modification backend, DB ou composants PO ; comptes existants non touchés (compte de test créé uniquement via le flux UI comme demandé)
+- Prochaines étapes naturelles : espaces Patient/Infirmier/Admin (composants préparés par le PO), puis transitions/graphie finale selon DESIGN_SYSTEM.md
+
+---
+Task ID: 7 (orchestration)
+Agent: ORCHESTRATEUR + TECH LEAD + BACKEND + QA + COMMIT
+Task: FEATURE-AUTH — système d'authentification complet (Lifecycle 8 phases, demande PO)
+
+Work Log:
+- Sync git : pull du push externe PO 2b9e7b1 (logo public/img/mondocpro.jpeg + 3 composants vides admin/nurses/users) — audité, structure respectée
+- Phase 0-2 : SPECS/SPEC-AUTH.md (UX wireframe + 5 user stories + critères d'acceptation) · ADR-004 (téléphone unique, sessions DB hashées SHA-256, bcrypt 10, ADMIN par seed, zustand) · 4 contrats API VALIDÉS dans API_CONTRACTS.md AVANT tout code (API-first)
+- Phase 3 : découpage AUTH-T01..T04 dans TASKS.md
+- AUTH-T01 (Data) : prisma/schema.prisma — User métier (phone unique, passwordHash, Role/Zone enums) + Session (tokenHash SHA-256, expiresAt, cascade) ; scaffold Post supprimé (0 donnée) ; db push Supabase OK (10.65s) ; seed .zscripts/seed_admin.ts → compte Dr Kadjane créé (ADMIN_INITIAL_PASSWORD dans .env non versionné + placeholder .env.example)
+- AUTH-T02 (Backend) : src/lib/auth.ts (hashPassword/verifyPassword/createSession/getCurrentUser/destroySession, cookie mondocpro_session httpOnly sameSite=lax, secure en prod) · src/lib/auth-schemas.ts (zod 4) · 4 routes API — PIÈGE ENV RÉSOLU À LA RACINE : dev.sh exporte désormais DATABASE_URL depuis .env (l'export plateforme file:... primait) + backup .zscripts/.env.supabase enrichi ; serveur relancé détaché
+- Tests curl 9/9 conformes : register 201 (user sans hash) · doublon 409 · ADMIN refusé 400 · me 401/200 · login 200/401 générique · login admin seed 200 · logout 200 · me post-logout 401 · cookie #HttpOnly vérifié au jar
+- AUTH-T03 (Frontend, subagent frontend-styling-expert Task 7-d) : layout.tsx (lang fr, meta MondocPro, icône PO, BUG-001 préservé) · page.tsx orchestration loading/auth/dashboard + footer sticky commun · composants auth/ (auth-screen, login-form, register-form, user-dashboard) · stores/auth-store.ts (zustand) · hooks/use-auth.ts — 10/10 étapes agent-browser, lint+tsc 0 erreur
+- AUTH-T04 (QA indépendante) : re-test navigateur du chemin doré (login patient test, reload session conservée, logout, mobile 375px, footer visible, touch ≥44px, 0 erreur console) — 7 scénarios PASS consignés au journal TEST_PLAN
+- Registres : TASKS.md + TASKS.xlsx (AUTH-T01..04 TERMINÉ, validate 0 issue) · REQUIREMENTS SYS-010 · TEAM_STATUS · CHANGELOG · TEST_PLAN journal · ADR-004 · SPEC-AUTH
+
+Stage Summary:
+- FEATURE-AUTH LIVRÉE DE BOUT EN BOUT (Lifecycle 0→7 complet) : inscriptions patients/infirmiers opérationnelles, compte Médecin Chef Dr Kadjane seedé, sessions traçables en DB
+- Comptes de test fournis au PO (à changer) : Dr Kadjane +2250700000001 / Kadjane@Mondoc2026 — changement de mot de passe = itération suivante
+- 5 commits atomiques (fix devops, feat data, feat api, feat ui, docs gouvernance) puis push vérifié
+- Prochaines itérations naturelles : espaces Patient/Infirmier/Admin complets (RDV, Tokens, sensibilisations, dispatch) dans les composants préparés par le PO

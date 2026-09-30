@@ -5,6 +5,7 @@ Format basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) — ve
 ## [Non publié]
 
 ### Ajouté
+- **Authentification multirôle complète (FEATURE-AUTH, SYS-010, ADR-004)** : inscription/connexion par téléphone (PATIENT/INFIRMIER), sessions serveur en DB (token hashé SHA-256, cookie httpOnly 30 jours), mots de passe bcrypt, zones Yopougon/Songon/PK22/N'Dotré, compte Médecin Chef par seed, erreurs anti-énumération ; écran auth complet (tabs connexion/inscription, sélection zone et rôle, erreurs inline) + espace connecté par rôle + orchestration `page.tsx` (loading/auth/dashboard) ; 4 routes API `/api/auth/*` validées (9/9 tests contrats) ; schéma Prisma `User`/`Session` (+ enums `Role`/`Zone`).
 - **Modèle `.env.example` versionné (OPS-T03)** : reproduction facile de la configuration en local — placeholders uniquement (zéro secret, scan avant commit), exception `.gitignore` `!.env.example`, instructions pas-à-pas (`cp .env.example .env` → valeurs Dashboard Supabase → `db:push` → `dev`).
 - **Résilience boot (OPS-T02)** : flux custom `.zscripts/dev.sh` — restaure `.env` Supabase écrasé par la plateforme au cold start, puis `bun install` + `db:push` + serveur.
 - **Base de données Supabase PostgreSQL (ADR-003)** : provider Prisma `sqlite`→`postgresql`, connexion via pooler Supavisor (IPv4, session mode, région aws-1-eu-west-1), schéma `User`/`Post` synchronisé (vérifié roundtrip `SELECT 1` + REST 200), scripts `db:*` blindés contre l'override d'environnement, clés Supabase en `.env` (non versionné).

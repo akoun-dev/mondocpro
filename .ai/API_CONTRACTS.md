@@ -28,6 +28,31 @@ Validation: schéma zod de référence (src/lib/<domaine>.ts)
 - Response: 200 `{ "status": "ok", "timestamp": string }`
 - Notes: remplace le hello-world scaffold comme vérification de santé lors des tests E2E.
 
+### [POST] /api/auth/register — Inscription (Patient / Infirmier)
+- Feature: FEATURE-AUTH (SYS-010) | Owner: Backend | Statut: **VALIDÉ** (ADR-004)
+- Request: `{ "fullName": string(2..80), "phone": string(regex ^\+?[0-9]{8,15}$), "password": string(8..72), "confirmPassword": string, "role": "PATIENT"|"INFIRMIER", "zone": "YOPOUGON"|"SONGON"|"PK22"|"NDOTRE" }`
+- Response: 201 `{ "user": { "id": string, "fullName": string, "phone": string, "role": string, "zone": string, "createdAt": string } }` — cookie de session posé
+- Errors: 400 `{ error, details }` (zod) · 409 `{ error }` numéro déjà inscrit · 500
+- Notes: `ADMIN` refusé (seed uniquement) ; `confirmPassword` validé = `password` ; jamais de retour de `passwordHash`.
+
+### [POST] /api/auth/login — Connexion
+- Feature: FEATURE-AUTH (SYS-010) | Owner: Backend | Statut: **VALIDÉ** (ADR-004)
+- Request: `{ "phone": string, "password": string }`
+- Response: 200 `{ "user": { ...idem register } }` — cookie de session posé
+- Errors: 400 `{ error, details }` (zod) · 401 `{ error: "Numéro ou mot de passe incorrect" }` (générique anti-énumération) · 500
+
+### [GET] /api/auth/me — Profil courant
+- Feature: FEATURE-AUTH (SYS-010) | Owner: Backend | Statut: **VALIDÉ** (ADR-004)
+- Request: — (cookie de session)
+- Response: 200 `{ "user": { ...idem register } }`
+- Errors: 401 `{ error }` non authentifié / session expirée · 500
+
+### [POST] /api/auth/logout — Déconnexion
+- Feature: FEATURE-AUTH (SYS-010) | Owner: Backend | Statut: **VALIDÉ** (ADR-004)
+- Request: — (cookie de session)
+- Response: 200 `{ "ok": true }` — session détruite en DB + cookie écrasé
+- Errors: 500 (idempotent : sans cookie valide → 200 `ok`)
+
 ---
 
 ## Contrats à venir

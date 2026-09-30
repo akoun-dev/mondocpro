@@ -14,7 +14,13 @@
 
 | FEATURE-XXX | Scénario | Étapes | Attendu | Résultat | Date | Testeur |
 |---|---|---|---|---|---|---|
-| _—_ | _Aucun test enregistré (aucune feature implémentée)_ | _—_ | _—_ | _—_ | _—_ | _—_ |
+| FEATURE-AUTH | Contrats API (curl, 9 cas) | register 201/409/400 · login 200/401 · me 200/401 · logout 200 · login admin seed 200 | Réponses conformes à API_CONTRACTS.md (enveloppe standard, pas de passwordHash) | PASS | 2026-09-30 | QA (curl) |
+| FEATURE-AUTH | Cookie de session | POST login → jar curl | `mondocpro_session` HttpOnly, SameSite=Lax | PASS | 2026-09-30 | QA (curl) |
+| FEATURE-AUTH | Chemin doré — inscription patient | Formulaire (zone Songon, rôle Patient) → soumission | 201 → session ouverte → dashboard avec badge « Patient » | PASS | 2026-09-30 | agent-browser (frontend + QA) |
+| FEATURE-AUTH | Session persistante | Reload après connexion | GET /api/auth/me 200 → dashboard conservé (pas de flash formulaire) | PASS | 2026-09-30 | agent-browser |
+| FEATURE-AUTH | Déconnexion | Clic « Se déconnecter » | Session détruite en DB + cookie → retour écran auth, me → 401 | PASS | 2026-09-30 | agent-browser |
+| FEATURE-AUTH | Erreurs UX | Mauvais mot de passe · numéro doublon · téléphone invalide | 401 Alert générique · 409 inline · 400 erreur inline par champ | PASS | 2026-09-30 | agent-browser |
+| FEATURE-AUTH | Responsive + a11y + perf | Viewport 375px · footer · cibles tactiles · console | Formulaire visible, footer visible, boutons ≥ 44px, 0 erreur console | PASS | 2026-09-30 | agent-browser (QA indépendante) |
 
 ### Modèle de ligne
 - **Scénario** : « Chemin doré FEATURE-001 — [nom] »

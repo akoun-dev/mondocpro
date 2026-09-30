@@ -46,6 +46,13 @@ type(scope): description
 | c6b1d34 | docs | gouvernance | worklog migration supabase (Task 5) | AGENT COMMIT | 2026-09-30 | DB-T01 |
 | d1370c3 | chore | devops | flux de boot custom resistant au cold start (dev.sh) | AGENT COMMIT | 2026-09-30 | OPS-T02 |
 | 0badaee | ⚠️ hors-système | — | 92996b23-36f9-46a0-b6fc-33944f81c473 (message UUID) | Plateforme sandbox (Z User) | 2026-09-30 | — (auto-commit plateforme : .zscripts/gen_tasks_xlsx.py uniquement, audité sans secret) |
+| 3c153ce | chore | env | ajoute le modele env.example versionne pour config locale | AGENT COMMIT | 2026-09-30 | OPS-T03 (Refs: SEC-ADV-002) |
+| 89c70ad | docs | gouvernance | registre OPS-T03 et journal des commits complete | AGENT COMMIT | 2026-09-30 | OPS-T03 |
+| 2b9e7b1 | ⚠️ hors-système | — | feat(ui): ajouter les composants d'administration, infirmiers et utilisateurs | PO (push externe) | 2026-09-30 | — (push PO : image de marque + 3 composants vides, intégré au backlog AUTH-T03) |
+| 3370abb | fix | devops | exporte DATABASE_URL depuis .env dans le flux de boot | AGENT COMMIT | 2026-09-30 | AUTH-T02 (piège env plateforme) |
+| f68af5d | feat | data | schema auth user et session avec seed du medecin chef | AGENT COMMIT | 2026-09-30 | AUTH-T01 (Refs: ADR-004, SYS-010) |
+| 462bc25 | feat | api | service et routes auth register login me logout | AGENT COMMIT | 2026-09-30 | AUTH-T02 (Refs: SYS-010) |
+| 5c13c4e | feat | ui | ecran auth complet et espace connecte multirrole | AGENT COMMIT | 2026-09-30 | AUTH-T03 (Refs: ADR-004) |
 
 
 > **Push 2026-09-30 (OPS-T01)** : `main` poussée vers `github.com/akoun-dev/mondocpro.git` (remote vide au départ) — vérification : hash remote `90786c8` = hash local. Token PO utilisé one-shot en URL de commande (non persisté : `git config` et `.git/config` audités), remote `origin` ajouté sans identifiants.
