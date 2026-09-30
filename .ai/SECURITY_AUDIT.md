@@ -58,6 +58,6 @@
 
 | ID | Date | Recommandation | Criticité | Statut |
 |---|---|---|---|---|
-| SEC-ADV-001 | 2026-09-30 | **Rotation du token GitHub conseillée** : le PO a transmis un token d'accès personnel (PAT) en clair dans la conversation. Le token a été utilisé en mémoire uniquement (jamais écrit dans un fichier, ni `.git/config`, ni `.env`, ni le dépôt) et ne sera plus utilisé. Toutefois, une fois exposé dans un canal de chat, un token doit être considéré comme compromis → **révoquer/regénérer sur GitHub (Settings → Developer settings → Tokens)** après le push. | Moyenne (hygiène) | ⏳ Action PO |
+| SEC-ADV-001 | 2026-09-30 | **Rotation du token GitHub conseillée** : le PO a transmis un token d'accès personnel (PAT) en clair dans la conversation. Usage vérifié : one-shot (2 pushes), jamais écrit dans un fichier, ni `.git/config`, ni `.env`, ni le dépôt (audit `git config` + grep `.git/config` : absence confirmée). Le push étant effectué, le token peut être révoqué immédiatement → **révoquer/regénérer sur GitHub (Settings → Developer settings → Tokens)**. Note : le dépôt distant a aussi reçu l'historique antérieur contenant `.env` (chemin SQLite local, sans secret) et `db/custom.db` (0 ligne) via l'auto-commit plateforme b3c635e — contenu bénin, retrait du suivi effectué en 90786c8. | Moyenne (hygiène) | ⏳ Révocation = action PO |
 
 **Politique secrets appliquée (DEV SÉCURITÉ) :** aucun token/secret ne doit figurer dans le code, la config, les registres `.ai/` ou l'historique Git. Usage one-shot en variable de commande uniquement.

@@ -88,3 +88,24 @@ Stage Summary:
 - Contrainte a11y clé : texte blanc interdit sur #2EBD85 (success) et #F59E0B (warning) — foregrounds foncés imposés
 - Le code applicatif autre que globals.css reste inchangé (page scaffold intacte)
 - Prochain déclencheur : 1re demande de feature → PHASE 0 wireframes UX puis lifecycle complet
+
+---
+Task ID: 4 (fix + ops)
+Agent: ORCHESTRATEUR + DEV FRONTEND (fix) + DEVOPS (push) + DEV SÉCURITÉ (avis token) + AGENT COMMIT
+Task: (1) Correction erreur d'hydratation rapportée par le PO ; (2) push vers github.com/akoun-dev/mondocpro.git
+
+Work Log:
+- Diagnostic BUG-001 : attributs bis_status/bis_frame_id/__processed_* injectés sur <body> par le script d'intégration du preview (absents en navigateur headless → cause externe confirmée) → faux mismatch SSR/client React
+- Fix canonique : suppressHydrationWarning sur <body> (src/app/layout.tsx, commentaire explicatif) — vérifié : reload agent-browser 0 erreur page, console propre (HMR seulement), lint 0 erreur
+- Registres : BUGS.md (BUG-001 ✅ corrigé), CHANGELOG (section Corrigé), TASKS.md + TASKS.xlsx (BUG-T01, OPS-T01), SECURITY_AUDIT (SEC-ADV-001 rotation token)
+- OPS-T01 : git ls-remote → remote VIDE (aucun conflit) ; audit pré-push → .env et db/custom.db trackés par l'auto-commit plateforme b3c635e ; analyse risque : aucun secret (.env = chemin SQLite local), 0 donnée personnelle (2 tables, 0 ligne)
+- Conformité : git rm --cached .env db/custom.db + .gitignore (db/, *.db) → commit 90786c8
+- Push main → remote : réussi ([new branch] main -> main) ; preuve : hash remote 90786c8 = hash local ; remote origin ajouté PROPRE (sans token) ; audit .git/config + git config → token NON persisté
+- AGENT COMMIT : 13d8d92 fix(ui) · 4f85b0d docs(gouvernance) · 90786c8 chore(securite) — tous conventionnels/atomiques, journalisés
+
+Stage Summary:
+- Erreur d'hydratation CORRIGÉE et vérifiée dans le navigateur (BUG-001 clôturé)
+- Dépôt distant github.com/akoun-dev/mondocpro.git synchronisé (main = 90786c8, 8 commits)
+- Historique distant contient (via b3c635e plateforme) .env bénin + db vide — retrait du suivi effectué ; nettoyage d'historique optionnel proposé au PO
+- SEC-ADV-001 : révocation du token = action PO (token utilisé 2 fois, one-shot URL, non persisté)
+- Système prêt pour la 1re feature métier (Phase 0 UX)

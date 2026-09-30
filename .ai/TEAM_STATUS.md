@@ -12,7 +12,7 @@
 
 | Tâche | Fichiers | Statut |
 |---|---|---|
-| — | — | En attente de backlog (système initialisé, aucune feature demandée) |
+| — | — | En attente de backlog (aucune feature métier demandée) |
 
 ## 🔵 FRONTEND
 
@@ -25,19 +25,19 @@
 
 | Tâche | Fichiers | Statut |
 |---|---|---|
-| — | — | En attente de backlog (système initialisé, aucune feature demandée) |
+| OPS-T01 — Push main → github.com/akoun-dev/mondocpro.git (vérifié 90786c8) + retrait .env/db du suivi | .gitignore, remote origin | ✅ Terminé (2026-09-30) |
 
 ## 🔒 SECURITY
 
 | Tâche | Fichiers | Statut |
 |---|---|---|
-| — | — | En attente de backlog (système initialisé, aucune feature demandée) |
+| SEC-ADV-001 — Token GitHub transmis en clair par le PO : usage one-shot audité, non persisté ; rotation recommandée | SECURITY_AUDIT.md | ✅ Consigné · ⏳ Rotation = action PO |
 
 ## 📝 COMMIT
 
 | Tâche | Fichiers | Statut |
 |---|---|---|
-| Commit conventionnel palette médicale | src/app/globals.css, .ai/* | 🔄 En cours |
+| Commits aa26f1f→90786c8 (palette, fix hydratation, registres, untrack .env/db) + push GitHub | voir COMMIT_LOG.md | ✅ Terminé |
 | Constat auto-commit plateforme b3c635e (message UUID) | COMMIT_LOG.md, LESSONS_LEARNED.md | ✅ Consigné (hors contrôle agent) |
 
 ## 🔍 REVIEWER

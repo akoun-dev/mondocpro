@@ -37,6 +37,13 @@ type(scope): description
 | d464483 | chore | — | Initial commit | Orchestrateur | Pré-système | — (scaffold) |
 | b3c635e | ⚠️ hors-système | — | 8e88d3b5-62ff-43c1-a190-f714eeb86cbd (message UUID) | Plateforme sandbox (Z User) | 2026-09-30 | — (auto-commit plateforme : gouvernance .ai/ + worklog inclus) |
 | aa26f1f | feat | design | adoption de la palette medicale officielle en tokens Tailwind 4 | AGENT COMMIT | 2026-09-30 | DESIGN-T01 (Refs: ADR-002, SYS-008) |
+| 665c177 | docs | gouvernance | journal des commits (hash aa26f1f) et worklog palette medicale | AGENT COMMIT | 2026-09-30 | DESIGN-T01 |
+| 13d8d92 | fix | ui | supprime le faux mismatch d'hydratation sur body | AGENT COMMIT | 2026-09-30 | BUG-001 |
+| 4f85b0d | docs | gouvernance | registres BUG-001, avis SEC-ADV-001 (rotation token), tasks ops push | AGENT COMMIT | 2026-09-30 | BUG-001, SEC-ADV-001, OPS-T01 |
+| 90786c8 | chore | securite | retire .env et la base sqlite du suivi git | AGENT COMMIT | 2026-09-30 | SEC-ADV-001, OPS-T01 |
+
+
+> **Push 2026-09-30 (OPS-T01)** : `main` poussée vers `github.com/akoun-dev/mondocpro.git` (remote vide au départ) — vérification : hash remote `90786c8` = hash local. Token PO utilisé one-shot en URL de commande (non persisté : `git config` et `.git/config` audités), remote `origin` ajouté sans identifiants.
 
 > Le commit `d464483` est antérieur à l'initialisation du système multi-agents : il correspond au scaffold livré.
 > ⚠️ **Incident d'intégrité consigné** : le commit `b3c635e` a été créé automatiquement par la plateforme (message UUID non conventionnel) pendant la session, échappant au contrôle de l'AGENT COMMIT. Son contenu a été audité (128 fichiers : gouvernance `.ai/`, worklog, configs scaffold — rien d'anormal). Les agents ne peuvent pas empêcher cet auto-commit : **lesson LL-002** — chaque commit d'agent vérifie l'état Git avant/après et le présent journal fait foi. Tous les commits d'agents respectent les règles ci-dessus.
