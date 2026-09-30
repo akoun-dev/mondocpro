@@ -76,6 +76,16 @@ ROWS = [
         "SEC-ADV-001 : rotation du token conseillée (action PO)",
     ],
     [
+        "OPS-T02", "DevOps", "Résilience boot", "dev.sh custom",
+        "/start.sh écrase .env (file:...) à chaque cold start → flux custom .zscripts/dev.sh (restaure .env Supabase depuis .zscripts/.env.supabase non versionné, bun install, db:push, dev) + relance serveur vérifiée cross-session",
+        "DEVOPS/DATA", "TERMINÉ", "100%", "P0", "DB-T01",
+        ".zscripts/dev.sh · .zscripts/.env.supabase (non versionné)",
+        "curl 200 cross-session · Caddy :81 200 · test_db SELECT 1",
+        "200 · 200 · OK", "0",
+        "chore(devops)", "n/a (ops)", "2026-09-30", "2026-09-30",
+        "Secrets protégés (.gitignore .env*) ; flux boot validé",
+    ],
+    [
         "DB-T01", "Data", "Supabase PostgreSQL", "Migration BDD",
         "Provider prisma sqlite→postgresql ; pooler Supavisor IPv4 (host direct IPv6-only) ; région aws-1-eu-west-1 découverte par auth réelle ; schéma User/Post synchronisé ; scripts db:* blindés ; secrets en .env non versionné",
         "DEVOPS/DATA + Tech Lead + Security", "TERMINÉ", "100%", "P1", "OPS-T01",
