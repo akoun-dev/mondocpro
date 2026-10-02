@@ -347,3 +347,21 @@ Stage Summary:
 - Nouveau design auth v4 premium (dégradé + verre dépoli) et espace connecté style app mobile (bottom nav) — palette ADR-002 strictement respectée, contrastes AA maintenus (texte blanc uniquement sur primary/primary-dark)
 - Logique métier intacte : aucune modification des hooks, schémas zod, routes API ou contrats
 - Captures de vérification dans .zscripts/ui-v2-*.png, ui-v3-*.png, ui-v4-*.png
+
+---
+Task ID: 7
+Agent: Super Z (audit pré-patients)
+Task: Audit complet avant de lancer les fonctionnalités patients (demande PO).
+
+Work Log:
+- Gouvernance : TASKS, API_CONTRACTS (6 contrats auth validés), REQUIREMENTS (backlog vide), DEBT_REPORT, ADR 001-004, PROJECT_CONTEXT
+- Code : 6 routes API auth conformes, 0 TODO/console.log dans src/ (hors TODO INT-SMS documenté), composants admin/nurses/users vides (placeholders PO)
+- tsc --noEmit : 0 erreur dans src/ (erreurs confinées à examples/, skills/, scripts/) ; ESLint 0 erreur
+- DB Supabase (script scripts/audit-db.ts, lecture seule) : 2 users (1 ADMIN, 1 PATIENT), 3 sessions (0 expirées), 0 reset tokens, AUCUNE table métier patient
+- Sécurité : bcrypt, sessions SHA-256, anti-énumération, ADMIN seed-only — conforme ADR-004 ; INT-SMS ouvert (passerelle SMS)
+- Rapport : .ai/AUDITS/2026-10-02-pre-patients.md (verdict PRÊT, 0 blocage)
+- DEBT_REPORT mis à jour : DET-001/002 clôturées (résolues de facto) ; restent DET-003 (mineur) + DET-004 (majeur, ignoreBuildErrors)
+
+Stage Summary:
+- Verdict : PRÊT pour FEATURE-PATIENT — aucun blocage, dette maîtrisée
+- Recommandations : API-first (contrats avant frontend), migrations versionnées dès le 1er modèle métier (SYS-009), ordre RDV → Sensibilisations → Tokens
