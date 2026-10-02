@@ -105,7 +105,7 @@
    105→
    106→Task ID: 4 (fix + ops)
    107→Agent: ORCHESTRATEUR + DEV FRONTEND (fix) + DEVOPS (push) + DEV SÉCURITÉ (avis token) + AGENT COMMIT
-   108→Task: (1) Correction erreur d'hydratation rapportée par le PO ; (2) push vers github.com/akoun-dev/mondocpro.git
+   108→Task: (1) Correction erreur d'hydratation rapportée par le PO ; (2) push vers github.com/akoun-dev/Mon doc Pro.git
    109→
    110→Work Log:
    111→
@@ -120,7 +120,7 @@
    120→Stage Summary:
    121→
    122→- Erreur d'hydratation CORRIGÉE et vérifiée dans le navigateur (BUG-001 clôturé)
-   123→- Dépôt distant github.com/akoun-dev/mondocpro.git synchronisé (main = 90786c8, 8 commits)
+   123→- Dépôt distant github.com/akoun-dev/Mon doc Pro.git synchronisé (main = 90786c8, 8 commits)
    124→- Historique distant contient (via b3c635e plateforme) .env bénin + db vide — retrait du suivi effectué ; nettoyage d'historique optionnel proposé au PO
    125→- SEC-ADV-001 : révocation du token = action PO (token utilisé 2 fois, one-shot URL, non persisté)
    126→- Système prêt pour la 1re feature métier (Phase 0 UX)
@@ -193,7 +193,7 @@
    193→
    194→Task ID: 7-d
    195→Agent: frontend-styling-expert
-   196→Task: Frontend auth MondocPro (layout, page, composants auth, store, hook)
+   196→Task: Frontend auth Mon doc Pro (layout, page, composants auth, store, hook)
    197→
    198→Work Log:
    199→
@@ -204,7 +204,7 @@
    204→- src/components/auth/register-form.tsx (CRÉÉ) : nom complet, téléphone, Select zone (labels Yopougon/Songon/PK22/N'Dotré importés de ZONE_LABELS), 2 cards radio Patient (User) / Infirmier (Stethoscope) avec descriptions, mot de passe + confirmation (min 8), contrôle local zone/rôle avant POST, note « Les comptes Médecin Chef sont créés par l'administration », ADMIN jamais proposé (ADR-004 §5)
    205→- src/components/auth/auth-screen.tsx (CRÉÉ) : brand next/image 96px rounded-full ring-primary, titre text-primary, sous-titre muted, Tabs shadcn Connexion/Inscription, Card p-6 max-w-md
    206→- src/components/auth/user-dashboard.tsx (CRÉÉ) : header brand + avatar initiales + nom + badge rôle ; carte profil (nom, téléphone formaté +225 07 99 00 01 11, badge coloré PATIENT→primary / INFIRMIER→success / ADMIN→warning avec foregrounds foncés — jamais de blanc sur success/warning, zone) ; carte « Espace <rôle> » à venir (3 items Clock) contextualisée Patient/Infirmier/Médecin Chef ; bouton Se déconnecter (outline, texte destructive, LogOut, h-11)
-   207→- src/app/layout.tsx (MODIFIÉ) : lang="fr", title « MondocPro — Votre santé en main », description française métier, icons /img/mondocpro.jpeg ; suppressHydrationWarning + commentaire BUG-001 CONSERVÉS, fonts Geist + Toaster inchangés
+   207→- src/app/layout.tsx (MODIFIÉ) : lang="fr", title « Mon doc Pro — Votre santé en main », description française métier, icons /img/Mon doc Pro.jpeg ; suppressHydrationWarning + commentaire BUG-001 CONSERVÉS, fonts Geist + Toaster inchangés
    208→- src/app/page.tsx (REMPLI) : 'use client' + orchestration loading→spinner (role=status aria-live) / unauthenticated→AuthScreen / authenticated→UserDashboard ; layout commun min-h-screen flex-col + footer mt-auto commun aux 3 états (zones + © 2026, safe-area-inset-bottom) ; animations Tailwind (tw-animate) sans framer-motion
    209→- Correctif en cours de test : Select/RadioGroup passés en contrôlés stricts (value="" au lieu de undefined) → élimination des warnings React uncontrolled→controlled constatés au 1er passage
    210→- Vérifications : lint 0 erreur (3 runs) ; tsc --noEmit : 0 erreur dans src/ (seuls examples/ et skills/ scaffold ont des erreurs préexistantes) ; scan 0 console.log/TODO/FIXME dans les fichiers produits ; composants PO admin/nurses/users intacts (0 octet) ; aucun fichier backend modifié (git status vérifié)
@@ -225,13 +225,13 @@
    225→
    226→Work Log:
    227→
-   228→- Sync git : pull du push externe PO 2b9e7b1 (logo public/img/mondocpro.jpeg + 3 composants vides admin/nurses/users) — audité, structure respectée
+   228→- Sync git : pull du push externe PO 2b9e7b1 (logo public/img/Mon doc Pro.jpeg + 3 composants vides admin/nurses/users) — audité, structure respectée
    229→- Phase 0-2 : SPECS/SPEC-AUTH.md (UX wireframe + 5 user stories + critères d'acceptation) · ADR-004 (téléphone unique, sessions DB hashées SHA-256, bcrypt 10, ADMIN par seed, zustand) · 4 contrats API VALIDÉS dans API_CONTRACTS.md AVANT tout code (API-first)
    230→- Phase 3 : découpage AUTH-T01..T04 dans TASKS.md
    231→- AUTH-T01 (Data) : prisma/schema.prisma — User métier (phone unique, passwordHash, Role/Zone enums) + Session (tokenHash SHA-256, expiresAt, cascade) ; scaffold Post supprimé (0 donnée) ; db push Supabase OK (10.65s) ; seed .zscripts/seed_admin.ts → compte Dr Kadjane créé (ADMIN_INITIAL_PASSWORD dans .env non versionné + placeholder .env.example)
-   232→- AUTH-T02 (Backend) : src/lib/auth.ts (hashPassword/verifyPassword/createSession/getCurrentUser/destroySession, cookie mondocpro_session httpOnly sameSite=lax, secure en prod) · src/lib/auth-schemas.ts (zod 4) · 4 routes API — PIÈGE ENV RÉSOLU À LA RACINE : dev.sh exporte désormais DATABASE_URL depuis .env (l'export plateforme file:... primait) + backup .zscripts/.env.supabase enrichi ; serveur relancé détaché
+   232→- AUTH-T02 (Backend) : src/lib/auth.ts (hashPassword/verifyPassword/createSession/getCurrentUser/destroySession, cookie Mon doc Pro_session httpOnly sameSite=lax, secure en prod) · src/lib/auth-schemas.ts (zod 4) · 4 routes API — PIÈGE ENV RÉSOLU À LA RACINE : dev.sh exporte désormais DATABASE_URL depuis .env (l'export plateforme file:... primait) + backup .zscripts/.env.supabase enrichi ; serveur relancé détaché
    233→- Tests curl 9/9 conformes : register 201 (user sans hash) · doublon 409 · ADMIN refusé 400 · me 401/200 · login 200/401 générique · login admin seed 200 · logout 200 · me post-logout 401 · cookie #HttpOnly vérifié au jar
-   234→- AUTH-T03 (Frontend, subagent frontend-styling-expert Task 7-d) : layout.tsx (lang fr, meta MondocPro, icône PO, BUG-001 préservé) · page.tsx orchestration loading/auth/dashboard + footer sticky commun · composants auth/ (auth-screen, login-form, register-form, user-dashboard) · stores/auth-store.ts (zustand) · hooks/use-auth.ts — 10/10 étapes agent-browser, lint+tsc 0 erreur
+   234→- AUTH-T03 (Frontend, subagent frontend-styling-expert Task 7-d) : layout.tsx (lang fr, meta Mon doc Pro, icône PO, BUG-001 préservé) · page.tsx orchestration loading/auth/dashboard + footer sticky commun · composants auth/ (auth-screen, login-form, register-form, user-dashboard) · stores/auth-store.ts (zustand) · hooks/use-auth.ts — 10/10 étapes agent-browser, lint+tsc 0 erreur
    235→- AUTH-T04 (QA indépendante) : re-test navigateur du chemin doré (login patient test, reload session conservée, logout, mobile 375px, footer visible, touch ≥44px, 0 erreur console) — 7 scénarios PASS consignés au journal TEST_PLAN
    236→- Registres : TASKS.md + TASKS.xlsx (AUTH-T01..04 TERMINÉ, validate 0 issue) · REQUIREMENTS SYS-010 · TEAM_STATUS · CHANGELOG · TEST_PLAN journal · ADR-004 · SPEC-AUTH
    237→
@@ -245,14 +245,14 @@
    245→---
    246→Task ID: 1
    247→Agent: Super Z (setup environnement)
-   248→Task: Cloner github.com/akoun-dev/mondocpro, remplacer intégralement le workspace, injecter les variables d'environnement Supabase fournies par le propriétaire, démarrer le serveur.
+   248→Task: Cloner github.com/akoun-dev/Mon doc Pro, remplacer intégralement le workspace, injecter les variables d'environnement Supabase fournies par le propriétaire, démarrer le serveur.
    249→
    250→Work Log:
    251→- Workspace scaffold supprimé ; repo cloné (branche main, HEAD 228d8ec) et déplacé à la racine de /home/z/my-project
    252→- bun install (829 packages) + bunx prisma generate OK
    253→- Variables fournies écrites dans .env et .zscripts/.env.supabase : NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY, NEXT_PUBLIC_SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY, ADMIN_INITIAL_PASSWORD
    254→- .zscripts/dev.sh modifié : db:push rendu conditionnel (ignoré si DATABASE_URL absente) pour permettre le boot sans creds DB
-   255→- Serveur démarré via nohup bash .zscripts/dev.sh (mécanisme plateforme) ; vérifié au navigateur : écran auth MondocPro rendu, GET / 200
+   255→- Serveur démarré via nohup bash .zscripts/dev.sh (mécanisme plateforme) ; vérifié au navigateur : écran auth Mon doc Pro rendu, GET / 200
    256→- POST /api/auth/login → 500 : Prisma sans DATABASE_URL (attendu)
    257→
    258→Stage Summary:
@@ -274,7 +274,7 @@
    274→
    275→Stage Summary:
    276→- App pleinement opérationnelle : UI + API auth + PostgreSQL Supabase connectés
-   277→- Compte de test : +2250700000001 / Admin#MonDocPro (à changer à la première connexion)
+   277→- Compte de test : +2250700000001 / Admin#Mon doc Pro (à changer à la première connexion)
    278→
    279→---
    280→Task ID: 3

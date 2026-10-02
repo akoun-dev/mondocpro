@@ -105,7 +105,7 @@ Stage Summary:
 
 Task ID: 4 (fix + ops)
 Agent: ORCHESTRATEUR + DEV FRONTEND (fix) + DEVOPS (push) + DEV SÉCURITÉ (avis token) + AGENT COMMIT
-Task: (1) Correction erreur d'hydratation rapportée par le PO ; (2) push vers github.com/akoun-dev/mondocpro.git
+Task: (1) Correction erreur d'hydratation rapportée par le PO ; (2) push vers github.com/akoun-dev/Mon doc Pro.git
 
 Work Log:
 
@@ -120,7 +120,7 @@ Work Log:
 Stage Summary:
 
 - Erreur d'hydratation CORRIGÉE et vérifiée dans le navigateur (BUG-001 clôturé)
-- Dépôt distant github.com/akoun-dev/mondocpro.git synchronisé (main = 90786c8, 8 commits)
+- Dépôt distant github.com/akoun-dev/Mon doc Pro.git synchronisé (main = 90786c8, 8 commits)
 - Historique distant contient (via b3c635e plateforme) .env bénin + db vide — retrait du suivi effectué ; nettoyage d'historique optionnel proposé au PO
 - SEC-ADV-001 : révocation du token = action PO (token utilisé 2 fois, one-shot URL, non persisté)
 - Système prêt pour la 1re feature métier (Phase 0 UX)
@@ -193,7 +193,7 @@ Stage Summary:
 
 Task ID: 7-d
 Agent: frontend-styling-expert
-Task: Frontend auth MondocPro (layout, page, composants auth, store, hook)
+Task: Frontend auth Mon doc Pro (layout, page, composants auth, store, hook)
 
 Work Log:
 
@@ -204,7 +204,7 @@ Work Log:
 - src/components/auth/register-form.tsx (CRÉÉ) : nom complet, téléphone, Select zone (labels Yopougon/Songon/PK22/N'Dotré importés de ZONE_LABELS), 2 cards radio Patient (User) / Infirmier (Stethoscope) avec descriptions, mot de passe + confirmation (min 8), contrôle local zone/rôle avant POST, note « Les comptes Médecin Chef sont créés par l'administration », ADMIN jamais proposé (ADR-004 §5)
 - src/components/auth/auth-screen.tsx (CRÉÉ) : brand next/image 96px rounded-full ring-primary, titre text-primary, sous-titre muted, Tabs shadcn Connexion/Inscription, Card p-6 max-w-md
 - src/components/auth/user-dashboard.tsx (CRÉÉ) : header brand + avatar initiales + nom + badge rôle ; carte profil (nom, téléphone formaté +225 07 99 00 01 11, badge coloré PATIENT→primary / INFIRMIER→success / ADMIN→warning avec foregrounds foncés — jamais de blanc sur success/warning, zone) ; carte « Espace <rôle> » à venir (3 items Clock) contextualisée Patient/Infirmier/Médecin Chef ; bouton Se déconnecter (outline, texte destructive, LogOut, h-11)
-- src/app/layout.tsx (MODIFIÉ) : lang="fr", title « MondocPro — Votre santé en main », description française métier, icons /img/mondocpro.jpeg ; suppressHydrationWarning + commentaire BUG-001 CONSERVÉS, fonts Geist + Toaster inchangés
+- src/app/layout.tsx (MODIFIÉ) : lang="fr", title « Mon doc Pro — Votre santé en main », description française métier, icons /img/Mon doc Pro.jpeg ; suppressHydrationWarning + commentaire BUG-001 CONSERVÉS, fonts Geist + Toaster inchangés
 - src/app/page.tsx (REMPLI) : 'use client' + orchestration loading→spinner (role=status aria-live) / unauthenticated→AuthScreen / authenticated→UserDashboard ; layout commun min-h-screen flex-col + footer mt-auto commun aux 3 états (zones + © 2026, safe-area-inset-bottom) ; animations Tailwind (tw-animate) sans framer-motion
 - Correctif en cours de test : Select/RadioGroup passés en contrôlés stricts (value="" au lieu de undefined) → élimination des warnings React uncontrolled→controlled constatés au 1er passage
 - Vérifications : lint 0 erreur (3 runs) ; tsc --noEmit : 0 erreur dans src/ (seuls examples/ et skills/ scaffold ont des erreurs préexistantes) ; scan 0 console.log/TODO/FIXME dans les fichiers produits ; composants PO admin/nurses/users intacts (0 octet) ; aucun fichier backend modifié (git status vérifié)
@@ -225,13 +225,13 @@ Task: FEATURE-AUTH — système d'authentification complet (Lifecycle 8 phases, 
 
 Work Log:
 
-- Sync git : pull du push externe PO 2b9e7b1 (logo public/img/mondocpro.jpeg + 3 composants vides admin/nurses/users) — audité, structure respectée
+- Sync git : pull du push externe PO 2b9e7b1 (logo public/img/Mon doc Pro.jpeg + 3 composants vides admin/nurses/users) — audité, structure respectée
 - Phase 0-2 : SPECS/SPEC-AUTH.md (UX wireframe + 5 user stories + critères d'acceptation) · ADR-004 (téléphone unique, sessions DB hashées SHA-256, bcrypt 10, ADMIN par seed, zustand) · 4 contrats API VALIDÉS dans API_CONTRACTS.md AVANT tout code (API-first)
 - Phase 3 : découpage AUTH-T01..T04 dans TASKS.md
 - AUTH-T01 (Data) : prisma/schema.prisma — User métier (phone unique, passwordHash, Role/Zone enums) + Session (tokenHash SHA-256, expiresAt, cascade) ; scaffold Post supprimé (0 donnée) ; db push Supabase OK (10.65s) ; seed .zscripts/seed_admin.ts → compte Dr Kadjane créé (ADMIN_INITIAL_PASSWORD dans .env non versionné + placeholder .env.example)
-- AUTH-T02 (Backend) : src/lib/auth.ts (hashPassword/verifyPassword/createSession/getCurrentUser/destroySession, cookie mondocpro_session httpOnly sameSite=lax, secure en prod) · src/lib/auth-schemas.ts (zod 4) · 4 routes API — PIÈGE ENV RÉSOLU À LA RACINE : dev.sh exporte désormais DATABASE_URL depuis .env (l'export plateforme file:... primait) + backup .zscripts/.env.supabase enrichi ; serveur relancé détaché
+- AUTH-T02 (Backend) : src/lib/auth.ts (hashPassword/verifyPassword/createSession/getCurrentUser/destroySession, cookie Mon doc Pro_session httpOnly sameSite=lax, secure en prod) · src/lib/auth-schemas.ts (zod 4) · 4 routes API — PIÈGE ENV RÉSOLU À LA RACINE : dev.sh exporte désormais DATABASE_URL depuis .env (l'export plateforme file:... primait) + backup .zscripts/.env.supabase enrichi ; serveur relancé détaché
 - Tests curl 9/9 conformes : register 201 (user sans hash) · doublon 409 · ADMIN refusé 400 · me 401/200 · login 200/401 générique · login admin seed 200 · logout 200 · me post-logout 401 · cookie #HttpOnly vérifié au jar
-- AUTH-T03 (Frontend, subagent frontend-styling-expert Task 7-d) : layout.tsx (lang fr, meta MondocPro, icône PO, BUG-001 préservé) · page.tsx orchestration loading/auth/dashboard + footer sticky commun · composants auth/ (auth-screen, login-form, register-form, user-dashboard) · stores/auth-store.ts (zustand) · hooks/use-auth.ts — 10/10 étapes agent-browser, lint+tsc 0 erreur
+- AUTH-T03 (Frontend, subagent frontend-styling-expert Task 7-d) : layout.tsx (lang fr, meta Mon doc Pro, icône PO, BUG-001 préservé) · page.tsx orchestration loading/auth/dashboard + footer sticky commun · composants auth/ (auth-screen, login-form, register-form, user-dashboard) · stores/auth-store.ts (zustand) · hooks/use-auth.ts — 10/10 étapes agent-browser, lint+tsc 0 erreur
 - AUTH-T04 (QA indépendante) : re-test navigateur du chemin doré (login patient test, reload session conservée, logout, mobile 375px, footer visible, touch ≥44px, 0 erreur console) — 7 scénarios PASS consignés au journal TEST_PLAN
 - Registres : TASKS.md + TASKS.xlsx (AUTH-T01..04 TERMINÉ, validate 0 issue) · REQUIREMENTS SYS-010 · TEAM_STATUS · CHANGELOG · TEST_PLAN journal · ADR-004 · SPEC-AUTH
 
@@ -243,28 +243,33 @@ Stage Summary:
 - Prochaines itérations naturelles : espaces Patient/Infirmier/Admin complets (RDV, Tokens, sensibilisations, dispatch) dans les composants préparés par le PO
 
 ---
+
 Task ID: 1
 Agent: Super Z (setup environnement)
-Task: Cloner github.com/akoun-dev/mondocpro, remplacer intégralement le workspace, injecter les variables d'environnement Supabase fournies par le propriétaire, démarrer le serveur.
+Task: Cloner github.com/akoun-dev/Mon doc Pro, remplacer intégralement le workspace, injecter les variables d'environnement Supabase fournies par le propriétaire, démarrer le serveur.
 
 Work Log:
+
 - Workspace scaffold supprimé ; repo cloné (branche main, HEAD 228d8ec) et déplacé à la racine de /home/z/my-project
 - bun install (829 packages) + bunx prisma generate OK
 - Variables fournies écrites dans .env et .zscripts/.env.supabase : NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY, NEXT_PUBLIC_SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY, ADMIN_INITIAL_PASSWORD
 - .zscripts/dev.sh modifié : db:push rendu conditionnel (ignoré si DATABASE_URL absente) pour permettre le boot sans creds DB
-- Serveur démarré via nohup bash .zscripts/dev.sh (mécanisme plateforme) ; vérifié au navigateur : écran auth MondocPro rendu, GET / 200
+- Serveur démarré via nohup bash .zscripts/dev.sh (mécanisme plateforme) ; vérifié au navigateur : écran auth Mon doc Pro rendu, GET / 200
 - POST /api/auth/login → 500 : Prisma sans DATABASE_URL (attendu)
 
 Stage Summary:
+
 - Serveur Next.js 16 opérationnel sur port 3000, UI d'authentification fonctionnelle
 - BLOQUANT : DATABASE_URL manquante (mot de passe PostgreSQL Supabase) → db:push, seed_admin.ts et routes auth inopérantes jusqu'à fourniture
 
 ---
+
 Task ID: 2
 Agent: Super Z (config DATABASE_URL + vérification E2E)
 Task: Injecter DATABASE_URL, pousser le schéma, seeder l'admin, vérifier le parcours auth complet au navigateur.
 
 Work Log:
+
 - Connexion directe db.kxaralvrvlzaowwbsedo.supabase.co impossible : host IPv6 uniquement, sandbox IPv4 (piège documenté .env.example)
 - Région du pooler Supavisor trouvée par balayage auth réel : aws-0-eu-west-1 (scripts/find-pooler-region.mjs)
 - DATABASE_URL (pooler, session mode 5432, sslmode=require) écrite dans .env et .zscripts/.env.supabase
@@ -273,15 +278,18 @@ Work Log:
 - Vérification navigateur (agent-browser) : GET / 200, login UI avec compte admin → espace Médecin Chef affiché (profil, zone), déconnexion OK, 0 erreur console
 
 Stage Summary:
+
 - App pleinement opérationnelle : UI + API auth + PostgreSQL Supabase connectés
-- Compte de test : +2250700000001 / Admin#MonDocPro (à changer à la première connexion)
+- Compte de test : +2250700000001 / Admin#Mon doc Pro (à changer à la première connexion)
 
 ---
+
 Task ID: 3
 Agent: Super Z (inscription multi-étapes + rôle PATIENT)
 Task: Transformer l'inscription en parcours par étapes animé (framer-motion, palette ADR-002) et retirer le choix de rôle (PATIENT par défaut).
 
 Work Log:
+
 - auth-schemas.ts : registerSchema sans champ role + sous-schémas par étape (identity/zone/security) + helper zodIssuesToFieldErrors
 - API /api/auth/register : rôle PATIENT forcé serveur (valeur cliente ignorée — testé : POST role=INFIRMIER → user PATIENT en base)
 - use-auth.ts : RegisterPayload sans role, POST avec role:"PATIENT"
@@ -291,15 +299,18 @@ Work Log:
 - Nettoyage : 2 comptes de test supprimés (scripts/cleanup-test-users.ts, pattern export DATABASE_URL du repo)
 
 Stage Summary:
+
 - Inscription guidée 3 étapes opérationnelle, rôle PATIENT garanti hook + API + schéma
 - Contrat API register v2 (sans role) consigné dans .ai/API_CONTRACTS.md
 
 ---
+
 Task ID: 4
 Agent: Super Z (vues auth dédiées + mot de passe oublié)
 Task: Remplacer les onglets par des vues dédiées (Connexion / Inscription / Mot de passe oublié / Nouveau mot de passe) et implémenter le parcours complet de récupération de mot de passe.
 
 Work Log:
+
 - prisma/schema.prisma : modèle PasswordResetToken (tokenHash SHA-256 unique, expiresAt 15 min, usedAt usage unique) + relation User ; db push OK
 - src/lib/auth.ts : generateResetCode (6 chiffres crypto), hashToken exporté, invalidateUserSessions, PASSWORD_RESET_TTL_MINUTES
 - Nouvelles routes API : /api/auth/forgot-password (anti-énumération : toujours 200, purge des anciens jetons, livraison SMS = TODO INT-SMS placeholder console — code jamais dans la réponse HTTP) et /api/auth/reset-password (vérif hash+exp+unused, maj bcrypt transactionnelle + usedAt, révocation de toutes les sessions, 400 générique)
@@ -313,28 +324,34 @@ Work Log:
 - Nettoyage : compte de test Bakary Diarra supprimé
 
 Stage Summary:
+
 - 4 vues d'auth dédiées opérationnelles, parcours mot de passe oublié complet et sécurisé
 - 6 routes API auth (/register, /login, /me, /logout, /forgot-password, /reset-password)
 - Point d'intégration SMS clairement identifié (TODO INT-SMS dans forgot-password route + contrat)
 
 ---
+
 Task ID: 5
 Agent: Super Z (retrait footer)
 Task: Retirer le footer commun (zones + copyright) de la page principale.
 
 Work Log:
+
 - src/app/page.tsx : élément <footer> supprimé (les 3 états loading/auth/dashboard sont impactés), commentaire mis à jour
 - Vérifié navigateur : plus de <footer> dans le DOM, rendu OK, 0 erreur console, lint 0 erreur
 
 Stage Summary:
+
 - Page sans footer, layout flex conservé (main flex-1)
 
 ---
+
 Task ID: 6
 Agent: Super Z (refonte UI)
 Task: Améliorer l'UI — nouveau design auth premium + espace connecté style app mobile (demandes PO : "ameliore l'UI", "un nouveau design", "type app mobile", "ameliore l'UI Auth avec un nouveau design").
 
 Work Log:
+
 - Audit complet : captures auth/dashboard desktop+mobile, lecture DESIGN_SYSTEM.md (ADR-002), login/register/forgot/reset/dashboard/page
 - auth-flow.tsx (v4) : écran premium centré sur dégradé médical plein écran (from-primary via-primary to-primary-dark), logo flottant ring-4, carte verre dépoli rounded-3xl bg-card/95 backdrop-blur-xl shadow-2xl, motif « plus » médical SVG en tuile (opacité 4 %), orbes lumineux (white/10 + success/20), pastilles de verre des arguments de vente (desktop sm+), badges zones + copyright, transitions AnimatePresence conservées (250 ms)
 - user-dashboard.tsx (v3 app mobile) : barre d'app sticky bg-card/80 backdrop-blur-md, navigation basse flottante max-w-sm rounded-2xl (Accueil / Profil) avec aria-current, safe-area iOS pb-[max(env(safe-area-inset-bottom),1rem)], vues onglets animées AnimatePresence (220 ms), hero de bienvenue dégradé (date fr-FR, badges rôle/zone verre), profil en grille de tuiles icônes (sm:grid-cols-3), cartes fonctionnalités par rôle (icons lucide + hover primary + badge « Bientôt disponible »), déconnexion dans l'onglet Profil
@@ -344,16 +361,19 @@ Work Log:
 - Lint : 0 erreur / 0 warning
 
 Stage Summary:
+
 - Nouveau design auth v4 premium (dégradé + verre dépoli) et espace connecté style app mobile (bottom nav) — palette ADR-002 strictement respectée, contrastes AA maintenus (texte blanc uniquement sur primary/primary-dark)
 - Logique métier intacte : aucune modification des hooks, schémas zod, routes API ou contrats
-- Captures de vérification dans .zscripts/ui-v2-*.png, ui-v3-*.png, ui-v4-*.png
+- Captures de vérification dans .zscripts/ui-v2-_.png, ui-v3-_.png, ui-v4-\*.png
 
 ---
+
 Task ID: 7
 Agent: Super Z (audit pré-patients)
 Task: Audit complet avant de lancer les fonctionnalités patients (demande PO).
 
 Work Log:
+
 - Gouvernance : TASKS, API_CONTRACTS (6 contrats auth validés), REQUIREMENTS (backlog vide), DEBT_REPORT, ADR 001-004, PROJECT_CONTEXT
 - Code : 6 routes API auth conformes, 0 TODO/console.log dans src/ (hors TODO INT-SMS documenté), composants admin/nurses/users vides (placeholders PO)
 - tsc --noEmit : 0 erreur dans src/ (erreurs confinées à examples/, skills/, scripts/) ; ESLint 0 erreur
@@ -363,29 +383,35 @@ Work Log:
 - DEBT_REPORT mis à jour : DET-001/002 clôturées (résolues de facto) ; restent DET-003 (mineur) + DET-004 (majeur, ignoreBuildErrors)
 
 Stage Summary:
+
 - Verdict : PRÊT pour FEATURE-PATIENT — aucun blocage, dette maîtrisée
 - Recommandations : API-first (contrats avant frontend), migrations versionnées dès le 1er modèle métier (SYS-009), ordre RDV → Sensibilisations → Tokens
 
 ---
+
 Task ID: 8
 Agent: main (Super Z)
 Task: Retirer les badges de zones (Yopougon / Songon / PK22 / N'Dotré) du footer de l'écran d'authentification
 
 Work Log:
+
 - Suppression du <ul> des zones dans le footer de src/components/auth/auth-flow.tsx
 - Suppression de l'import ZONE_LABELS devenu inutilisé (lint OK, 0 erreur)
 - Vérification E2E via agent-browser après déconnexion admin : footer réduit au copyright uniquement
 - Commit 144b90f poussé sur origin/main
 
 Stage Summary:
-- Footer auth : uniquement "© MondocPro — Abidjan, Côte d'Ivoire" ; les chips de vente (Rendez-vous, Tokens, Soins de proximité) restent inchangées
+
+- Footer auth : uniquement "© Mon doc Pro — Abidjan, Côte d'Ivoire" ; les chips de vente (Rendez-vous, Tokens, Soins de proximité) restent inchangées
 
 ---
+
 Task ID: 9
 Agent: main (Super Z)
 Task: Redesigner l'étape 1 de l'inscription selon la maquette fournie par le PO (image upload)
 
 Work Log:
+
 - auth-flow.tsx : rangée « Retour » (ChevronLeft) + badge « Accès Patient » (pastille verte), titre Inscription en text-2xl bold, sous-titre « ...3 étapes simples »
 - register-form.tsx : stepper refondu — pastilles iconées (size-9) avec libellés dessous (toujours visibles), fil de progression bleu médical, étape « Zone » renommée « Commune »
 - Bloc « Étape N sur 3 — Titre » avec pourcentage (33/67/100 %) à droite
@@ -397,15 +423,18 @@ Work Log:
 - CHANGELOG [Non publié] § Modifié mis à jour ; commit 53298e0 poussé
 
 Stage Summary:
+
 - Étape 1 conforme à la maquette PO ; étapes 2-3 conservées (Commune renommée) ; contrat API inchangé (téléphone toujours +225XXXXXXXXX)
 - Compte de test créé en base : +2250701020399 (Aya Konaté Test) — à supprimer si non désiré
 
 ---
+
 Task ID: 10
 Agent: main (Super Z)
 Task: Redesigner l'étape 2 (Zone) de l'inscription selon la 2e maquette PO
 
 Work Log:
+
 - Section « Localisation sanitaire » : overline bleu avec ShieldPlus, titre « Où résidez-vous à Abidjan ? », description médecins de garde/cliniques/officines
 - Recherche de zone fonctionnelle : filtre local insensible casse/accents (normalizeText NFD), placeholder « Rechercher une zone, quartier, commune… », suffixe CI, état vide « Aucune zone ne correspond… »
 - Cartes zones : pastille pin (bleue si sélectionnée), quartier indicatif (ZONE_META : Abidjan Ouest / Route Dabou / Zone industrielle / Abobo Nord), badge « Recommandé » vert sur Yopougon (text-success-foreground sombre — ADR-002 : pas de blanc sur success), indicateur radio + check coin supérieur droit, carte sélectionnée border-primary + bg-primary/5
@@ -415,19 +444,23 @@ Work Log:
 - CHANGELOG mis à jour ; commit 53f8990 poussé
 
 Stage Summary:
+
 - Étapes 1 et 2 conformes aux maquettes ; stepper unifié (bleu actif / vert terminé) ; contrat API inchangé
 - En-tête de carte conservé (Inscription + Accès Patient, maquette 1) pour cohérence entre étapes — variante « Inscription Patient / Étape 2 sur 3 » non retenue
 
 ---
+
 Task ID: 11-push
 Agent: Super Z (main)
 Task: "fais le push" — pousser les commits en attente vers origin/main
 
 Work Log:
+
 - Vérifié git status : 3 commits en avance sur origin/main (1d1380a, 88ff90c, 9f62a93 — checkpoints auto : images de design, refonte vue auth + step 3, dialog CGU)
 - Poussé vers origin/main : 53f8990..9f62a93
 - Vérifié : branche main à jour avec origin/main, working tree clean
 
 Stage Summary:
-- Push réussi sur https://github.com/akoun-dev/mondocpro (main)
+
+- Push réussi sur https://github.com/akoun-dev/Mon doc Pro (main)
 - Contenu poussé : refonte vue auth + étape 3 inscription + composant cgu-dialog

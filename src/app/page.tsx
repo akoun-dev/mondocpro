@@ -22,8 +22,8 @@ export default function Home() {
                         aria-live="polite"
                     >
                         <Image
-                            src="/img/mondocpro.jpeg"
-                            alt="MondocPro"
+                            src="/img/Mon doc Pro.jpeg"
+                            alt="Mon doc Pro"
                             width={56}
                             height={56}
                             priority

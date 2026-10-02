@@ -1,4 +1,4 @@
-// Schéma MondocPro — FEATURE-AUTH (ADR-004)
+// Schéma Mon doc Pro — FEATURE-AUTH (ADR-004)
 // Identifiant métier = téléphone (unique) · sessions serveur en DB (traçabilité)
 
 generator client {

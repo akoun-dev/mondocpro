@@ -14,11 +14,11 @@ const geistMono = Geist_Mono({
 })
 
 export const metadata: Metadata = {
-    title: "MondocPro — Votre santé en main",
+    title: "Mon doc Pro — Votre santé en main",
     description:
-        "MondocPro : prise de rendez-vous médicaux au cabinet ou à domicile, épargne santé Tokens et sensibilisations — Yopougon, Songon, PK22, N'Dotré (Côte d'Ivoire).",
+        "Mon doc Pro : prise de rendez-vous médicaux au cabinet ou à domicile, épargne santé Tokens et sensibilisations — Yopougon, Songon, PK22, N'Dotré (Côte d'Ivoire).",
     icons: {
-        icon: "/img/mondocpro.jpeg",
+        icon: "/img/Mon doc Pro.jpeg",
     },
 }
 

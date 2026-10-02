@@ -68,7 +68,7 @@ ROWS = [
     ],
     [
         "OPS-T01", "DevOps", "Push GitHub", "Synchronisation remote",
-        "Push de main vers github.com/akoun-dev/mondocpro.git (token PO one-shot, non persisté) + retrait .env/db du suivi git",
+        "Push de main vers github.com/akoun-dev/Mon doc Pro.git (token PO one-shot, non persisté) + retrait .env/db du suivi git",
         "DEVOPS + COMMIT + Security", "TERMINÉ", "100%", "P1", "BUG-T01",
         "remote origin · .gitignore · .env (untrack) · db/custom.db (untrack)",
         "git ls-remote post-push", "Hash remote 90786c8 = local", "0",

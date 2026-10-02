@@ -9,7 +9,7 @@
 
 ## 1. Contexte métier (SYS-010)
 
-MondocPro permet aux patients de planifier des rendez-vous (cabinet ou domicile), de
+Mon doc Pro permet aux patients de planifier des rendez-vous (cabinet ou domicile), de
 constituer une épargne santé en "Tokens" et de recevoir des sensibilisations médicales.
 L'équipe médicale (infirmiers) reçoit les missions en temps réel ; le Médecin Chef
 supervise et dispatche. **Prérequis de tout le reste** : une authentification
@@ -36,7 +36,7 @@ multirôle robuste et traçable (contrainte médicale : traçabilité des action
 ### US-AUTH-1 — Inscription (Patient / Infirmier)
 
 **En tant que** visiteur, **je veux** créer un compte avec mon numéro, mon nom, ma
-zone et mon rôle, **afin de** accéder aux services MondocPro.
+zone et mon rôle, **afin de** accéder aux services Mon doc Pro.
 
 - [ ] Formulaire : nom complet (2-80), téléphone (format international ou local 8-15 chiffres), zone (select 4 zones), rôle (Patient ou Infirmier — cards radio), mot de passe (≥ 8 car.) + confirmation
 - [ ] Validation temps réel avec messages d'erreur explicites (fr)
@@ -76,8 +76,8 @@ zone et mon rôle, **afin de** accéder aux services MondocPro.
 
 ```
 ┌─────────────────────────────┐
-│  [img mondocpro.jpeg]       │  ← brand rond 96px, centré
-│  MondocPro                  │  ← titre, bleu médical #1565C0
+│  [img Mon doc Pro.jpeg]       │  ← brand rond 96px, centré
+│  Mon doc Pro                  │  ← titre, bleu médical #1565C0
 │  « Votre santé en main »│  ← sous-titre muted
 │                             │
 │  ┌─────────┬───────────┐    │  ← Tabs (shadcn)
