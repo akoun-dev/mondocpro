@@ -399,3 +399,21 @@ Work Log:
 Stage Summary:
 - Étape 1 conforme à la maquette PO ; étapes 2-3 conservées (Commune renommée) ; contrat API inchangé (téléphone toujours +225XXXXXXXXX)
 - Compte de test créé en base : +2250701020399 (Aya Konaté Test) — à supprimer si non désiré
+
+---
+Task ID: 10
+Agent: main (Super Z)
+Task: Redesigner l'étape 2 (Zone) de l'inscription selon la 2e maquette PO
+
+Work Log:
+- Section « Localisation sanitaire » : overline bleu avec ShieldPlus, titre « Où résidez-vous à Abidjan ? », description médecins de garde/cliniques/officines
+- Recherche de zone fonctionnelle : filtre local insensible casse/accents (normalizeText NFD), placeholder « Rechercher une zone, quartier, commune… », suffixe CI, état vide « Aucune zone ne correspond… »
+- Cartes zones : pastille pin (bleue si sélectionnée), quartier indicatif (ZONE_META : Abidjan Ouest / Route Dabou / Zone industrielle / Abobo Nord), badge « Recommandé » vert sur Yopougon (text-success-foreground sombre — ADR-002 : pas de blanc sur success), indicateur radio + check coin supérieur droit, carte sélectionnée border-primary + bg-primary/5
+- Stepper global : terminé = vert santé + check (maquette 2), segments verts ; « Commune » renommée « Zone » (libellé maquette 2) ; desc générique masquée à l'étape 2 (remplacée par la section)
+- E2E : sélection Yopougon persistante malgré filtre, recherches « songon »/« abobo »/« pk » OK, étape 3 atteinte (récap +225 05 04 05 06 07 / Yopougon), Retour fonctionnel
+- Vues desktop + mobile 390x844 conformes, 0 erreur console, lint 0 erreur
+- CHANGELOG mis à jour ; commit 53f8990 poussé
+
+Stage Summary:
+- Étapes 1 et 2 conformes aux maquettes ; stepper unifié (bleu actif / vert terminé) ; contrat API inchangé
+- En-tête de carte conservé (Inscription + Accès Patient, maquette 1) pour cohérence entre étapes — variante « Inscription Patient / Étape 2 sur 3 » non retenue
