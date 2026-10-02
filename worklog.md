@@ -522,3 +522,22 @@ Stage Summary:
 - Pooler Supabase désormais aws-0-eu-west-1 (flotte migrée) — secret toujours non versionné hors finder historique (dette SEC à traiter : rotation mot de passe DB).
 - Preview URL : https://preview-c9ace4a7-9a38-440c-8974-17af10a8825e.space-z.ai/ — opérationnelle après un restart du conteneur (bouton restart) car l'edge n'enregistre la route qu'à un déploiement sain.
 - Note : prisma/migrations versionnées présentes (init_auth + patient_business), déployées sans pending ; 195 fichiers en diff de mode uniquement (0 ligne) — ne pas committer.
+
+---
+Task ID: 14 (lot P0/P1 fondations)
+Agent: Super Z
+Task: "Go" — exécuter le lot P0 fondations du GO audit patients (health, requireRole, migrations, REQ/spec/contrats/TEST_PLAN).
+
+Work Log:
+- État reconstitué : la période de contexte perdue avait DÉJÀ livré requireRole (auth.ts:145), /api/appointments (GET/POST + PATCH:id CANCEL), /api/sensibilisations (GET + GET:id), libs métier (appointments.ts, appointment-schemas.ts, sensibilisations.ts), migrations init_auth + patient_business, seed_sensibilisations.ts — mais SANS documentation contrats (routes commentées « contrat » inexistant).
+- INC-001 détecté : tables appointments/sensibilisations + enums ABSENTS de Supabase alors que _prisma_migrations déclarait patient_business appliquée (2026-10-02 19:31 UTC) — probablement la migration de flotte aws-1→aws-0. Réparation : DELETE ligne registre → migrate deploy réappliqué → seed SENSO relancé (6 contenus). Comptes intacts (Dr Kadjane ADMIN, Akoun Bernard Aboa, Aya Konaté Test, Test RDV Senso).
+- /api/health v2 : contrat mis à jour D'ABORD (API-first) puis code — probe SELECT 1, { status: ok|degraded, database: up|down, timestamp }, toujours 200.
+- Gouvernance : API_CONTRACTS.md (+6 contrats patients IMPLÉMENTÉS, +3 « à venir » tokens/SENSO admin) · REQUIREMENTS.md REQ-001..003 · SPECS/FEATURE-PATIENT.md (10 arbitrages A1–A10) · INCIDENTS.md INC-001.
+- E2E scripts/e2e-patients.ts : 25/25 PASS (health DB up, 4×401, POST 201/PENDING, collision 409, dimanche/hors-grille/délai 400, propriété 404, cancel 200/re-cancel 409/action 400, INFIRMIER 403 GET+POST, SENSO 5/6 visibles YOPOUGON + détail 200 + 404 + tous rôles 200). Fixture INFIRMIER : scripts/create-infirmier-fixture.ts (+2250755666777 / TestInfirmier2026!). Lint 0 erreur. dev.log : aucun erreur requête (EADDRINUSE historique lancement concurrent uniquement).
+- TEST_PLAN 4 lignes PASS 2026-10-03 consignées · CHANGELOG « Ajouté » · commit ca1823d · push d9b7989..ca1823d OK.
+
+Stage Summary:
+- Lot P0 fondations CLÔTURÉ : health v2 ✓, requireRole ✓, migrations versionnées ✓ (+ INC-001 réparé), REQ-001..003 ✓, spec ✓, contrats ✓, TEST_PLAN ✓.
+- Backend P1 (RDV + SENSO) validé 25/25 — UI patient restante (vues RDV/SENSO dans l'espace connecté, route unique /).
+- Arbitrages PO restants avant P2 TOKENS : A8 valeur jeton (1 token = ? FCFA), A9 fournisseur Mobile Money (ADR-005), A10 passerelle SMS ; A4/A5 (délai annulation, confirmateur) pour RDV phase 2.
+- Fixtures de test créées : Patient B E2E (par run), Infirmier Test E2E (+2250755666777) — à purger éventuellement.
