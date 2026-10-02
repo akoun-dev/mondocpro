@@ -417,3 +417,17 @@ Work Log:
 Stage Summary:
 - Étapes 1 et 2 conformes aux maquettes ; stepper unifié (bleu actif / vert terminé) ; contrat API inchangé
 - En-tête de carte conservé (Inscription + Accès Patient, maquette 1) pour cohérence entre étapes — variante « Inscription Patient / Étape 2 sur 3 » non retenue
+
+---
+Task ID: 11-push
+Agent: Super Z (main)
+Task: "fais le push" — pousser les commits en attente vers origin/main
+
+Work Log:
+- Vérifié git status : 3 commits en avance sur origin/main (1d1380a, 88ff90c, 9f62a93 — checkpoints auto : images de design, refonte vue auth + step 3, dialog CGU)
+- Poussé vers origin/main : 53f8990..9f62a93
+- Vérifié : branche main à jour avec origin/main, working tree clean
+
+Stage Summary:
+- Push réussi sur https://github.com/akoun-dev/mondocpro (main)
+- Contenu poussé : refonte vue auth + étape 3 inscription + composant cgu-dialog
