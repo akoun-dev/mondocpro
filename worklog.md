@@ -607,3 +607,30 @@ Stage Summary:
 - Cartes RDV : intitulé = type de consultation (« Consultation au cabinet ») faute de champ praticien côté modèle — décision PO toujours en attente pour afficher « Dr. X » comme la maquette (nécessite champ doctor/praticien + seed).
 - Règles créneaux : source unique client-safe src/lib/schedule.ts — toute évolution A1 (horaires, samedi) se propage au formulaire ET à l'API simultanément.
 - RDV de test créés : #MDP-62GT (lun. 05/10 10:30, patient UI Maquette) — purgeable via scripts/cleanup-test-users.ts.
+
+---
+Task ID: 19
+Agent: Super Z
+Task: "Faut que la prise de RDV soit en step 1 - Domicile / Cabinet 2 - la spécialité qu'il veut consulter (pédiatrie, gynécologie, cardiologue, diabétologue, dentiste, ophtalmologue...) configurable chez le admin etc..."
+
+Work Log:
+- Schéma : modèle Specialty (name unique @db.VarChar(80), isActive défaut true, sortOrder, @@map specialties) + Appointment.specialtyId nullable (FK onDelete: SetNull) + index ; migration 20261002232734_add_specialties créée (migrate dev --create-only) et appliquée (migrate deploy) ; erreur corrigée au passage : onDelete « SET NULL » → « SetNull » (syntaxe Prisma).
+- Seed scripts/seed-specialties.ts idempotent : 7 spécialités (Médecine générale 0, Pédiatrie 10, Gynécologie 20, Cardiologie 30, Diabétologie 40, Chirurgie dentaire 50, Ophtalmologie 60) + backfill 4 RDV existants → Médecine générale ; exécuté (piège 2 : export DATABASE_URL depuis .env obligatoire).
+- Contrats : createAppointmentSchema + specialtyId REQUIS (z.string().min(1)) ; service valide en base (doit exister ET être active → 400 sinon) ; AppointmentDto + specialty {id,name}|null (include dans list/create/cancel) ; API_CONTRACTS.md : POST appointments modifié + 5 nouveaux contrats specialties/admin.
+- APIs : GET /api/specialties (tous rôles authentifiés, actives triées sortOrder) ; GET+POST /api/admin/specialties (ADMIN, garde factorisée guarded()) ; PATCH+DELETE /api/admin/specialties/[id] (nom 2-80 nettoyé, unicité 409, suppression 409 si RDV rattachés) ; lib src/lib/specialties.ts (SpecialtyError typée).
+- Wizard front : book-appointment-dialog.tsx refondu en 4 étapes avec stepper (pastille bleue active / verte+check terminée / grise à venir ; labels sm+ seulement) — 1 Type (2 cartes) → 2 Spécialité (grille chips depuis GET /api/specialties, skeletons, erreur+Réessayer, empty state) → 3 Zone Select + puces jours + grille slots → 4 Motif + RÉCAPITULATIF (Lieu/Spécialité/Zone/Créneau) + CTA Confirmer ; navigation Retour/Continuer avec canContinue par étape ; 409 → toast + retour étape 3 + reset horaire.
+- Vue ADMIN « Spécialités » (src/components/admin/specialties-view.tsx) : ajout (input + compteur implicite ×10), renommage inline, activer/désactiver (badges Active/Inactive), suppression via AlertDialog (garde 409 restituée en toast) ; erreur de chargement = état dédié + Réessayer (corrige un défaut intermédiaire : « Catalogue vide » s'affichait en cas d'échec réseau) ; raccourci « Gérer les spécialités » dans l'accueil Médecin Chef (première feature admin live, hors cartes « à venir »).
+- Affichage : cartes RDV + détail + carte « Prochain rendez-vous » affichent specialty.name (fallback « Médecine générale » pour les RDV pré-wizard).
+- Contrainte plateforme (confirmée 2×) : les serveurs lancés depuis les sessions outil sont MOISSONNÉS entre appels (le test sleep survit, pas node/bun) — seul le flux boot persiste ; les process de test ont donc été regroupés en « méga-appels » (server start + parcours complet dans un seul appel) ; chaque restart serveur = full reload HMR (state React réinitialisé) + recompilation des routes au premier hit (délais 2,5-3 s nécessaires).
+- Fixture : scripts/reset-admin-fixture.ts — mot de passe admin démo réinitialisé (Admin#MonDocPro2026, 3 sessions purgées) ; mot de passe historique non recoverable (ADMIN_INITIAL_PASSWORD absent des .env actuels).
+- E2E API : scripts/e2e-patients.ts mis à jour (specialtyId requis partout + nouveaux cas) → **31/31 PASS**.
+- E2E navigateur (méga-appels) : wizard patient complet — étapes 1→4, POST 201 RÉEL vérifié en base (RDV « Pédiatrie » lun. 05/10 09:30 PENDING, motif « Contrôle de routine pédiatrique ») ; mobile 390×844 — captures étapes 1-2 propres ; ADMIN Dr Kadjane — liste 7 spécialités, ajout Dermatologie (201, vérifié base), toggle Ophtalmologie Inactive→Active (PATCH), suppression Dermatologie (204, vérifié base), garde 409 sur Médecine générale (« Impossible de supprimer « Médecine générale » : 5 rendez-vous y sont rattachés — désactivez-la plutôt ») ; console 0 erreur.
+- Fixes layout mobile découverts et mesurés : (a) stepper libellés gonflaient le min-content → labels sm+ seulement + min-w-0 ; (b) CTA `w-full` dans la row flex avec bouton Retour débordait de 52px → `flex-1 min-w-0` ; résultat mesuré 356/390 px aux étapes 1-2.
+- Lint 0 erreur ; tsc propre hors erreurs préexistantes (register-form) ; CHANGELOG + TEST_PLAN à jour.
+
+Stage Summary:
+- Parcours RDV = 4 étapes conformes à la demande PO (Type → Spécialité → Créneau → Confirmation) avec spécialités 100% configurables côté ADMIN (ajout/renommage/activation/suppression) et gardes serveur prouvées E2E (400 spécialité inconnue, 403 hors ADMIN, 409 unicité et suppression référencée).
+- Migration + seed appliqués en base : le wizard est fonctionnel immédiatement ; tout nouveau conteneur rejoue migrate-deploy (chaîne boot SYS-009) — le seed spécialités doit être relancé une fois sur un environnement neuf (bun scripts/seed-specialties.ts).
+- Serveur local NON persistant depuis les sessions outil (moissonnage) : la preview sera rétablie au prochain restart conteneur — la chaîne boot remontera tout (env auto-réparée, migrations déjà appliquées, client Prisma frais incluant Specialty).
+- Mot de passe admin démo : Admin#MonDocPro2026 (à changer par le PO) ; script reset-admin-fixture.ts conservé pour les tests.
+- Le RDV wizard actif le plus récent : Pédiatrie lun. 05/10 09:30 (Patient UI Maquette) — purgeable via cleanup-test-users.ts.
