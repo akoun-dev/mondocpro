@@ -36,7 +36,7 @@ fi
 export DATABASE_URL=$(grep '^DATABASE_URL=' .env | cut -d= -f2- | tr -d '"')
 if [ -n "$DATABASE_URL" ]; then
   echo "[dev.sh] DATABASE_URL exportée depuis .env (postgresql://…pooler.supabase.com)"
-  # SYS-009 : schéma piloté par les migrations versionnées (prisma/migrations).
+  # SYS-009 : schéma piloté par les migrations versionnées (supabase/migrations).
   # db:push conservé en filet de sécurité si deploy échoue (comportement historique).
   bun run db:migrate-deploy || bun run db:push
 else

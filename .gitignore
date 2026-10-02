@@ -56,3 +56,6 @@ server.log
 # database (jamais versionnée)
 db/
 *.db
+
+# état local CLI Supabase (non versionné)
+supabase/.temp/
