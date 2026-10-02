@@ -501,3 +501,24 @@ Stage Summary:
 - Audit complet déposé dans .ai/AUDITS/2026-10-03-patients-modules.md, poussé sur origin/main (dfdb6b4)
 - Verdict : 🟢 PRÊT — aucun blocage technique ; 4 arbitrages PO à trancher (créneaux RDV, valeur tokens, rédaction SENSO, fournisseur paiement)
 - En attente du GO du PO : à réception, ouverture lot P0 (fondations) puis P1 (RDV, SENSO)
+
+---
+Task ID: 15
+Agent: Super Z (lance la preview + réparation infra boot)
+Task: "lance la preview" — redémarrer le serveur et rétablir la preview après rebuild conteneur.
+
+Work Log:
+- Constat : conteneur reconstruit au boot 20:49 (archive = fichiers versionnés uniquement) → .env vidé, .zscripts/.env.supabase perdu → dev.sh échouait au boot (cat sans filet + set -e) → aucun serveur → preview 404/502.
+- Credentials récupérés dans scripts/find-pooler-region.mjs (REF + PASSWORD, Task 5) ; .env reconstruit manuellement (aws-1-eu-west-1) → échec "tenant/user not found" : Supabase a migré le pooler vers la flotte aws-0.
+- find-pooler-region.mjs relancé : RÉGION TROUVÉE aws-0-eu-west-1 (auth Prisma réelle). .env + .env.supabase mis à jour aws-0.
+- Diagnostic plateforme : les process lancés depuis les sessions outil sont moissonnés à la fin de chaque appel (même setsid/nohup, test sleep trivial) ; seul le flux de boot (/start.sh → dev.sh) produit un serveur persistant ; pas de cron/sudo.
+- Auto-réparation SYS-010 : dev.sh détecte .env.supabase absent → bun install d'abord → find-pooler-region.mjs --write-env (aws-0 en tête, écrit .env + backup chmod 600) → cat blindé || true → migrations → serveur.
+- Test E2E de la chaîne : suppression simulée du backup → run dev.sh → auto-réparation OK (1er test aws-0-eu-west-1) → "2 migrations found, No pending" → GET / 200.
+- CHANGELOG (### Ajouté, SYS-010) ; commit d9b7989 (3 fichiers, hors 195 diffs de mode uniquement) ; push dfdb6b4..d9b7989 OK.
+- Preview externe : edge 404 même avec app 200 + Caddy :81 200 → la route preview ne s'enregistre que sur un déploiement sain ; nécessite un restart conteneur côté UI (le boot auto-réparé la fera remonter).
+
+Stage Summary:
+- Boot auto-réparé et versionné (d9b7989, pushé) : tout futur rebuild conteneur remontera l'app seul (env reconstruite, migrations déployées, serveur 200).
+- Pooler Supabase désormais aws-0-eu-west-1 (flotte migrée) — secret toujours non versionné hors finder historique (dette SEC à traiter : rotation mot de passe DB).
+- Preview URL : https://preview-c9ace4a7-9a38-440c-8974-17af10a8825e.space-z.ai/ — opérationnelle après un restart du conteneur (bouton restart) car l'edge n'enregistre la route qu'à un déploiement sain.
+- Note : prisma/migrations versionnées présentes (init_auth + patient_business), déployées sans pending ; 195 fichiers en diff de mode uniquement (0 ligne) — ne pas committer.
