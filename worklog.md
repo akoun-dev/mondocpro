@@ -464,3 +464,22 @@ Stage Summary:
 
 - Push réussi sur https://github.com/akoun-dev/Mon doc Pro (main)
 - Contenu poussé : refonte vue auth + étape 3 inscription + composant cgu-dialog
+
+---
+Task ID: 12
+Agent: Super Z (main)
+Task: "Au niveau de Reinitialisation ajoute l'indicatif comme sur la connexion" — ajouter le bloc préfixe +225 (drapeau CI) au champ Téléphone de la vue Mot de passe oublié
+
+Work Log:
+- Lu la maquette PO (upload/pasted_image_1790967953382.png) : vue « Mot de passe oublié », champ Téléphone sans indicatif
+- Analysé login-form.tsx (référence « comme sur la connexion ») : bloc préfixe FlagCI + "+225", saisie locale 10 chiffres
+- Modifié forgot-password-form.tsx : bloc préfixe partagé (ci-flag.tsx), placeholder "07 01 02 03 04", maxLength 14, sanitisation [^\d\s], label capitales, normalisation toInternationalPhone avant forgotPasswordSchema/API
+- Vérifié reset-password-form.tsx : pas de champ téléphone (numéro affiché en bandeau) → aucune modification nécessaire
+- bun run lint : 0 erreur
+- E2E agent-browser : desktop 1440x900 (préfixe affiché, saisie "07 01 02 03 99" → transition vue Reset, bandeau "+225 07 01 02 03 99") + mobile 390x844 (rendu OK) ; 0 erreur page après rechargement à neuf (erreurs console initiales = historique HMR périmé de la session précédente, confirmé disparu)
+- CHANGELOG (### Modifié, en tête), commit b45399c, push origin/main
+
+Stage Summary:
+- Vue Mot de passe oublié alignée visuellement et fonctionnellement sur la Connexion (indicatif +225 fixe)
+- Contrat API intact : numéro toujours stocké/envoyé au format +225XXXXXXXXXX
+- Commit b45399c poussé sur origin/main
