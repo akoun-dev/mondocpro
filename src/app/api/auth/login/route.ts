@@ -32,6 +32,7 @@ export async function POST(request: Request) {
   }
 
   const { phone, password } = parsed.data;
+  const remember = parsed.data.rememberMe ?? true;
 
   try {
     const user = await db.user.findUnique({ where: { phone } });
@@ -44,7 +45,7 @@ export async function POST(request: Request) {
       );
     }
 
-    await createSession(user.id);
+    await createSession(user.id, remember);
     return NextResponse.json({ user: toPublicUser(user) });
   } catch (e) {
     console.error("[auth/login] erreur:", e);

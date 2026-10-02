@@ -36,9 +36,9 @@ Validation: schéma zod de référence (src/lib/<domaine>.ts)
 - Notes: **rôle `PATIENT` forcé côté serveur** (décision PO 2026-10 : pas de choix de rôle à l'inscription ; toute valeur `role` cliente est ignorée) ; `INFIRMIER`/`ADMIN` créés par l'administration ; `confirmPassword` validé = `password` ; jamais de retour de `passwordHash`.
 
 ### [POST] /api/auth/login — Connexion
-- Feature: FEATURE-AUTH (SYS-010) | Owner: Backend | Statut: **VALIDÉ** (ADR-004)
-- Request: `{ "phone": string, "password": string }`
-- Response: 200 `{ "user": { ...idem register } }` — cookie de session posé
+- Feature: FEATURE-AUTH (SYS-010) | Owner: Backend | Statut: **VALIDÉ** (ADR-004, maj PO 2026-10)
+- Request: `{ "phone": string, "password": string, "rememberMe"?: boolean }` — `rememberMe` optionnel, défaut `true`
+- Response: 200 `{ "user": { ...idem register } }` — cookie de session posé : `rememberMe: true` → persistant 30 jours (DB + cookie) ; `false` → cookie de session navigateur + TTL DB 24 h
 - Errors: 400 `{ error, details }` (zod) · 401 `{ error: "Numéro ou mot de passe incorrect" }` (générique anti-énumération) · 500
 
 ### [GET] /api/auth/me — Profil courant

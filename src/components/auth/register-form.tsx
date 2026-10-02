@@ -4,16 +4,19 @@
 // Parcours guidé en 3 étapes (Identité → Zone → Sécurité) avec animations
 // framer-motion sobres (DESIGN_SYSTEM §4) et palette médicale ADR-002.
 // Rôle supprimé : PATIENT par défaut (forcé hook + serveur — décision PO 2026-10).
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent, type Ref } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   ArrowLeft,
   ArrowRight,
   Check,
+  ChevronLeft,
   Eye,
   EyeOff,
   Loader2,
+  Lock,
   MapPin,
+  Pencil,
   Phone,
   Search,
   ShieldCheck,
@@ -22,9 +25,11 @@ import {
 } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { FlagCI } from "@/components/auth/ci-flag";
 import {
   ZONE_LABELS,
   registerStepIdentitySchema,
@@ -34,6 +39,7 @@ import {
 } from "@/lib/auth-schemas";
 import { useAuth, type RegisterPayload } from "@/hooks/use-auth";
 import { toast } from "@/hooks/use-toast";
+import { formatPhoneDisplay, toInternationalPhone } from "@/lib/phone";
 import { cn } from "@/lib/utils";
 
 type ZoneValue = RegisterPayload["zone"];
@@ -41,7 +47,11 @@ type ZoneValue = RegisterPayload["zone"];
 const STEPS = [
   { title: "Identité", description: "Renseignez vos coordonnées de contact", icon: User },
   { title: "Zone", description: "Sélectionnez votre zone de résidence", icon: MapPin },
-  { title: "Sécurité", description: "Choisissez un mot de passe robuste", icon: ShieldCheck },
+  {
+    title: "Sécurité",
+    description: "Protégez votre compte et vos données médicales",
+    icon: ShieldCheck,
+  },
 ] as const;
 
 // Quartiers indicatifs par zone (maquette étape 2) + mise en avant Yopougon.
@@ -70,22 +80,6 @@ const stepVariants = {
   exit: (direction: 1 | -1) => ({ x: direction * -48, opacity: 0 }),
 };
 
-// Champ téléphone : l'UI affiche un indicatif +225 fixe — l'utilisateur saisit
-// le numéro local (10 chiffres). On normalise vers l'international avant validation
-// et envoi (le schéma API accepte +?[0-9]{8,15}). Tolère un collage avec +225.
-function toInternationalPhone(raw: string): string {
-  let digits = raw.replace(/\D/g, "");
-  if (digits.length > 10 && digits.startsWith("225")) digits = digits.slice(3);
-  return `+225${digits}`;
-}
-
-// Affichage lisible : +225 07 01 02 03 04.
-function formatPhoneDisplay(phone: string): string {
-  const match = phone.match(/^\+225(\d{1,15})$/);
-  if (!match) return phone;
-  return `+225 ${match[1].replace(/(\d{2})(?=\d)/g, "$1 ")}`;
-}
-
 // Comparaison insensible à la casse et aux accents pour la recherche de zone.
 function normalizeText(value: string): string {
   return value
@@ -94,21 +88,13 @@ function normalizeText(value: string): string {
     .toLowerCase();
 }
 
-// Drapeau Côte d'Ivoire en CSS (évite les emojis drapeaux, absents sur Windows).
-function FlagCI() {
-  return (
-    <span
-      className="flex h-3.5 w-5 shrink-0 overflow-hidden rounded-[2px] ring-1 ring-black/10"
-      aria-hidden="true"
-    >
-      <span className="h-full w-1/3 bg-[#F77F00]" />
-      <span className="h-full w-1/3 bg-white" />
-      <span className="h-full w-1/3 bg-[#009E60]" />
-    </span>
-  );
-}
-
-export function RegisterForm() {
+export function RegisterForm({
+  onBack,
+  headingRef,
+}: {
+  onBack: () => void;
+  headingRef?: Ref<HTMLHeadingElement>;
+}) {
   const { register } = useAuth();
   const [step, setStep] = useState(1);
   const [direction, setDirection] = useState<1 | -1>(1);
@@ -118,13 +104,13 @@ export function RegisterForm() {
   const [zoneQuery, setZoneQuery] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [consent, setConsent] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [formError, setFormError] = useState<string | null>(null);
 
-  const headingRef = useRef<HTMLHeadingElement>(null);
   const hasNavigatedRef = useRef(false);
 
   const hasFieldErrors = Object.keys(fieldErrors).length > 0;
@@ -136,6 +122,16 @@ export function RegisterForm() {
     const haystack = normalizeText(`${ZONE_LABELS[z]} ${ZONE_META[z].quartier} ${z}`);
     return haystack.includes(zoneQueryNormalized);
   });
+
+  // Robustesse du mot de passe (jauge étape 3) : longueur ≥ 8, chiffre,
+  // majuscule ou caractère spécial.
+  const pwScore = [
+    password.length >= 8,
+    /\d/.test(password),
+    /[A-Z]/.test(password) || /[^A-Za-z0-9]/.test(password),
+  ].filter(Boolean).length;
+  const pwColor =
+    pwScore <= 1 ? "bg-destructive" : pwScore === 2 ? "bg-warning" : "bg-success";
 
   // Accessibilité : après chaque navigation, le focus arrive sur le titre d'étape.
   // Délai calé sur la fin de la transition (exit 220 ms avant le montage du contenu).
@@ -158,7 +154,12 @@ export function RegisterForm() {
       return parsed.success ? {} : zodIssuesToFieldErrors(parsed.error);
     }
     const parsed = registerStepSecuritySchema.safeParse({ password, confirmPassword });
-    return parsed.success ? {} : zodIssuesToFieldErrors(parsed.error);
+    const errors = parsed.success ? {} : zodIssuesToFieldErrors(parsed.error);
+    if (!consent) {
+      errors.consent =
+        "Veuillez accepter les Conditions Générales pour créer votre compte.";
+    }
+    return errors;
   }
 
   function goToStep(target: number) {
@@ -243,6 +244,42 @@ export function RegisterForm() {
 
   return (
     <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-5">
+      {/* En-tête : Retour + badge contextuel (Accès Patient → Étape finale, maquettes PO) */}
+      <div className="flex flex-col gap-1">
+        <div className="mb-2 flex items-center justify-between gap-2">
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={onBack}
+            className="-ml-2 h-9 gap-1 text-muted-foreground hover:text-foreground"
+          >
+            <ChevronLeft className="size-4" aria-hidden="true" />
+            Retour
+          </Button>
+          {step < TOTAL_STEPS ? (
+            <span className="flex items-center gap-1.5 rounded-full bg-success/10 px-3 py-1 text-xs font-semibold text-success ring-1 ring-inset ring-success/25">
+              <span className="size-1.5 rounded-full bg-success" aria-hidden="true" />
+              Accès Patient
+            </span>
+          ) : (
+            <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary ring-1 ring-inset ring-primary/25">
+              Étape finale
+            </span>
+          )}
+        </div>
+        <h2
+          ref={headingRef}
+          tabIndex={-1}
+          className="text-2xl font-bold tracking-tight text-foreground focus:outline-none"
+        >
+          Inscription
+        </h2>
+        <p className="text-sm text-muted-foreground">
+          Créez votre compte patient sécurisé en 3 étapes
+        </p>
+      </div>
+
       {/* Fil d'étapes — pastilles iconées avec libellés dessous, fil bleu médical
           (design demandé par le PO) ; bleu = atteint, gris = à venir (ADR-002) */}
       <ol className="flex w-full items-start" aria-label="Étapes de l'inscription">
@@ -552,13 +589,28 @@ export function RegisterForm() {
 
           {step === 3 && (
             <>
-              <div className="flex flex-col gap-2 rounded-lg bg-muted p-3">
-                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                  Récapitulatif
-                </p>
+              {/* Récapitulatif patient (maquette étape 3) */}
+              <div className="flex flex-col gap-3 rounded-xl border border-primary/20 bg-primary/5 p-4">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-xs font-bold uppercase tracking-wide text-primary">
+                    Récapitulatif patient
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      hasNavigatedRef.current = true;
+                      goToStep(1);
+                    }}
+                    disabled={submitting}
+                    className="flex min-h-8 items-center gap-1 text-sm font-medium text-primary transition-colors hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+                  >
+                    Modifier
+                    <Pencil className="size-3.5" aria-hidden="true" />
+                  </button>
+                </div>
                 <div className="flex items-center gap-2 text-sm">
                   <User className="size-4 shrink-0 text-primary" aria-hidden="true" />
-                  <span className="font-medium">{fullName.trim() || "—"}</span>
+                  <span className="font-semibold uppercase">{fullName.trim() || "—"}</span>
                 </div>
                 <div className="flex items-center gap-2 text-sm">
                   <Phone className="size-4 shrink-0 text-primary" aria-hidden="true" />
@@ -570,13 +622,17 @@ export function RegisterForm() {
                 </div>
                 <div className="flex items-center gap-2 text-sm">
                   <MapPin className="size-4 shrink-0 text-primary" aria-hidden="true" />
-                  <span className="font-medium">{zone ? ZONE_LABELS[zone] : "—"}</span>
+                  <span className="font-medium">{zone ? `${ZONE_LABELS[zone]}, Abidjan` : "—"}</span>
                 </div>
               </div>
 
               <div className="flex flex-col gap-2">
                 <Label htmlFor="register-password">Mot de passe</Label>
                 <div className="relative">
+                  <Lock
+                    className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+                    aria-hidden="true"
+                  />
                   <Input
                     id="register-password"
                     name="password"
@@ -587,7 +643,7 @@ export function RegisterForm() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     disabled={submitting}
-                    className="h-11 pr-11"
+                    className="h-11 pl-9 pr-11"
                     aria-invalid={fieldErrors.password ? true : undefined}
                     aria-describedby={
                       fieldErrors.password ? "register-password-error" : undefined
@@ -608,6 +664,23 @@ export function RegisterForm() {
                     )}
                   </button>
                 </div>
+                {/* Jauge de robustesse : longueur ≥ 8, chiffre, majuscule/spéciale */}
+                <div className="flex items-center gap-3" aria-hidden="true">
+                  <div className="flex flex-1 gap-1.5">
+                    {[0, 1, 2].map((i) => (
+                      <span
+                        key={i}
+                        className={cn(
+                          "h-1.5 flex-1 rounded-full transition-colors duration-300",
+                          i < pwScore ? pwColor : "bg-muted",
+                        )}
+                      />
+                    ))}
+                  </div>
+                  <span className="whitespace-nowrap text-xs text-muted-foreground">
+                    8 car. min, 1 chiffre
+                  </span>
+                </div>
                 {fieldErrors.password && (
                   <p id="register-password-error" className="text-sm text-destructive">
                     {fieldErrors.password}
@@ -618,6 +691,10 @@ export function RegisterForm() {
               <div className="flex flex-col gap-2">
                 <Label htmlFor="register-confirm">Confirmer le mot de passe</Label>
                 <div className="relative">
+                  <ShieldCheck
+                    className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+                    aria-hidden="true"
+                  />
                   <Input
                     id="register-confirm"
                     name="confirmPassword"
@@ -627,7 +704,7 @@ export function RegisterForm() {
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     disabled={submitting}
-                    className="h-11 pr-11"
+                    className="h-11 pl-9 pr-11"
                     aria-invalid={fieldErrors.confirmPassword ? true : undefined}
                     aria-describedby={
                       fieldErrors.confirmPassword ? "register-confirm-error" : undefined
@@ -653,6 +730,46 @@ export function RegisterForm() {
                 {fieldErrors.confirmPassword && (
                   <p id="register-confirm-error" className="text-sm text-destructive">
                     {fieldErrors.confirmPassword}
+                  </p>
+                )}
+              </div>
+
+              {/* Consentement CGU + données de santé (requis — maquette étape 3) */}
+              <div className="flex flex-col gap-1.5">
+                <div className="flex items-start gap-2.5">
+                  <Checkbox
+                    id="register-consent"
+                    checked={consent}
+                    onCheckedChange={(v) => {
+                      setConsent(v === true);
+                      setFieldErrors((prev) => {
+                        if (!prev.consent) return prev;
+                        const next = { ...prev };
+                        delete next.consent;
+                        return next;
+                      });
+                    }}
+                    disabled={submitting}
+                    className="mt-0.5"
+                    aria-invalid={fieldErrors.consent ? true : undefined}
+                    aria-describedby={
+                      fieldErrors.consent ? "register-consent-error" : undefined
+                    }
+                  />
+                  <label
+                    htmlFor="register-consent"
+                    className="text-sm leading-snug text-muted-foreground"
+                  >
+                    J&apos;accepte les{" "}
+                    <span className="font-medium text-primary underline underline-offset-2">
+                      Conditions Générales
+                    </span>{" "}
+                    et consens au traitement sécurisé de mes données de santé.
+                  </label>
+                </div>
+                {fieldErrors.consent && (
+                  <p id="register-consent-error" className="text-sm text-destructive">
+                    {fieldErrors.consent}
                   </p>
                 )}
               </div>

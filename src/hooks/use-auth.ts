@@ -117,9 +117,9 @@ export function useAuth() {
   }, [status, setStatus, setUser, clear]);
 
   const login = useCallback(
-    async (phone: string, password: string): Promise<AuthResult> => {
+    async (phone: string, password: string, remember = true): Promise<AuthResult> => {
       try {
-        const res = await postJson("/api/auth/login", { phone, password });
+        const res = await postJson("/api/auth/login", { phone, password, rememberMe: remember });
         if (res.ok) {
           const data = (await res.json()) as { user: AppUser };
           setUser(data.user);

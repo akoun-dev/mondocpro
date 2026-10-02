@@ -8,6 +8,9 @@ import type { Role, Zone } from "@prisma/client";
 
 export const SESSION_COOKIE = "mondocpro_session";
 const SESSION_TTL_DAYS = 30;
+// Session courte (« Se souvenir de moi » décoché) : le cookie expire à la
+// fermeture du navigateur et le token serveur au bout de 24 h.
+const SESSION_SHORT_TTL_DAYS = 1;
 const BCRYPT_ROUNDS = 10;
 
 // Profil exposé au client — JAMAIS de passwordHash ni de session interne.
@@ -65,9 +68,10 @@ export async function invalidateUserSessions(userId: string): Promise<void> {
   await db.session.deleteMany({ where: { userId } });
 }
 
-export async function createSession(userId: string): Promise<void> {
+export async function createSession(userId: string, remember = true): Promise<void> {
   const token = randomBytes(48).toString("hex");
-  const expiresAt = new Date(Date.now() + SESSION_TTL_DAYS * 24 * 60 * 60 * 1000);
+  const ttlDays = remember ? SESSION_TTL_DAYS : SESSION_SHORT_TTL_DAYS;
+  const expiresAt = new Date(Date.now() + ttlDays * 24 * 60 * 60 * 1000);
 
   await db.session.create({
     data: { tokenHash: hashToken(token), userId, expiresAt },
@@ -79,7 +83,9 @@ export async function createSession(userId: string): Promise<void> {
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
     path: "/",
-    expires: expiresAt,
+    // « Se souvenir de moi » décoché : cookie de session (expire à la fermeture
+    // du navigateur) au lieu d'un cookie persistant 30 jours.
+    ...(remember ? { expires: expiresAt } : {}),
   });
 }
 

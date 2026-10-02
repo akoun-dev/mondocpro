@@ -19,7 +19,6 @@ import { ForgotPasswordForm } from "@/components/auth/forgot-password-form";
 import { LoginForm } from "@/components/auth/login-form";
 import { RegisterForm } from "@/components/auth/register-form";
 import { ResetPasswordForm } from "@/components/auth/reset-password-form";
-import { cn } from "@/lib/utils";
 
 export type AuthView = "login" | "register" | "forgot" | "reset";
 
@@ -30,7 +29,7 @@ const VIEW_META: Record<AuthView, { title: string; description: string }> = {
   },
   register: {
     title: "Inscription",
-    description: "Créez votre compte patient en 3 étapes simples",
+    description: "Créez votre compte patient sécurisé en 3 étapes",
   },
   forgot: {
     title: "Mot de passe oublié",
@@ -43,8 +42,8 @@ const VIEW_META: Record<AuthView, { title: string; description: string }> = {
 };
 
 // Vue de retour pour le bouton « Retour » de chaque vue.
+// (register gère son propre en-tête + badge d'étape dans RegisterForm)
 const PARENT_VIEW: Partial<Record<AuthView, AuthView>> = {
-  register: "login",
   forgot: "login",
   reset: "forgot",
 };
@@ -144,30 +143,23 @@ export function AuthFlow() {
                     <ChevronLeft className="size-4" aria-hidden="true" />
                     Retour
                   </Button>
-                  {view === "register" && (
-                    <span className="flex items-center gap-1.5 rounded-full bg-success/10 px-3 py-1 text-xs font-semibold text-success ring-1 ring-inset ring-success/25">
-                      <span className="size-1.5 rounded-full bg-success" aria-hidden="true" />
-                      Accès Patient
-                    </span>
-                  )}
                 </div>
               )}
 
-              <h2
-                ref={headingRef}
-                tabIndex={-1}
-                className={cn(
-                  "tracking-tight focus:outline-none",
-                  view === "register"
-                    ? "text-2xl font-bold text-foreground"
-                    : "text-xl font-semibold text-primary-dark",
-                )}
-              >
-                {VIEW_META[view].title}
-              </h2>
-              <p className="mt-0.5 mb-5 text-sm text-muted-foreground">
-                {VIEW_META[view].description}
-              </p>
+              {view !== "register" && (
+                <>
+                  <h2
+                    ref={headingRef}
+                    tabIndex={-1}
+                    className="text-xl font-semibold tracking-tight text-primary-dark focus:outline-none"
+                  >
+                    {VIEW_META[view].title}
+                  </h2>
+                  <p className="mt-0.5 mb-5 text-sm text-muted-foreground">
+                    {VIEW_META[view].description}
+                  </p>
+                </>
+              )}
 
               {view === "login" && (
                 <LoginForm
@@ -176,7 +168,9 @@ export function AuthFlow() {
                 />
               )}
 
-              {view === "register" && <RegisterForm />}
+              {view === "register" && (
+                <RegisterForm onBack={() => goTo("login")} headingRef={headingRef} />
+              )}
 
               {view === "forgot" && <ForgotPasswordForm onCodeSent={handleCodeSent} />}
 

@@ -55,6 +55,9 @@ export const registerStepSecuritySchema = registerBase
 export const loginSchema = z.object({
   phone: phoneSchema,
   password: z.string().min(1, "Mot de passe requis"),
+  // « Se souvenir de moi » : coché (défaut serveur) = session 30 jours,
+  // décoché = session courte (cookie de session navigateur).
+  rememberMe: z.boolean().optional(),
 });
 
 // Mot de passe oublié — US-AUTH-5 : demande de code (étape 1) puis
