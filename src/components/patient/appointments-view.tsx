@@ -1,22 +1,25 @@
 "use client";
 
-// Vue « Mes rendez-vous » — espace patient (maquette PO 2026-10 : entrée
-// « Consulter »). Deux sections : À venir (actifs, croissant) et Historique
-// (terminés/annulés, décroissant). Détail + annulation via le dialog partagé.
+// Vue « Mes rendez-vous » — maquette PO 2026-10 (pastedImage 1790982…):
+// titre + sous-titre + bouton « + Nouveau RDV », onglets segmentés
+// À venir (n) / Passées (n), cartes RDV (réf, badge statut, type • spécialité,
+// créneau bleu, actions Détail / Annuler). Réservation via le dialog partagé
+// BookAppointmentDialog (monté dans UserDashboard) ; annulation via le détail.
 import { useMemo, useState } from "react";
 import {
   ArrowLeft,
   Building2,
+  CalendarDays,
+  CalendarPlus,
   CalendarX2,
-  ChevronRight,
-  Home,
+  CircleX,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { PatientData } from "@/hooks/use-patient-data";
 import type { AppointmentDto } from "@/lib/appointments";
 import { ZONE_LABELS } from "@/lib/auth-schemas";
-import { relativeSlotLabel } from "@/lib/datetime";
+import { appointmentRef, formatCardSlotUTC } from "@/lib/datetime";
 import {
   APPOINTMENT_TYPE_LABELS,
   AppointmentStatusBadge,
@@ -26,11 +29,15 @@ import { AppointmentDetailDialog } from "./appointment-detail-dialog";
 type Props = {
   data: PatientData;
   onBack: () => void;
+  onBook: () => void;
 };
+
+type RdvTab = "upcoming" | "past";
 
 const NOW_MARGIN_MS = 60_000;
 
-export function AppointmentsView({ data, onBack }: Props) {
+export function AppointmentsView({ data, onBack, onBook }: Props) {
+  const [tab, setTab] = useState<RdvTab>("upcoming");
   const [detail, setDetail] = useState<AppointmentDto | null>(null);
 
   const { upcoming, history } = useMemo(() => {
@@ -48,58 +55,143 @@ export function AppointmentsView({ data, onBack }: Props) {
     return { upcoming: active, history: past };
   }, [data.appointments]);
 
-  const renderRow = (appointment: AppointmentDto) => (
-    <li key={appointment.id}>
-      <button
-        type="button"
-        onClick={() => setDetail(appointment)}
-        className="flex w-full items-center gap-3 rounded-xl border bg-card p-4 text-left shadow-sm transition-colors hover:border-primary/40 hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+  // Carte RDV maquette : réf + badge, bloc praticien (icône, intitulé,
+  // spécialité • zone), créneau en bleu, actions Détail (+ Annuler si actif).
+  const renderCard = (appointment: AppointmentDto) => {
+    const isActive =
+      appointment.status === "PENDING" || appointment.status === "CONFIRMED";
+    return (
+      <li
+        key={appointment.id}
+        className="rounded-2xl border bg-card p-4 shadow-sm sm:p-5"
+        aria-label={`Rendez-vous ${appointmentRef(appointment.id)}`}
       >
-        <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-          {appointment.type === "CABINET" ? (
-            <Building2 className="size-4.5" aria-hidden="true" />
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-xs font-medium tracking-wide text-muted-foreground">
+            {appointmentRef(appointment.id)}
+          </p>
+          <AppointmentStatusBadge status={appointment.status} />
+        </div>
+
+        <div className="mt-3 flex items-center gap-3">
+          <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+            {appointment.type === "CABINET" ? (
+              <Building2 className="size-5" aria-hidden="true" />
+            ) : (
+              <CalendarDays className="size-5" aria-hidden="true" />
+            )}
+          </span>
+          <div className="min-w-0">
+            <p className="truncate text-[15px] font-bold leading-tight">
+              {APPOINTMENT_TYPE_LABELS[appointment.type]}
+            </p>
+            <p className="mt-0.5 truncate text-xs text-muted-foreground">
+              Médecine générale • {ZONE_LABELS[appointment.zone]}
+            </p>
+          </div>
+        </div>
+
+        <p
+          className="mt-3 flex items-center gap-1.5 text-sm font-semibold text-primary"
+          suppressHydrationWarning
+        >
+          <CalendarDays className="size-4" aria-hidden="true" />
+          {formatCardSlotUTC(appointment.scheduledAt)}
+        </p>
+
+        <div className="mt-4 flex items-center justify-between gap-3 border-t pt-3.5">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setDetail(appointment)}
+            className="h-9 min-w-24 rounded-lg text-xs font-semibold"
+          >
+            Détail
+          </Button>
+          {isActive ? (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setDetail(appointment)}
+              className="h-9 gap-1.5 rounded-lg px-3 text-xs font-semibold text-destructive hover:bg-destructive/5 hover:text-destructive"
+            >
+              <CircleX className="size-4" aria-hidden="true" />
+              Annuler
+            </Button>
           ) : (
-            <Home className="size-4.5" aria-hidden="true" />
+            <span />
           )}
-        </span>
-        <span className="min-w-0 flex-1">
-          <span className="block truncate text-sm font-semibold" suppressHydrationWarning>
-            {relativeSlotLabel(appointment.scheduledAt)}
-          </span>
-          <span className="block truncate text-xs text-muted-foreground">
-            {APPOINTMENT_TYPE_LABELS[appointment.type]} ·{" "}
-            {ZONE_LABELS[appointment.zone]}
-          </span>
-        </span>
-        <AppointmentStatusBadge status={appointment.status} />
-        <ChevronRight
-          className="size-4 shrink-0 text-muted-foreground"
-          aria-hidden="true"
-        />
-      </button>
-    </li>
+        </div>
+      </li>
+    );
+  };
+
+  const tabButton = (id: RdvTab, label: string, count: number) => (
+    <button
+      key={id}
+      type="button"
+      onClick={() => setTab(id)}
+      aria-pressed={tab === id}
+      className={`min-h-9 flex-1 rounded-lg px-3 py-1.5 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+        tab === id
+          ? "bg-primary text-primary-foreground shadow-sm"
+          : "text-muted-foreground hover:text-foreground"
+      }`}
+    >
+      {label}
+      {count > 0 ? ` (${count})` : ""}
+    </button>
   );
+
+  const visible = tab === "upcoming" ? upcoming : history;
 
   return (
     <div className="flex flex-col gap-5">
-      <div className="flex items-center gap-1.5">
+      {/* En-tête maquette : titre + sous-titre à gauche, « + Nouveau RDV » à droite */}
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex min-w-0 items-start gap-1.5">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onBack}
+            aria-label="Retour à l'accueil"
+            className="size-9 shrink-0 rounded-full"
+          >
+            <ArrowLeft className="size-5" aria-hidden="true" />
+          </Button>
+          <div className="min-w-0">
+            <h2 className="text-xl font-bold tracking-tight sm:text-2xl">
+              Mes Rendez-vous
+            </h2>
+            <p className="mt-0.5 text-xs text-muted-foreground sm:text-sm">
+              Consultez et gérez vos consultations
+            </p>
+          </div>
+        </div>
         <Button
-          variant="ghost"
-          size="icon"
-          onClick={onBack}
-          aria-label="Retour à l'accueil"
-          className="size-9 rounded-full"
+          onClick={onBook}
+          className="h-10 shrink-0 gap-1.5 rounded-xl text-sm font-semibold"
         >
-          <ArrowLeft className="size-5" aria-hidden="true" />
+          <CalendarPlus className="size-4" aria-hidden="true" />
+          Nouveau RDV
         </Button>
-        <h2 className="text-lg font-bold tracking-tight">Mes rendez-vous</h2>
+      </div>
+
+      {/* Onglets segmentés — conteneur gris, actif bleu primaire (maquette) */}
+      <div
+        role="group"
+        aria-label="Filtrer les rendez-vous"
+        className="flex items-center gap-1 rounded-xl bg-muted p-1"
+      >
+        {tabButton("upcoming", "À venir", upcoming.length)}
+        {tabButton("past", "Passées", history.length)}
       </div>
 
       {data.loading && data.appointments === null ? (
         <ul className="grid gap-3" aria-busy="true" aria-label="Chargement des rendez-vous">
           {[0, 1, 2].map(index => (
             <li key={index}>
-              <Skeleton className="h-[72px] rounded-xl" aria-hidden="true" />
+              <Skeleton className="h-[172px] rounded-2xl" aria-hidden="true" />
             </li>
           ))}
         </ul>
@@ -114,54 +206,35 @@ export function AppointmentsView({ data, onBack }: Props) {
             Réessayer
           </Button>
         </div>
+      ) : visible.length > 0 ? (
+        <ul className="grid gap-3">{visible.map(renderCard)}</ul>
       ) : (
-        <>
-          <section aria-label="Rendez-vous à venir" className="flex flex-col gap-3">
-            <h3 className="text-sm font-semibold text-muted-foreground">
-              À venir{" "}
-              {upcoming.length > 0 && (
-                <span className="text-primary">({upcoming.length})</span>
-              )}
-            </h3>
-            {upcoming.length > 0 ? (
-              <ul className="grid gap-3">{upcoming.map(renderRow)}</ul>
-            ) : (
-              <p className="rounded-xl border border-dashed bg-muted/40 p-4 text-sm text-muted-foreground">
-                Aucun rendez-vous à venir — prenez-en un depuis l'accueil.
-              </p>
-            )}
-          </section>
-
-          <section aria-label="Historique des rendez-vous" className="flex flex-col gap-3">
-            <h3 className="text-sm font-semibold text-muted-foreground">
-              Historique{" "}
-              {history.length > 0 && (
-                <span className="text-primary">({history.length})</span>
-              )}
-            </h3>
-            {history.length > 0 ? (
-              <ul className="grid gap-3">{history.map(renderRow)}</ul>
-            ) : (
-              <p className="rounded-xl border border-dashed bg-muted/40 p-4 text-sm text-muted-foreground">
-                Vos consultations passées apparaîtront ici.
-              </p>
-            )}
-          </section>
-
-          {upcoming.length === 0 && history.length === 0 && (
-            <div className="flex flex-col items-center gap-3 rounded-2xl border bg-card p-8 text-center shadow-sm">
-              <span className="flex size-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-                <CalendarX2 className="size-6" aria-hidden="true" />
-              </span>
-              <div>
-                <p className="font-bold">Aucun rendez-vous</p>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Les nouveaux rendez-vous apparaîtront ici.
-                </p>
-              </div>
-            </div>
+        <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed bg-muted/40 p-8 text-center">
+          <span className="flex size-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+            <CalendarX2 className="size-6" aria-hidden="true" />
+          </span>
+          <div>
+            <p className="font-bold">
+              {tab === "upcoming"
+                ? "Aucun rendez-vous à venir"
+                : "Aucune consultation passée"}
+            </p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {tab === "upcoming"
+                ? "Prenez rendez-vous en un instant, du lundi au vendredi."
+                : "Vos consultations passées apparaîtront ici."}
+            </p>
+          </div>
+          {tab === "upcoming" && (
+            <Button
+              onClick={onBook}
+              className="mt-1 h-10 gap-1.5 rounded-xl text-sm font-semibold"
+            >
+              <CalendarPlus className="size-4" aria-hidden="true" />
+              Prendre rendez-vous
+            </Button>
           )}
-        </>
+        </div>
       )}
 
       <AppointmentDetailDialog

@@ -59,6 +59,8 @@ import type { SensibilisationDto } from "@/lib/sensibilisations"
 import type { AppointmentDto } from "@/lib/appointments"
 import { PatientHome } from "@/components/patient/patient-home"
 import { AppointmentsView } from "@/components/patient/appointments-view"
+import { SensibilisationsView } from "@/components/patient/sensibilisations-view"
+import { BookAppointmentDialog } from "@/components/patient/book-appointment-dialog"
 import { SensibilisationDialog } from "@/components/patient/sensibilisation-dialog"
 
 const ROLE_LABELS: Record<AppRole, string> = {
@@ -158,9 +160,10 @@ const ROLE_SPACE: Record<
     },
 }
 
-// Onglets de la navigation basse (style app mobile). « rdv » = sous-vue patient
-// (entrée « Mes rendez-vous » de l'accueil, hors navigation basse).
-type DashboardTab = "accueil" | "rdv" | "profil"
+// Onglets de la navigation basse (style app mobile). Sous-vues patient hors
+// navigation basse : « rdv » (entrée « Mes rendez-vous » de l'accueil) et
+// « senso » (entrée « Tout voir » de la carte santé).
+type DashboardTab = "accueil" | "rdv" | "senso" | "profil"
 
 const DASHBOARD_TABS: { id: DashboardTab; label: string; icon: LucideIcon }[] =
     [
@@ -227,6 +230,7 @@ export function UserDashboard() {
     const [openArticle, setOpenArticle] =
         useState<SensibilisationDto | null>(null)
     const [notifOpen, setNotifOpen] = useState(false)
+    const [bookingOpen, setBookingOpen] = useState(false)
 
     // Espace patient : RDV + sensibilisations partagés par le header (cloche),
     // l'accueil et la vue « Mes rendez-vous » (une annulation rafraîchit tout).
@@ -488,6 +492,8 @@ export function UserDashboard() {
                                     data={patientData}
                                     onOpenAppointments={() => setTab("rdv")}
                                     onOpenArticle={setOpenArticle}
+                                    onOpenAllArticles={() => setTab("senso")}
+                                    onBook={() => setBookingOpen(true)}
                                 />
                             ) : (
                             <>
@@ -609,6 +615,28 @@ export function UserDashboard() {
                             <AppointmentsView
                                 data={patientData}
                                 onBack={() => setTab("accueil")}
+                                onBook={() => setBookingOpen(true)}
+                            />
+                        </motion.section>
+                    )}
+
+                    {tab === "senso" && isPatient && (
+                        <motion.section
+                            key="senso"
+                            variants={tabVariants}
+                            initial="enter"
+                            animate="center"
+                            exit="exit"
+                            aria-label="Sensibilisations"
+                        >
+                            <SensibilisationsView
+                                feed={patientData.sensibilisations}
+                                zone={user.zone}
+                                loading={patientData.loading}
+                                error={patientData.error}
+                                onBack={() => setTab("accueil")}
+                                onRefresh={() => void patientData.refresh()}
+                                onOpenArticle={setOpenArticle}
                             />
                         </motion.section>
                     )}
@@ -673,11 +701,21 @@ export function UserDashboard() {
                 </AnimatePresence>
             </div>
 
-            {/* Article sensibilisation — dialog partagé accueil / notifications */}
+            {/* Article sensibilisation — dialog partagé accueil / vues / notifications */}
             {isPatient && (
                 <SensibilisationDialog
                     sensibilisation={openArticle}
                     onClose={() => setOpenArticle(null)}
+                />
+            )}
+
+            {/* Réservation — dialog partagé accueil / vue RDV, POST réel (201) */}
+            {isPatient && (
+                <BookAppointmentDialog
+                    open={bookingOpen}
+                    onClose={() => setBookingOpen(false)}
+                    onBooked={() => void patientData.refresh()}
+                    zone={user.zone}
                 />
             )}
 

@@ -13,13 +13,14 @@ export const APPOINTMENT_STATUS_LABELS: Record<AppointmentStatusValue, string> =
   };
 
 // Contrainte a11y (ADR-002) : jamais de texte blanc sur success/warning —
-// les foregrounds foncés des tokens sont utilisés tels quels.
+// les foregrounds foncés des tokens sont utilisés tels quels. Maquette PO :
+// « CONFIRMÉ » vert médical, « EN ATTENTE » bleu (teinte primaire douce).
 export const APPOINTMENT_STATUS_BADGE: Record<AppointmentStatusValue, string> =
   {
-    PENDING: "bg-warning text-warning-foreground",
+    PENDING: "bg-primary/10 text-primary",
     CONFIRMED: "bg-success text-success-foreground",
     CANCELLED: "bg-muted text-muted-foreground",
-    DONE: "bg-primary/10 text-primary",
+    DONE: "bg-success-light text-success-foreground",
   };
 
 export function AppointmentStatusBadge({

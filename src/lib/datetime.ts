@@ -78,6 +78,21 @@ export function formatFullSlotUTC(iso: string): string {
   return `${capitalize(formatted)} (heure d'Abidjan)`;
 }
 
+// « Vendredi 25 oct. 2025 à 09:30 » — format des cartes RDV (maquette PO).
+// Intl fr-FR insère « , » avant l'heure → remplacé par « à » (maquette).
+export function formatCardSlotUTC(iso: string): string {
+  const formatted = new Intl.DateTimeFormat(FR, {
+    weekday: "long",
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: "UTC",
+  }).format(new Date(iso));
+  return capitalize(formatted).replace(", ", " à ");
+}
+
 // « 24 oct. 2025 » — dates sans heure (création de compte, demande de RDV…).
 export function formatDateUTC(iso: string): string {
   return new Intl.DateTimeFormat(FR, {

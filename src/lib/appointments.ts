@@ -1,84 +1,30 @@
 // Service métier Rendez-vous — FEATURE-RDV (server only, importe db).
-// Règles de créneaux par défaut (arbitrages MVP documentés dans la spec
-// FEATURE-PATIENT, modifiables sans migration) :
-//   · Lundi → vendredi, 08:00 – 17:00 (dernier créneau 16:30)
-//   · Grille de 30 minutes
-//   · Réservation ≥ 2 h à l'avance, jusqu'à 60 jours
-//   · Un seul RDV actif (PENDING/CONFIRMED) par patient sur un créneau donné
+// Les règles de créneaux (arbitrages MVP spec FEATURE-PATIENT A1/A2/A6) vivent
+// dans src/lib/schedule.ts — module client-safe partagé avec le formulaire de
+// réservation, source unique front/back. Un seul RDV actif (PENDING/CONFIRMED)
+// par patient sur un créneau donné.
 import { db } from "@/lib/db";
 import type { Appointment, AppointmentStatus } from "@prisma/client";
 import type { CreateAppointmentInput } from "@/lib/appointment-schemas";
+import {
+  AppointmentError,
+  slotToDate,
+  validateSlot,
+} from "@/lib/schedule";
 
-export const SLOT_MINUTES = 30;
-export const OPENING_HOUR = 8;
-export const CLOSING_HOUR = 17;
-export const BUSINESS_DAYS = [1, 2, 3, 4, 5]; // getUTCDay : 0 = dimanche
-export const MIN_LEAD_MINUTES = 120;
-export const MAX_DAYS_AHEAD = 60;
-
-// Erreur métier transportant le statut HTTP de la réponse API.
-export class AppointmentError extends Error {
-  constructor(
-    message: string,
-    public readonly status: number,
-  ) {
-    super(message);
-  }
-}
-
-// Grille des créneaux d'une journée (heures locales = UTC, Afrique/Abidjan).
-export function listDaySlots(): string[] {
-  const slots: string[] = [];
-  for (let minutes = OPENING_HOUR * 60; minutes < CLOSING_HOUR * 60; minutes += SLOT_MINUTES) {
-    const hh = String(Math.floor(minutes / 60)).padStart(2, "0");
-    const mm = String(minutes % 60).padStart(2, "0");
-    slots.push(`${hh}:${mm}`);
-  }
-  return slots;
-}
-
-export function slotToDate(date: string, time: string): Date {
-  return new Date(`${date}T${time}:00.000Z`);
-}
-
-// Validation des règles de créneau — messages en français affichés au patient.
-export function validateSlot(scheduledAt: Date, now = new Date()): void {
-  const day = scheduledAt.getUTCDay();
-  const minutes = scheduledAt.getUTCHours() * 60 + scheduledAt.getUTCMinutes();
-
-  if (scheduledAt.getUTCSeconds() !== 0 || minutes % SLOT_MINUTES !== 0) {
-    throw new AppointmentError(
-      `Le créneau doit être aligné sur la grille de ${SLOT_MINUTES} minutes`,
-      400,
-    );
-  }
-  if (!BUSINESS_DAYS.includes(day)) {
-    throw new AppointmentError(
-      "Les rendez-vous sont proposés du lundi au vendredi",
-      400,
-    );
-  }
-  if (minutes < OPENING_HOUR * 60 || minutes >= CLOSING_HOUR * 60) {
-    throw new AppointmentError(
-      `Les créneaux vont de ${String(OPENING_HOUR).padStart(2, "0")}:00 à ${CLOSING_HOUR - 1}:30`,
-      400,
-    );
-  }
-  const minTime = now.getTime() + MIN_LEAD_MINUTES * 60 * 1000;
-  if (scheduledAt.getTime() < minTime) {
-    throw new AppointmentError(
-      `Le rendez-vous doit être pris au moins ${MIN_LEAD_MINUTES / 60} heures à l'avance`,
-      400,
-    );
-  }
-  const maxTime = now.getTime() + MAX_DAYS_AHEAD * 24 * 60 * 60 * 1000;
-  if (scheduledAt.getTime() > maxTime) {
-    throw new AppointmentError(
-      `Le rendez-vous ne peut pas être pris à plus de ${MAX_DAYS_AHEAD} jours`,
-      400,
-    );
-  }
-}
+// Ré-export : la route API et les scripts continuent d'importer depuis ici.
+export {
+  AppointmentError,
+  SLOT_MINUTES,
+  OPENING_HOUR,
+  CLOSING_HOUR,
+  BUSINESS_DAYS,
+  MIN_LEAD_MINUTES,
+  MAX_DAYS_AHEAD,
+  listDaySlots,
+  slotToDate,
+  validateSlot,
+} from "@/lib/schedule";
 
 // DTO exposé au client — dates en ISO UTC, le rendu formate en Africa/Abidjan.
 export type AppointmentDto = {

@@ -7,6 +7,7 @@ import { useMemo } from "react";
 import { motion } from "framer-motion";
 import {
   ArrowRight,
+  ChevronRight,
   HeartPulse,
   Square,
   TriangleAlert,
@@ -25,9 +26,16 @@ type Props = {
   zone: AppZone;
   loading: boolean;
   onOpenArticle: (item: SensibilisationDto) => void;
+  onOpenAll: () => void;
 };
 
-export function HealthAlertCard({ feed, zone, loading, onOpenArticle }: Props) {
+export function HealthAlertCard({
+  feed,
+  zone,
+  loading,
+  onOpenArticle,
+  onOpenAll,
+}: Props) {
   const item = useMemo(
     () => feed?.find(entry => entry.category === "ALERTE") ?? feed?.[0] ?? null,
     [feed],
@@ -69,10 +77,22 @@ export function HealthAlertCard({ feed, zone, loading, onOpenArticle }: Props) {
           {isAlert ? `Alerte Santé ${ZONE_LABELS[zone]}` : "Conseil Santé"}
         </span>
         <span
-          className="shrink-0 whitespace-nowrap text-xs text-muted-foreground"
-          suppressHydrationWarning
+          className="flex shrink-0 items-center gap-2 whitespace-nowrap"
         >
-          {relativePublishedLabel(item.publishedAt)}
+          <span
+            className="text-xs text-muted-foreground"
+            suppressHydrationWarning
+          >
+            {relativePublishedLabel(item.publishedAt)}
+          </span>
+          <button
+            type="button"
+            onClick={onOpenAll}
+            className="flex items-center gap-0.5 rounded-sm text-xs font-semibold text-primary transition-colors hover:text-primary-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          >
+            Tout voir
+            <ChevronRight className="size-3.5" aria-hidden="true" />
+          </button>
         </span>
       </div>
 

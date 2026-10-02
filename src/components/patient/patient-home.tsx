@@ -2,8 +2,9 @@
 
 // Accueil patient — maquette PO 2026-10 : carte de bienvenue, prochain
 // rendez-vous, raccourci « Mes rendez-vous », santé à la une et épargne.
-// Données partagées (usePatientData, monté dans UserDashboard) ; le module
-// Épargne (P2 TOKENS) s'affiche en état « Bientôt » — arbitrages A8/A9 en cours.
+// Données partagées (usePatientData, monté dans UserDashboard) ; la réservation
+// (BookAppointmentDialog) et l'épargne (P2 TOKENS, arbitrages A8/A9) sont
+// portées par UserDashboard — « Bientôt » uniquement pour l'épargne.
 import { useState } from "react";
 import { motion } from "framer-motion";
 import {
@@ -34,16 +35,12 @@ type Props = {
   data: PatientData;
   onOpenAppointments: () => void;
   onOpenArticle: (item: SensibilisationDto) => void;
+  onOpenAllArticles: () => void;
+  onBook: () => void;
 };
 
 const WELCOME_TAGLINE =
   "Bienvenue sur votre portail de télémédecine et consultations de proximité à Abidjan.";
-
-const BOOKING_SOON = {
-  title: "Prise de rendez-vous en ligne",
-  description:
-    "Elle arrive très bientôt — vous serez prévenu dès son ouverture.",
-};
 
 const SAVINGS_SOON = {
   title: "Épargne santé — bientôt disponible",
@@ -63,11 +60,12 @@ export function PatientHome({
   data,
   onOpenAppointments,
   onOpenArticle,
+  onOpenAllArticles,
+  onBook,
 }: Props) {
   const [detail, setDetail] = useState<AppointmentDto | null>(null);
   const firstName = user.fullName.trim().split(/\s+/)[0] ?? "";
 
-  const notifySoon = () => toast(BOOKING_SOON);
   const notifySavingsSoon = () => toast(SAVINGS_SOON);
 
   return (
@@ -117,7 +115,7 @@ export function PatientHome({
             appointments={data.appointments}
             loading={data.loading}
             onOpenDetail={setDetail}
-            onBook={notifySoon}
+            onBook={onBook}
           />
 
           {/* Raccourci « Mes rendez-vous » — maquette : carte-lien avec « Consulter » */}
@@ -150,6 +148,7 @@ export function PatientHome({
             zone={user.zone}
             loading={data.loading}
             onOpenArticle={onOpenArticle}
+            onOpenAll={onOpenAllArticles}
           />
 
           {/* Épargne Santé MonDoc — maquette en état « Bientôt » (P2 TOKENS :
