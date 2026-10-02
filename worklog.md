@@ -483,3 +483,21 @@ Stage Summary:
 - Vue Mot de passe oublié alignée visuellement et fonctionnellement sur la Connexion (indicatif +225 fixe)
 - Contrat API intact : numéro toujours stocké/envoyé au format +225XXXXXXXXXX
 - Commit b45399c poussé sur origin/main
+
+---
+Task ID: 13
+Agent: Super Z (main)
+Task: "On peut passer à l'audit des fonctionnalités patients (Rendez-vous / Épargne Tokens / Sensibilisations) avant leur développement" — audit complet (choix PO : markdown .ai/, écarts+risques+efforts S/M/L, 3 modules+transverse, roadmap P0/P1/P2, attente GO)
+
+Work Log:
+- Clarifications PO : format markdown .ai/, audit complet, périmètre 3 modules + transverse, roadmap P0/P1/P2, j'attends le GO
+- Lu .ai/ : REQUIREMENTS (backlog vide), API_CONTRACTS (6 contrats auth), AUDITS/2026-10-02-pre-patients.md (verdict PRÊT), ARCHITECTURE (couches, API-first), TASKS.md, PROJECT_CONTEXT, DESIGN_SYSTEM, WORKFLOWS (Feature Lifecycle 8 phases), AUDITS/README (conventions)
+- Lu prisma/schema.prisma (User/Session/PasswordResetToken — aucune table métier), package.json (db:push direct, pas de prisma/migrations), user-dashboard.tsx (3 cartes placeholder PATIENT), src/lib/auth.ts (getCurrentUser, pas de requireRole)
+- Découvertes nouvelles : /api/health contracté VALIDÉ mais code = "Hello, world!" ; migrations versionnées absentes ; garde API rôles non factorisée
+- Rédigé .ai/AUDITS/2026-10-03-patients-modules.md (214 lignes) : état des lieux preuves, écarts par module (RDV M / Tokens M+L / SENSO S), transverse, contrats à rédiger, 5 risques+mitigations, efforts, roadmap P0/P1/P2 (P0 fondations → RDV → SENSO → TOKENS-1), 5 décisions attendues du PO
+- Commit dfdb6b4 ; push rejeté (remote avancé : checkpoint + commit branding "Mon doc Pro") → git pull --rebase puis push OK (9151dbe..dfdb6b4)
+
+Stage Summary:
+- Audit complet déposé dans .ai/AUDITS/2026-10-03-patients-modules.md, poussé sur origin/main (dfdb6b4)
+- Verdict : 🟢 PRÊT — aucun blocage technique ; 4 arbitrages PO à trancher (créneaux RDV, valeur tokens, rédaction SENSO, fournisseur paiement)
+- En attente du GO du PO : à réception, ouverture lot P0 (fondations) puis P1 (RDV, SENSO)
