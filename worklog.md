@@ -241,3 +241,20 @@ Stage Summary:
 - Comptes de test fournis au PO (à changer) : Dr Kadjane +2250700000001 / Kadjane@Mondoc2026 — changement de mot de passe = itération suivante
 - 5 commits atomiques (fix devops, feat data, feat api, feat ui, docs gouvernance) puis push vérifié
 - Prochaines itérations naturelles : espaces Patient/Infirmier/Admin complets (RDV, Tokens, sensibilisations, dispatch) dans les composants préparés par le PO
+
+---
+Task ID: 1
+Agent: Super Z (setup environnement)
+Task: Cloner github.com/akoun-dev/mondocpro, remplacer intégralement le workspace, injecter les variables d'environnement Supabase fournies par le propriétaire, démarrer le serveur.
+
+Work Log:
+- Workspace scaffold supprimé ; repo cloné (branche main, HEAD 228d8ec) et déplacé à la racine de /home/z/my-project
+- bun install (829 packages) + bunx prisma generate OK
+- Variables fournies écrites dans .env et .zscripts/.env.supabase : NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY, NEXT_PUBLIC_SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY, ADMIN_INITIAL_PASSWORD
+- .zscripts/dev.sh modifié : db:push rendu conditionnel (ignoré si DATABASE_URL absente) pour permettre le boot sans creds DB
+- Serveur démarré via nohup bash .zscripts/dev.sh (mécanisme plateforme) ; vérifié au navigateur : écran auth MondocPro rendu, GET / 200
+- POST /api/auth/login → 500 : Prisma sans DATABASE_URL (attendu)
+
+Stage Summary:
+- Serveur Next.js 16 opérationnel sur port 3000, UI d'authentification fonctionnelle
+- BLOQUANT : DATABASE_URL manquante (mot de passe PostgreSQL Supabase) → db:push, seed_admin.ts et routes auth inopérantes jusqu'à fourniture

@@ -14,8 +14,13 @@ echo "[dev.sh] .env restauré (Supabase PostgreSQL, pooler Supavisor — ADR-003
 # DATABASE_URL=file:... PRIME sur .env (dotenv ne surcharge jamais l'env existant).
 # → on exporte explicitement la valeur du .env pour le process Next.js.
 export DATABASE_URL=$(grep '^DATABASE_URL=' .env | cut -d= -f2- | tr -d '"')
-echo "[dev.sh] DATABASE_URL exportée depuis .env (postgresql://…pooler.supabase.com)"
-bun install
-bun run db:push
+if [ -n "$DATABASE_URL" ]; then
+  echo "[dev.sh] DATABASE_URL exportée depuis .env (postgresql://…pooler.supabase.com)"
+  bun install
+  bun run db:push
+else
+  echo "[dev.sh] ⚠️ DATABASE_URL absente de .env — db:push ignoré, le serveur démarre sans base de données"
+  bun install
+fi
 echo "[dev.sh] Démarrage du serveur Next.js..."
 exec bun run dev
