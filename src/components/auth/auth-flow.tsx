@@ -19,7 +19,6 @@ import { ForgotPasswordForm } from "@/components/auth/forgot-password-form";
 import { LoginForm } from "@/components/auth/login-form";
 import { RegisterForm } from "@/components/auth/register-form";
 import { ResetPasswordForm } from "@/components/auth/reset-password-form";
-import { ZONE_LABELS } from "@/lib/auth-schemas";
 
 export type AuthView = "login" | "register" | "forgot" | "reset";
 
@@ -192,16 +191,6 @@ export function AuthFlow() {
         </ul>
 
         <footer className="flex animate-in flex-col items-center gap-2.5 fade-in slide-in-from-bottom-2 duration-500">
-          <ul aria-label="Zones couvertes" className="flex flex-wrap justify-center gap-2">
-            {Object.values(ZONE_LABELS).map((zone) => (
-              <li
-                key={zone}
-                className="rounded-full bg-white/10 px-3 py-1 text-xs font-medium text-white ring-1 ring-white/20"
-              >
-                {zone}
-              </li>
-            ))}
-          </ul>
           <p className="text-xs text-white/60">
             © {new Date().getFullYear()} MondocPro — Abidjan, Côte d&apos;Ivoire
           </p>
