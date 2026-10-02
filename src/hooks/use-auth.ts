@@ -20,8 +20,15 @@ export type RegisterPayload = {
 };
 
 export type AuthResult =
-  | { ok: true }
+  | { ok: true; message?: string }
   | { ok: false; error: string; fieldErrors?: Record<string, string> };
+
+export type ResetPasswordPayload = {
+  phone: string;
+  code: string;
+  password: string;
+  confirmPassword: string;
+};
 
 type ApiErrorBody = {
   error?: string;
@@ -147,6 +154,37 @@ export function useAuth() {
     [setUser, setStatus],
   );
 
+  const forgotPassword = useCallback(
+    async (phone: string): Promise<AuthResult> => {
+      try {
+        const res = await postJson("/api/auth/forgot-password", { phone });
+        if (res.ok) {
+          const body = (await res.json()) as { message?: string };
+          return { ok: true, message: body.message };
+        }
+        return await readError(res);
+      } catch {
+        return { ok: false, error: NETWORK_ERROR };
+      }
+    },
+    [],
+  );
+
+  const resetPassword = useCallback(
+    async (data: ResetPasswordPayload): Promise<AuthResult> => {
+      try {
+        const res = await postJson("/api/auth/reset-password", data);
+        if (res.ok) {
+          return { ok: true };
+        }
+        return await readError(res);
+      } catch {
+        return { ok: false, error: NETWORK_ERROR };
+      }
+    },
+    [],
+  );
+
   const logout = useCallback(async () => {
     try {
       await postJson("/api/auth/logout", {});
@@ -163,5 +201,5 @@ export function useAuth() {
     }
   }, [clear]);
 
-  return { user, status, login, register, logout };
+  return { user, status, login, register, logout, forgotPassword, resetPassword };
 }

@@ -2,7 +2,7 @@
 // (Awa Traoré via UI, Test Injection via API). Sessions supprimées d'abord (FK).
 import { PrismaClient } from "@prisma/client";
 
-const TEST_PHONES = ["+2250701020344", "+225079998877"];
+const TEST_PHONES = ["+2250701020344", "+225079998877", "+2250755443322"];
 
 const prisma = new PrismaClient();
 

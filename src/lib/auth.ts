@@ -1,6 +1,6 @@
 // Service d'authentification — FEATURE-AUTH (ADR-004)
 // Côté serveur uniquement (bcrypt, sessions, cookies) — jamais importé côté client.
-import { createHash, randomBytes } from "node:crypto";
+import { createHash, randomBytes, randomInt } from "node:crypto";
 import { cookies } from "next/headers";
 import bcrypt from "bcryptjs";
 import { db } from "@/lib/db";
@@ -48,8 +48,21 @@ export function verifyPassword(password: string, passwordHash: string): Promise<
 
 // Un cookie fuité ne doit pas permettre de rejouer une session en cas de fuite DB :
 // seul le SHA-256 du token est stocké.
-function hashToken(token: string): string {
+export function hashToken(token: string): string {
   return createHash("sha256").update(token).digest("hex");
+}
+
+// Code à 6 chiffres pour la réinitialisation de mot de passe (US-AUTH-5).
+export function generateResetCode(): string {
+  return String(randomInt(100000, 1000000));
+}
+
+export const PASSWORD_RESET_TTL_MINUTES = 15;
+
+// Après un reset de mot de passe, toutes les sessions existantes sont révoquées :
+// un attaquant ayant volé une session ne la conserve pas après reprise de contrôle.
+export async function invalidateUserSessions(userId: string): Promise<void> {
+  await db.session.deleteMany({ where: { userId } });
 }
 
 export async function createSession(userId: string): Promise<void> {

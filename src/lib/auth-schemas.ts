@@ -57,6 +57,30 @@ export const loginSchema = z.object({
   password: z.string().min(1, "Mot de passe requis"),
 });
 
+// Mot de passe oublié — US-AUTH-5 : demande de code (étape 1) puis
+// code + nouveau mot de passe (étape 2).
+export const forgotPasswordSchema = z.object({
+  phone: phoneSchema,
+});
+
+export const resetPasswordSchema = z
+  .object({
+    phone: phoneSchema,
+    code: z
+      .string()
+      .trim()
+      .regex(/^\d{6}$/, "Le code doit contenir exactement 6 chiffres"),
+    password: z
+      .string()
+      .min(8, "Le mot de passe doit contenir au moins 8 caractères")
+      .max(72, "Le mot de passe ne peut pas dépasser 72 caractères"),
+    confirmPassword: z.string(),
+  })
+  .refine((d) => d.password === d.confirmPassword, {
+    message: "Les mots de passe ne correspondent pas",
+    path: ["confirmPassword"],
+  });
+
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
 

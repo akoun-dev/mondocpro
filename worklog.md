@@ -293,3 +293,26 @@ Work Log:
 Stage Summary:
 - Inscription guidée 3 étapes opérationnelle, rôle PATIENT garanti hook + API + schéma
 - Contrat API register v2 (sans role) consigné dans .ai/API_CONTRACTS.md
+
+---
+Task ID: 4
+Agent: Super Z (vues auth dédiées + mot de passe oublié)
+Task: Remplacer les onglets par des vues dédiées (Connexion / Inscription / Mot de passe oublié / Nouveau mot de passe) et implémenter le parcours complet de récupération de mot de passe.
+
+Work Log:
+- prisma/schema.prisma : modèle PasswordResetToken (tokenHash SHA-256 unique, expiresAt 15 min, usedAt usage unique) + relation User ; db push OK
+- src/lib/auth.ts : generateResetCode (6 chiffres crypto), hashToken exporté, invalidateUserSessions, PASSWORD_RESET_TTL_MINUTES
+- Nouvelles routes API : /api/auth/forgot-password (anti-énumération : toujours 200, purge des anciens jetons, livraison SMS = TODO INT-SMS placeholder console — code jamais dans la réponse HTTP) et /api/auth/reset-password (vérif hash+exp+unused, maj bcrypt transactionnelle + usedAt, révocation de toutes les sessions, 400 générique)
+- auth-schemas.ts : forgotPasswordSchema + resetPasswordSchema
+- use-auth.ts : forgotPassword / resetPassword + AuthResult.message
+- auth-flow.tsx (nouveau) : machine à états login/register/forgot/reset, vues pleine page sans onglets, AnimatePresence 250 ms, Retour contextuel, focus a11y ; auth-screen.tsx (tabs) supprimé ; page.tsx basculé
+- login-form.tsx : liens "Mot de passe oublié ?" / "Créer un compte" ; forgot-password-form.tsx et reset-password-form.tsx créés ; formatPhoneDisplay partagé dans lib/utils.ts
+- Fix : redémarrage serveur requis après db push (client Prisma régénéré non pris en charge à chaud — TypeError db.passwordResetToken undefined)
+- Gouvernance : API_CONTRACTS.md (2 nouveaux endpoints) + CHANGELOG.md mis à jour
+- E2E navigateur : navigation vues, code erroné rejeté (générique), code actif → reset OK + toast, login nouveau mdp → Espace Patient, ancien mdp rejeté 401, réutilisation code rejetée 400, numéro inconnu → 200 identique, 0 erreur console, lint 0 erreur
+- Nettoyage : compte de test Bakary Diarra supprimé
+
+Stage Summary:
+- 4 vues d'auth dédiées opérationnelles, parcours mot de passe oublié complet et sécurisé
+- 6 routes API auth (/register, /login, /me, /logout, /forgot-password, /reset-password)
+- Point d'intégration SMS clairement identifié (TODO INT-SMS dans forgot-password route + contrat)

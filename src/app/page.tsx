@@ -3,7 +3,7 @@
 // Route unique « / » — orchestration des écrans selon l'état d'auth
 // (US-AUTH-3, SPEC-AUTH). Le footer commun apparaît dans les 3 états.
 import { Loader2 } from "lucide-react"
-import { AuthScreen } from "@/components/auth/auth-screen"
+import { AuthFlow } from "@/components/auth/auth-flow"
 import { UserDashboard } from "@/components/auth/user-dashboard"
 import { useAuth } from "@/hooks/use-auth"
 
@@ -28,7 +28,7 @@ export default function Home() {
                         </span>
                     </div>
                 )}
-                {status === "unauthenticated" && <AuthScreen />}
+                {status === "unauthenticated" && <AuthFlow />}
                 {status === "authenticated" && <UserDashboard />}
             </main>
 

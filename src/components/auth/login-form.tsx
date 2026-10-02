@@ -1,6 +1,7 @@
 "use client";
 
-// Formulaire de connexion — US-AUTH-2 (SPEC-AUTH)
+// Vue Connexion dédiée — US-AUTH-2 (SPEC-AUTH)
+// Liens vers les vues Inscription et Mot de passe oublié (auth-flow).
 // Erreur 401 générique affichée en Alert destructive (anti-énumération).
 import { useState, type FormEvent } from "react";
 import { Eye, EyeOff, Loader2 } from "lucide-react";
@@ -11,7 +12,13 @@ import { Label } from "@/components/ui/label";
 import { useAuth } from "@/hooks/use-auth";
 import { toast } from "@/hooks/use-toast";
 
-export function LoginForm() {
+export function LoginForm({
+  onForgotPassword,
+  onSwitchToRegister,
+}: {
+  onForgotPassword?: () => void;
+  onSwitchToRegister?: () => void;
+}) {
   const { login } = useAuth();
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
@@ -125,6 +132,31 @@ export function LoginForm() {
           "Se connecter"
         )}
       </Button>
+
+      {onForgotPassword && (
+        <button
+          type="button"
+          onClick={onForgotPassword}
+          disabled={submitting}
+          className="mx-auto flex min-h-11 items-center text-sm font-medium text-primary transition-colors hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+        >
+          Mot de passe oublié ?
+        </button>
+      )}
+
+      {onSwitchToRegister && (
+        <p className="border-t pt-4 text-center text-sm text-muted-foreground">
+          Pas encore de compte ?{" "}
+          <button
+            type="button"
+            onClick={onSwitchToRegister}
+            disabled={submitting}
+            className="font-medium text-primary transition-colors hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+          >
+            Créer un compte
+          </button>
+        </p>
+      )}
     </form>
   );
 }

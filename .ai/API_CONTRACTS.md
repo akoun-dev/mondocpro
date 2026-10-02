@@ -47,6 +47,19 @@ Validation: schéma zod de référence (src/lib/<domaine>.ts)
 - Response: 200 `{ "user": { ...idem register } }`
 - Errors: 401 `{ error }` non authentifié / session expirée · 500
 
+### [POST] /api/auth/forgot-password — Mot de passe oublié (étape 1)
+- Feature: FEATURE-AUTH (SYS-010 / US-AUTH-5) | Owner: Backend | Statut: **VALIDÉ** (maj PO 2026-10)
+- Request: `{ "phone": string(regex ^\+?[0-9]{8,15}$) }`
+- Response: 200 `{ "ok": true, "message": string }` — **toujours 200**, même numéro inconnu
+- Errors: 400 `{ error, details }` (zod) · 500
+- Notes: **anti-énumération** — réponse identique que le compte existe ou non. Code à 6 chiffres stocké hashé SHA-256 (`password_reset_tokens`), expiration 15 min, usage unique, anciens jetons purgés à chaque demande. Livraison : **TODO INT-SMS** passerelle SMS (placeholder console serveur — le code n'est jamais renvoyé dans la réponse HTTP).
+
+### [POST] /api/auth/reset-password — Réinitialisation (étape 2)
+- Feature: FEATURE-AUTH (SYS-010 / US-AUTH-5) | Owner: Backend | Statut: **VALIDÉ** (maj PO 2026-10)
+- Request: `{ "phone": string, "code": string(6 chiffres), "password": string(8..72), "confirmPassword": string }`
+- Response: 200 `{ "ok": true }` — mot de passe mis à jour (bcrypt), **toutes les sessions du compte révoquées**
+- Errors: 400 `{ error: "Code invalide ou expiré — demandez un nouveau code" }` (générique : code faux/expiré/utilisé/compte absent indistinguables) · 400 `{ error, details }` (zod) · 500
+
 ### [POST] /api/auth/logout — Déconnexion
 - Feature: FEATURE-AUTH (SYS-010) | Owner: Backend | Statut: **VALIDÉ** (ADR-004)
 - Request: — (cookie de session)
