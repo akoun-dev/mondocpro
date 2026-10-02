@@ -365,3 +365,17 @@ Work Log:
 Stage Summary:
 - Verdict : PRÊT pour FEATURE-PATIENT — aucun blocage, dette maîtrisée
 - Recommandations : API-first (contrats avant frontend), migrations versionnées dès le 1er modèle métier (SYS-009), ordre RDV → Sensibilisations → Tokens
+
+---
+Task ID: 8
+Agent: main (Super Z)
+Task: Retirer les badges de zones (Yopougon / Songon / PK22 / N'Dotré) du footer de l'écran d'authentification
+
+Work Log:
+- Suppression du <ul> des zones dans le footer de src/components/auth/auth-flow.tsx
+- Suppression de l'import ZONE_LABELS devenu inutilisé (lint OK, 0 erreur)
+- Vérification E2E via agent-browser après déconnexion admin : footer réduit au copyright uniquement
+- Commit 144b90f poussé sur origin/main
+
+Stage Summary:
+- Footer auth : uniquement "© MondocPro — Abidjan, Côte d'Ivoire" ; les chips de vente (Rendez-vous, Tokens, Soins de proximité) restent inchangées
