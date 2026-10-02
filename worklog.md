@@ -258,3 +258,20 @@ Work Log:
 Stage Summary:
 - Serveur Next.js 16 opérationnel sur port 3000, UI d'authentification fonctionnelle
 - BLOQUANT : DATABASE_URL manquante (mot de passe PostgreSQL Supabase) → db:push, seed_admin.ts et routes auth inopérantes jusqu'à fourniture
+
+---
+Task ID: 2
+Agent: Super Z (config DATABASE_URL + vérification E2E)
+Task: Injecter DATABASE_URL, pousser le schéma, seeder l'admin, vérifier le parcours auth complet au navigateur.
+
+Work Log:
+- Connexion directe db.kxaralvrvlzaowwbsedo.supabase.co impossible : host IPv6 uniquement, sandbox IPv4 (piège documenté .env.example)
+- Région du pooler Supavisor trouvée par balayage auth réel : aws-0-eu-west-1 (scripts/find-pooler-region.mjs)
+- DATABASE_URL (pooler, session mode 5432, sslmode=require) écrite dans .env et .zscripts/.env.supabase
+- Redémarrage via .zscripts/dev.sh → bun install + prisma db push OK (8.7s, schéma en sync)
+- Seed admin exécuté : bun .zscripts/seed_admin.ts → Dr Kadjane (+2250700000001, ADMIN, YOPOUGON) créé
+- Vérification navigateur (agent-browser) : GET / 200, login UI avec compte admin → espace Médecin Chef affiché (profil, zone), déconnexion OK, 0 erreur console
+
+Stage Summary:
+- App pleinement opérationnelle : UI + API auth + PostgreSQL Supabase connectés
+- Compte de test : +2250700000001 / Admin#MonDocPro (à changer à la première connexion)
