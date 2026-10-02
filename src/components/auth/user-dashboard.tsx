@@ -1,15 +1,17 @@
 "use client"
 
-// Espace connecté MVP — US-AUTH-3/4 (SPEC-AUTH)
-// Design v3 « app mobile » (refonte UI 2026-10) : barre d'app sticky,
-// navigation basse flottante (Accueil / Profil) type application native,
-// vues animées sobres framer-motion (DESIGN_SYSTEM §4). Logique intacte.
+// Espace connecté MVP — US-AUTH-3/4 (SPEC-AUTH) + FEATURE-PATIENT UI (maquette PO 2026-10)
+// Design v3 « app mobile » : barre d'app sticky (zone, actualiser, notifications),
+// navigation basse flottante (Accueil / Profil), vues animées sobres framer-motion
+// (DESIGN_SYSTEM §4). Accueil patient dédié (src/components/patient/) branché sur les
+// API contractées ; rôles INFIRMIER/ADMIN inchangés (cartes « à venir »).
 import Image from "next/image"
 import { useState } from "react"
 import { AnimatePresence, motion } from "framer-motion"
 import {
     Activity,
     BarChart3,
+    Bell,
     BellRing,
     CalendarCheck,
     ClipboardCheck,
@@ -21,6 +23,7 @@ import {
     MapPinned,
     Megaphone,
     Phone,
+    RefreshCw,
     Stethoscope,
     UserRound,
     UsersRound,
@@ -37,10 +40,26 @@ import {
     CardHeader,
     CardTitle,
 } from "@/components/ui/card"
+import {
+    Popover,
+    PopoverContent,
+    PopoverTrigger,
+} from "@/components/ui/popover"
 import { ZONE_LABELS } from "@/lib/auth-schemas"
+import {
+    relativePublishedLabel,
+    relativeSlotLabel,
+} from "@/lib/datetime"
 import { useAuth } from "@/hooks/use-auth"
+import { usePatientData } from "@/hooks/use-patient-data"
 import { toast } from "@/hooks/use-toast"
 import type { AppRole, AppUser } from "@/stores/auth-store"
+import type { PatientData } from "@/hooks/use-patient-data"
+import type { SensibilisationDto } from "@/lib/sensibilisations"
+import type { AppointmentDto } from "@/lib/appointments"
+import { PatientHome } from "@/components/patient/patient-home"
+import { AppointmentsView } from "@/components/patient/appointments-view"
+import { SensibilisationDialog } from "@/components/patient/sensibilisation-dialog"
 
 const ROLE_LABELS: Record<AppRole, string> = {
     PATIENT: "Patient",
@@ -139,8 +158,9 @@ const ROLE_SPACE: Record<
     },
 }
 
-// Onglets de la navigation basse (style app mobile).
-type DashboardTab = "accueil" | "profil"
+// Onglets de la navigation basse (style app mobile). « rdv » = sous-vue patient
+// (entrée « Mes rendez-vous » de l'accueil, hors navigation basse).
+type DashboardTab = "accueil" | "rdv" | "profil"
 
 const DASHBOARD_TABS: { id: DashboardTab; label: string; icon: LucideIcon }[] =
     [
@@ -204,11 +224,42 @@ const tabVariants = {
 export function UserDashboard() {
     const { user, logout } = useAuth()
     const [tab, setTab] = useState<DashboardTab>("accueil")
+    const [openArticle, setOpenArticle] =
+        useState<SensibilisationDto | null>(null)
+    const [notifOpen, setNotifOpen] = useState(false)
+
+    // Espace patient : RDV + sensibilisations partagés par le header (cloche),
+    // l'accueil et la vue « Mes rendez-vous » (une annulation rafraîchit tout).
+    const isPatient = user?.role === "PATIENT"
+    const patientData: PatientData = usePatientData(isPatient)
 
     if (!user) return null
 
     const space = ROLE_SPACE[user.role]
     const SpaceIcon = ROLE_SPACE_ICON[user.role]
+
+    // Notifications patient : nouveautés des 7 derniers jours (badge cap 9+).
+    const notificationCount = isPatient
+        ? (patientData.sensibilisations ?? []).filter(
+              item =>
+                  Date.now() - new Date(item.publishedAt).getTime() <
+                  7 * 24 * 60 * 60 * 1000,
+          ).length
+        : 0
+    // Prochain RDV actif — rappel en tête des notifications.
+    const nextPatientAppointment: AppointmentDto | null = isPatient
+        ? (patientData.appointments ?? [])
+              .filter(
+                  appointment =>
+                      (appointment.status === "PENDING" ||
+                          appointment.status === "CONFIRMED") &&
+                      new Date(appointment.scheduledAt).getTime() >=
+                          Date.now() - 60_000,
+              )
+              .sort((a, b) =>
+                  a.scheduledAt.localeCompare(b.scheduledAt),
+              )[0] ?? null
+        : null
 
     async function handleLogout() {
         await logout()
@@ -238,34 +289,181 @@ export function UserDashboard() {
             {/* Barre d'app — sticky avec flou en verre dépoli */}
             <header className="sticky top-0 z-20 border-b bg-card/80 backdrop-blur-md">
                 <div className="mx-auto flex w-full max-w-3xl items-center justify-between gap-3 px-4 py-3">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2.5">
                         <Image
                             src="/img/Mon doc Pro.jpeg"
                             alt="Mon doc Pro"
                             width={40}
                             height={40}
-                            className="size-10 rounded-full object-cover ring-1 ring-primary/30"
+                            className="size-10 rounded-xl object-cover ring-1 ring-primary/30"
                         />
-                        <span className="text-lg font-bold tracking-tight text-primary">
-                            Mon doc Pro
-                        </span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <div className="flex flex-col items-end gap-0.5">
-                            <span className="max-w-[10rem] truncate text-sm font-medium sm:max-w-none">
-                                {user.fullName}
+                        <div className="flex flex-col leading-tight">
+                            <span className="text-base font-bold tracking-tight text-primary sm:text-lg">
+                                Mon doc Pro
                             </span>
-                            <RoleBadge
-                                role={user.role}
-                                className="hidden sm:inline-flex"
-                            />
+                            {isPatient && (
+                                <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                                    <MapPin
+                                        className="size-3"
+                                        aria-hidden="true"
+                                    />
+                                    {ZONE_LABELS[user.zone]}, Abidjan
+                                </span>
+                            )}
                         </div>
-                        <Avatar className="size-10 ring-2 ring-primary/20">
-                            <AvatarFallback className="bg-primary text-sm font-semibold text-primary-foreground">
-                                {getInitials(user.fullName)}
-                            </AvatarFallback>
-                        </Avatar>
                     </div>
+                    {isPatient ? (
+                        <div className="flex items-center gap-1 sm:gap-1.5">
+                            <button
+                                type="button"
+                                onClick={() => void patientData.refresh()}
+                                aria-label="Actualiser mes données"
+                                className="flex size-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                            >
+                                <RefreshCw
+                                    className={`size-4.5 ${patientData.refreshing ? "animate-spin" : ""}`}
+                                    aria-hidden="true"
+                                />
+                            </button>
+                            <Popover
+                                open={notifOpen}
+                                onOpenChange={setNotifOpen}
+                            >
+                                <PopoverTrigger asChild>
+                                    <button
+                                        type="button"
+                                        aria-label={
+                                            notificationCount > 0
+                                                ? `Notifications (${notificationCount} nouveautés)`
+                                                : "Notifications"
+                                        }
+                                        className="relative flex size-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                    >
+                                        <Bell
+                                            className="size-4.5"
+                                            aria-hidden="true"
+                                        />
+                                        {notificationCount > 0 && (
+                                            <span
+                                                aria-hidden="true"
+                                                className="absolute right-0.5 top-0.5 flex size-4 items-center justify-center rounded-full bg-destructive text-[10px] font-bold leading-none text-destructive-foreground"
+                                            >
+                                                {notificationCount > 9
+                                                    ? "9+"
+                                                    : notificationCount}
+                                            </span>
+                                        )}
+                                    </button>
+                                </PopoverTrigger>
+                                <PopoverContent
+                                    align="end"
+                                    className="w-80 rounded-xl p-0"
+                                >
+                                    <p className="border-b px-4 py-3 text-sm font-semibold">
+                                        Notifications
+                                    </p>
+                                    <ul className="max-h-80 overflow-y-auto">
+                                        {nextPatientAppointment && (
+                                            <li>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        setNotifOpen(false)
+                                                        setTab("rdv")
+                                                    }}
+                                                    className="flex w-full items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/60"
+                                                >
+                                                    <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                                                        <CalendarCheck
+                                                            className="size-4"
+                                                            aria-hidden="true"
+                                                        />
+                                                    </span>
+                                                    <span className="min-w-0 flex-1">
+                                                        <span
+                                                            className="block truncate text-sm font-medium"
+                                                            suppressHydrationWarning
+                                                        >
+                                                            Rendez-vous {relativeSlotLabel(nextPatientAppointment.scheduledAt)}
+                                                        </span>
+                                                        <span className="text-xs text-muted-foreground">
+                                                            Mes rendez-vous
+                                                        </span>
+                                                    </span>
+                                                </button>
+                                            </li>
+                                        )}
+                                        {(patientData.sensibilisations ?? [])
+                                            .slice(0, 5)
+                                            .map(item => (
+                                                <li key={item.id}>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            setNotifOpen(false)
+                                                            setOpenArticle(item)
+                                                        }}
+                                                        className="flex w-full items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/60"
+                                                    >
+                                                        <span
+                                                            aria-hidden="true"
+                                                            className={`mt-1.5 size-2 shrink-0 rounded-full ${item.category === "ALERTE" ? "bg-destructive" : "bg-success"}`}
+                                                        />
+                                                        <span className="min-w-0 flex-1">
+                                                            <span className="block truncate text-sm font-medium">
+                                                                {item.title}
+                                                            </span>
+                                                            <span
+                                                                className="text-xs text-muted-foreground"
+                                                                suppressHydrationWarning
+                                                            >
+                                                                {relativePublishedLabel(item.publishedAt)}
+                                                            </span>
+                                                        </span>
+                                                    </button>
+                                                </li>
+                                            ))}
+                                        {!nextPatientAppointment &&
+                                            (patientData.sensibilisations ?? [])
+                                                .length === 0 && (
+                                                <li className="px-4 py-6 text-center text-sm text-muted-foreground">
+                                                    Aucune notification pour le moment
+                                                </li>
+                                            )}
+                                    </ul>
+                                </PopoverContent>
+                            </Popover>
+                            <button
+                                type="button"
+                                onClick={() => setTab("profil")}
+                                aria-label="Ouvrir mon profil"
+                                className="rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                            >
+                                <Avatar className="size-10 ring-2 ring-primary/20">
+                                    <AvatarFallback className="bg-primary text-sm font-semibold text-primary-foreground">
+                                        {getInitials(user.fullName)}
+                                    </AvatarFallback>
+                                </Avatar>
+                            </button>
+                        </div>
+                    ) : (
+                        <div className="flex items-center gap-2">
+                            <div className="flex flex-col items-end gap-0.5">
+                                <span className="max-w-[10rem] truncate text-sm font-medium sm:max-w-none">
+                                    {user.fullName}
+                                </span>
+                                <RoleBadge
+                                    role={user.role}
+                                    className="hidden sm:inline-flex"
+                                />
+                            </div>
+                            <Avatar className="size-10 ring-2 ring-primary/20">
+                                <AvatarFallback className="bg-primary text-sm font-semibold text-primary-foreground">
+                                    {getInitials(user.fullName)}
+                                </AvatarFallback>
+                            </Avatar>
+                        </div>
+                    )}
                 </div>
             </header>
 
@@ -284,6 +482,15 @@ export function UserDashboard() {
                             exit="exit"
                             aria-label="Accueil"
                         >
+                            {isPatient ? (
+                                <PatientHome
+                                    user={user}
+                                    data={patientData}
+                                    onOpenAppointments={() => setTab("rdv")}
+                                    onOpenArticle={setOpenArticle}
+                                />
+                            ) : (
+                            <>
                             {/* Hero de bienvenue — dégradé médical, texte blanc AA sur primary/dark */}
                             <div className="relative mb-6 overflow-hidden rounded-2xl bg-gradient-to-br from-primary to-primary-dark p-6 text-primary-foreground sm:p-8">
                                 <div
@@ -385,6 +592,24 @@ export function UserDashboard() {
                                     </ul>
                                 </CardContent>
                             </Card>
+                            </>
+                            )}
+                        </motion.section>
+                    )}
+
+                    {tab === "rdv" && isPatient && (
+                        <motion.section
+                            key="rdv"
+                            variants={tabVariants}
+                            initial="enter"
+                            animate="center"
+                            exit="exit"
+                            aria-label="Mes rendez-vous"
+                        >
+                            <AppointmentsView
+                                data={patientData}
+                                onBack={() => setTab("accueil")}
+                            />
                         </motion.section>
                     )}
 
@@ -447,6 +672,14 @@ export function UserDashboard() {
                     )}
                 </AnimatePresence>
             </div>
+
+            {/* Article sensibilisation — dialog partagé accueil / notifications */}
+            {isPatient && (
+                <SensibilisationDialog
+                    sensibilisation={openArticle}
+                    onClose={() => setOpenArticle(null)}
+                />
+            )}
 
             {/* Navigation basse flottante — style app native, safe-area iOS respectée */}
             <nav

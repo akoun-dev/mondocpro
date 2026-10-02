@@ -25,6 +25,7 @@
 | FEATURE-RDV  | Contrats API (25 cas, bun)        | health · 4×401 sans session · POST 201/PENDING · collision 409 · dimanche/hors grille/délai 400 · liste 200 · RDV d'autrui 404 · cancel 200/409 · action inconnue 400 · INFIRMIER 403 (GET+POST) | Réponses conformes à API_CONTRACTS.md (enveloppe standard, DTO ISO UTC) | PASS | 2026-10-03 | e2e-patients.ts (scripts/) |
 | FEATURE-RDV  | Propriété + cycle de vie          | Patient B annule le RDV de A → 404 ; A annule → 200 CANCELLED ; re-cancel → 409       | Propriété serveur vérifiée, statuts non annulables protégés                     | PASS     | 2026-10-03 | e2e-patients.ts                 |
 | FEATURE-SENSO | Contrats API + ciblage zone      | Liste (5/6 visibles pour YOPOUGON, « Eau de boisson » SONGON/NDOTRE masqué) · détail 200 · inconnue 404 · INFIRMIER 200 (tous rôles) | Filtrage `zones` correct, 404 indistinguable absent/hors ciblage         | PASS     | 2026-10-03 | e2e-patients.ts                 |
+| FEATURE-PATIENT | UI espace patient (maquette PO 2026-10) | Desktop 1440×900 + mobile 390×844 : accueil (bienvenue datée, prochain RDV dégradé médical, lien RDV, alerte zonale + TTS, épargne « Bientôt ») · dialog détail RDV + annulation · vue À venir/Historique · dialog article · cloche notifications | Maquette reproduite fidèlement sur données réelles (RDV PENDING lun. 09:00, alerte Paludisme « Il y a 1 h »), 0 erreur console, régression INFIRMIER OK | PASS | 2026-10-03 | agent-browser (compte Patient UI Maquette) |
 
 ### Modèle de ligne
 
