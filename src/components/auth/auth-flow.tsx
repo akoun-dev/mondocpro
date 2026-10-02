@@ -12,13 +12,14 @@
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { AnimatePresence, motion } from "framer-motion";
-import { ArrowLeft, CalendarCheck, MapPin, Wallet } from "lucide-react";
+import { CalendarCheck, ChevronLeft, MapPin, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ForgotPasswordForm } from "@/components/auth/forgot-password-form";
 import { LoginForm } from "@/components/auth/login-form";
 import { RegisterForm } from "@/components/auth/register-form";
 import { ResetPasswordForm } from "@/components/auth/reset-password-form";
+import { cn } from "@/lib/utils";
 
 export type AuthView = "login" | "register" | "forgot" | "reset";
 
@@ -29,7 +30,7 @@ const VIEW_META: Record<AuthView, { title: string; description: string }> = {
   },
   register: {
     title: "Inscription",
-    description: "Créez votre compte patient en 3 étapes",
+    description: "Créez votre compte patient en 3 étapes simples",
   },
   forgot: {
     title: "Mot de passe oublié",
@@ -132,22 +133,35 @@ export function AuthFlow() {
               transition={{ duration: 0.25, ease: "easeOut" }}
             >
               {parent && (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => goTo(parent)}
-                  className="-ml-2 mb-3 h-9 gap-1.5 text-muted-foreground hover:text-foreground"
-                >
-                  <ArrowLeft className="size-4" aria-hidden="true" />
-                  Retour
-                </Button>
+                <div className="mb-3 flex items-center justify-between gap-2">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => goTo(parent)}
+                    className="-ml-2 h-9 gap-1 text-muted-foreground hover:text-foreground"
+                  >
+                    <ChevronLeft className="size-4" aria-hidden="true" />
+                    Retour
+                  </Button>
+                  {view === "register" && (
+                    <span className="flex items-center gap-1.5 rounded-full bg-success/10 px-3 py-1 text-xs font-semibold text-success ring-1 ring-inset ring-success/25">
+                      <span className="size-1.5 rounded-full bg-success" aria-hidden="true" />
+                      Accès Patient
+                    </span>
+                  )}
+                </div>
               )}
 
               <h2
                 ref={headingRef}
                 tabIndex={-1}
-                className="text-xl font-semibold tracking-tight text-primary-dark focus:outline-none"
+                className={cn(
+                  "tracking-tight focus:outline-none",
+                  view === "register"
+                    ? "text-2xl font-bold text-foreground"
+                    : "text-xl font-semibold text-primary-dark",
+                )}
               >
                 {VIEW_META[view].title}
               </h2>

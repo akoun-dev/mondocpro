@@ -37,9 +37,9 @@ import { cn } from "@/lib/utils";
 type ZoneValue = RegisterPayload["zone"];
 
 const STEPS = [
-  { title: "Identité", description: "Qui êtes-vous ?", icon: User },
-  { title: "Zone", description: "Où résidez-vous ?", icon: MapPin },
-  { title: "Sécurité", description: "Protégez votre compte", icon: ShieldCheck },
+  { title: "Identité", description: "Renseignez vos coordonnées de contact", icon: User },
+  { title: "Commune", description: "Sélectionnez votre commune de résidence", icon: MapPin },
+  { title: "Sécurité", description: "Choisissez un mot de passe robuste", icon: ShieldCheck },
 ] as const;
 
 const TOTAL_STEPS = STEPS.length;
@@ -60,12 +60,34 @@ const stepVariants = {
   exit: (direction: 1 | -1) => ({ x: direction * -48, opacity: 0 }),
 };
 
-function formatPhoneLight(phone: string): string {
-  const cleaned = phone.replace(/[^\d+]/g, "");
-  const digits = cleaned.startsWith("+") ? cleaned.slice(1) : cleaned;
-  if (!/^\d{8,15}$/.test(digits)) return phone;
-  const prefix = cleaned.startsWith("+") ? "+" : "";
-  return `${prefix}${digits.replace(/(\d{2})(?=\d)/g, "$1 ")}`;
+// Champ téléphone : l'UI affiche un indicatif +225 fixe — l'utilisateur saisit
+// le numéro local (10 chiffres). On normalise vers l'international avant validation
+// et envoi (le schéma API accepte +?[0-9]{8,15}). Tolère un collage avec +225.
+function toInternationalPhone(raw: string): string {
+  let digits = raw.replace(/\D/g, "");
+  if (digits.length > 10 && digits.startsWith("225")) digits = digits.slice(3);
+  return `+225${digits}`;
+}
+
+// Affichage lisible : +225 07 01 02 03 04.
+function formatPhoneDisplay(phone: string): string {
+  const match = phone.match(/^\+225(\d{1,15})$/);
+  if (!match) return phone;
+  return `+225 ${match[1].replace(/(\d{2})(?=\d)/g, "$1 ")}`;
+}
+
+// Drapeau Côte d'Ivoire en CSS (évite les emojis drapeaux, absents sur Windows).
+function FlagCI() {
+  return (
+    <span
+      className="flex h-3.5 w-5 shrink-0 overflow-hidden rounded-[2px] ring-1 ring-black/10"
+      aria-hidden="true"
+    >
+      <span className="h-full w-1/3 bg-[#F77F00]" />
+      <span className="h-full w-1/3 bg-white" />
+      <span className="h-full w-1/3 bg-[#009E60]" />
+    </span>
+  );
 }
 
 export function RegisterForm() {
@@ -100,7 +122,7 @@ export function RegisterForm() {
     if (current === 1) {
       const parsed = registerStepIdentitySchema.safeParse({
         fullName: fullName.trim(),
-        phone: phone.trim(),
+        phone: toInternationalPhone(phone),
       });
       return parsed.success ? {} : zodIssuesToFieldErrors(parsed.error);
     }
@@ -160,7 +182,7 @@ export function RegisterForm() {
 
     const result = await register({
       fullName: fullName.trim(),
-      phone: phone.trim(),
+      phone: toInternationalPhone(phone),
       password,
       confirmPassword,
       zone: zone as ZoneValue,
@@ -194,8 +216,9 @@ export function RegisterForm() {
 
   return (
     <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-5">
-      {/* Fil d'étapes — bleu médical (courant) / vert santé (terminé), ADR-002 */}
-      <ol className="flex w-full items-center gap-2" aria-label="Étapes de l'inscription">
+      {/* Fil d'étapes — pastilles iconées avec libellés dessous, fil bleu médical
+          (design demandé par le PO) ; bleu = atteint, gris = à venir (ADR-002) */}
+      <ol className="flex w-full items-start" aria-label="Étapes de l'inscription">
         {STEPS.map((stepDef, index) => {
           const stepNumber = index + 1;
           const isDone = stepNumber < step;
@@ -204,41 +227,45 @@ export function RegisterForm() {
           return (
             <li
               key={stepDef.title}
-              className="flex flex-1 items-center gap-2 last:flex-none"
+              className={cn("flex items-start", index < TOTAL_STEPS - 1 ? "flex-1" : "shrink-0")}
               aria-current={isCurrent ? "step" : undefined}
             >
-              <span
-                className={cn(
-                  "flex size-9 shrink-0 items-center justify-center rounded-full border-2 transition-colors duration-300",
-                  isDone && "border-success bg-success text-success-foreground",
-                  isCurrent && "border-primary bg-primary text-primary-foreground ring-4 ring-primary/15",
-                  !isDone && !isCurrent && "border-input bg-muted text-muted-foreground",
-                )}
-                aria-hidden="true"
-              >
-                {isDone ? (
-                  <Check className="size-4" strokeWidth={3} />
-                ) : (
-                  <StepIcon className="size-4" />
-                )}
-              </span>
-              <span
-                className={cn(
-                  "hidden shrink-0 text-sm font-medium sm:inline",
-                  isCurrent ? "text-foreground" : "text-muted-foreground",
-                )}
-              >
-                {stepDef.title}
-              </span>
+              <div className="flex w-9 shrink-0 flex-col items-center gap-1.5">
+                <span
+                  className={cn(
+                    "flex size-9 shrink-0 items-center justify-center rounded-full border-2 transition-colors duration-300",
+                    (isDone || isCurrent) && "border-primary bg-primary text-primary-foreground",
+                    isCurrent && "ring-4 ring-primary/15",
+                    !isDone && !isCurrent && "border-input bg-card text-muted-foreground",
+                  )}
+                  aria-hidden="true"
+                >
+                  {isDone ? (
+                    <Check className="size-4" strokeWidth={3} />
+                  ) : (
+                    <StepIcon className="size-4" />
+                  )}
+                </span>
+                <span
+                  className={cn(
+                    "whitespace-nowrap text-xs font-medium",
+                    isCurrent && "font-semibold text-primary",
+                    isDone && "text-foreground",
+                    !isDone && !isCurrent && "text-muted-foreground",
+                  )}
+                >
+                  {stepDef.title}
+                </span>
+              </div>
               {index < TOTAL_STEPS - 1 && (
                 <span
-                  className="relative h-0.5 flex-1 overflow-hidden rounded-full bg-border"
+                  className="relative mx-1.5 mt-[17px] h-0.5 flex-1 overflow-hidden rounded-full bg-border"
                   aria-hidden="true"
                 >
                   <motion.span
-                    className="absolute inset-0 origin-left rounded-full bg-success"
+                    className="absolute inset-0 origin-left rounded-full bg-primary"
                     initial={false}
-                    animate={{ scaleX: isDone ? 1 : 0 }}
+                    animate={{ scaleX: stepNumber <= step ? 1 : 0 }}
                     transition={{ duration: 0.35, ease: "easeOut" }}
                   />
                 </span>
@@ -265,33 +292,50 @@ export function RegisterForm() {
           transition={{ duration: 0.22, ease: "easeOut" }}
           className="flex flex-col gap-4"
         >
-          <h3
-            ref={headingRef}
-            tabIndex={-1}
-            className="text-lg font-semibold text-primary-dark focus:outline-none"
-          >
-            Étape {step} sur {TOTAL_STEPS} — {STEPS[step - 1].title}
-          </h3>
-          <p className="-mt-3 text-sm text-muted-foreground">{STEPS[step - 1].description}</p>
+          <div className="flex items-center justify-between gap-3">
+            <h3
+              ref={headingRef}
+              tabIndex={-1}
+              className="text-base font-semibold text-foreground focus:outline-none"
+            >
+              Étape {step} sur {TOTAL_STEPS} — {STEPS[step - 1].title}
+            </h3>
+            <span className="text-sm font-bold text-primary" aria-hidden="true">
+              {Math.round((step / TOTAL_STEPS) * 100)}%
+            </span>
+          </div>
+          <p className="-mt-2.5 text-sm text-muted-foreground">{STEPS[step - 1].description}</p>
 
           {step === 1 && (
             <>
               <div className="flex flex-col gap-2">
-                <Label htmlFor="register-fullname">Nom complet</Label>
-                <Input
-                  id="register-fullname"
-                  name="fullName"
-                  type="text"
-                  autoComplete="name"
-                  placeholder="Ex. Aya Konaté"
-                  maxLength={80}
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                  disabled={submitting}
-                  className="h-11"
-                  aria-invalid={fieldErrors.fullName ? true : undefined}
-                  aria-describedby={fieldErrors.fullName ? "register-fullname-error" : undefined}
-                />
+                <Label htmlFor="register-fullname">
+                  Nom complet
+                  <span className="text-destructive" aria-hidden="true">
+                    {" "}*
+                  </span>
+                  <span className="sr-only"> (obligatoire)</span>
+                </Label>
+                <div className="relative">
+                  <User
+                    className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+                    aria-hidden="true"
+                  />
+                  <Input
+                    id="register-fullname"
+                    name="fullName"
+                    type="text"
+                    autoComplete="name"
+                    placeholder="Aya Konaté"
+                    maxLength={80}
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                    disabled={submitting}
+                    className="h-11 pl-9"
+                    aria-invalid={fieldErrors.fullName ? true : undefined}
+                    aria-describedby={fieldErrors.fullName ? "register-fullname-error" : undefined}
+                  />
+                </div>
                 {fieldErrors.fullName && (
                   <p id="register-fullname-error" className="text-sm text-destructive">
                     {fieldErrors.fullName}
@@ -300,24 +344,52 @@ export function RegisterForm() {
               </div>
 
               <div className="flex flex-col gap-2">
-                <Label htmlFor="register-phone">Téléphone</Label>
-                <Input
-                  id="register-phone"
-                  name="phone"
-                  type="tel"
-                  inputMode="tel"
-                  autoComplete="tel"
-                  placeholder="+225 07 01 02 03 04"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  disabled={submitting}
-                  className="h-11"
-                  aria-invalid={fieldErrors.phone ? true : undefined}
-                  aria-describedby={fieldErrors.phone ? "register-phone-error" : undefined}
-                />
-                {fieldErrors.phone && (
+                <Label htmlFor="register-phone">
+                  Numéro de téléphone
+                  <span className="text-destructive" aria-hidden="true">
+                    {" "}*
+                  </span>
+                  <span className="sr-only"> (obligatoire)</span>
+                </Label>
+                <div
+                  className={cn(
+                    "flex h-11 items-stretch overflow-hidden rounded-md border border-input bg-transparent shadow-xs transition-[color,box-shadow]",
+                    "focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/50",
+                    fieldErrors.phone && "border-destructive focus-within:ring-destructive/30",
+                  )}
+                >
+                  <span
+                    className="flex shrink-0 select-none items-center gap-1.5 border-r border-input bg-muted/50 px-3"
+                    aria-hidden="true"
+                  >
+                    <FlagCI />
+                    <span className="text-sm font-semibold text-foreground">+225</span>
+                  </span>
+                  <Input
+                    id="register-phone"
+                    name="phone"
+                    type="tel"
+                    inputMode="tel"
+                    autoComplete="tel-national"
+                    placeholder="07 01 02 03 04"
+                    maxLength={14}
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value.replace(/[^\d\s]/g, ""))}
+                    disabled={submitting}
+                    className="h-full flex-1 rounded-none border-0 shadow-none focus-visible:ring-0"
+                    aria-invalid={fieldErrors.phone ? true : undefined}
+                    aria-describedby={
+                      fieldErrors.phone ? "register-phone-error" : "register-phone-hint"
+                    }
+                  />
+                </div>
+                {fieldErrors.phone ? (
                   <p id="register-phone-error" className="text-sm text-destructive">
                     {fieldErrors.phone}
+                  </p>
+                ) : (
+                  <p id="register-phone-hint" className="text-xs text-muted-foreground">
+                    Un code SMS de validation vous sera envoyé.
                   </p>
                 )}
               </div>
@@ -383,7 +455,11 @@ export function RegisterForm() {
                 </div>
                 <div className="flex items-center gap-2 text-sm">
                   <Phone className="size-4 shrink-0 text-primary" aria-hidden="true" />
-                  <span className="font-medium">{formatPhoneLight(phone) || "—"}</span>
+                  <span className="font-medium">
+                    {phone.replace(/\D/g, "")
+                      ? formatPhoneDisplay(toInternationalPhone(phone))
+                      : "—"}
+                  </span>
                 </div>
                 <div className="flex items-center gap-2 text-sm">
                   <MapPin className="size-4 shrink-0 text-primary" aria-hidden="true" />
