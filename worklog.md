@@ -328,3 +328,22 @@ Work Log:
 
 Stage Summary:
 - Page sans footer, layout flex conservé (main flex-1)
+
+---
+Task ID: 6
+Agent: Super Z (refonte UI)
+Task: Améliorer l'UI — nouveau design auth premium + espace connecté style app mobile (demandes PO : "ameliore l'UI", "un nouveau design", "type app mobile", "ameliore l'UI Auth avec un nouveau design").
+
+Work Log:
+- Audit complet : captures auth/dashboard desktop+mobile, lecture DESIGN_SYSTEM.md (ADR-002), login/register/forgot/reset/dashboard/page
+- auth-flow.tsx (v4) : écran premium centré sur dégradé médical plein écran (from-primary via-primary to-primary-dark), logo flottant ring-4, carte verre dépoli rounded-3xl bg-card/95 backdrop-blur-xl shadow-2xl, motif « plus » médical SVG en tuile (opacité 4 %), orbes lumineux (white/10 + success/20), pastilles de verre des arguments de vente (desktop sm+), badges zones + copyright, transitions AnimatePresence conservées (250 ms)
+- user-dashboard.tsx (v3 app mobile) : barre d'app sticky bg-card/80 backdrop-blur-md, navigation basse flottante max-w-sm rounded-2xl (Accueil / Profil) avec aria-current, safe-area iOS pb-[max(env(safe-area-inset-bottom),1rem)], vues onglets animées AnimatePresence (220 ms), hero de bienvenue dégradé (date fr-FR, badges rôle/zone verre), profil en grille de tuiles icônes (sm:grid-cols-3), cartes fonctionnalités par rôle (icons lucide + hover primary + badge « Bientôt disponible »), déconnexion dans l'onglet Profil
+- page.tsx : chargement brandé (logo pulse + spinner), AuthFlow gère son propre min-h-screen
+- ROLE_SPACE restructuré : features {icon, title, description} — CalendarCheck/Wallet/Megaphone (Patient), BellRing/MapPinned/ClipboardCheck (Infirmier), Activity/UsersRound/BarChart3 (Médecin Chef)
+- Vérifications agent-browser : login desktop 1440x900 + mobile 390x844, wizard inscription, mot de passe oublié, login E2E admin → dashboard (accueil + profil + bottom nav), 0 erreur console, dev.log sans erreur
+- Lint : 0 erreur / 0 warning
+
+Stage Summary:
+- Nouveau design auth v4 premium (dégradé + verre dépoli) et espace connecté style app mobile (bottom nav) — palette ADR-002 strictement respectée, contrastes AA maintenus (texte blanc uniquement sur primary/primary-dark)
+- Logique métier intacte : aucune modification des hooks, schémas zod, routes API ou contrats
+- Captures de vérification dans .zscripts/ui-v2-*.png, ui-v3-*.png, ui-v4-*.png
