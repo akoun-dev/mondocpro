@@ -560,3 +560,24 @@ Stage Summary:
 - TOUTES les migrations vivent désormais dans supabase/migrations/ : format Prisma (dossiers) appliqué par migrate deploy, registre _prisma_migrations inchangé, zéro impact base (up to date).
 - Future-proof Prisma 7 : prisma.config.ts remplace package.json#prisma ; migration_lock.toml désormais versionné ; dossier prisma/ disparu.
 - Commit 4921eb9 + push origin/main ; preview sans impact runtime (client généré identique, serveur en mémoire non affecté).
+
+---
+Task ID: 17
+Agent: Super Z
+Task: "Pour l'espace patient, je veux ce design" (maquette upload pasted_image_1790981792913.png) — implémenter l'accueil patient selon la maquette.
+
+Work Log:
+- Maquette analysée : header (logo + zone, ⇄, cloche badge 3, avatar), bienvenue datée + badge zone, carte PROCHAIN RENDEZ-VOUS bleu médical (statut CONFIRMÉ, créneau, lieu, réf, « Voir le détail »), raccourci « Mes rendez-vous » (Consulter ›), carte Alerte Santé Yopougon (pill rouge, « Il y a 3 h », écouter 1 min, lire l'article), carte Épargne Santé MonDoc (solde 45 000 FCFA ≈ 90 MDP, objectif 75 %, Recharger / Cotiser).
+- Lu existant : user-dashboard.tsx (tabs accueil/profil), use-auth (fetch+zustand), appointments.ts (DTO, règles créneaux), sensibilisations.ts (DTO + ciblage zone), routes API (GET appointments/sensibilisations, PATCH {action:CANCEL}), TEST_PLAN (fixtures).
+- Mapping honnête données↔maquette : le modèle Appointment n'a pas de praticien → titre = type de consultation (arbitrage noté au PO) ; Épargne = P2 non branché → état « Bientôt » (badge, solde « — », CTA → toast) plutôt que fausses valeurs ; statut PENDING affiché « En attente » (warning) au lieu de CONFIRMÉ forcé.
+- Nouveaux fichiers : src/lib/datetime.ts (formats UTC stables : bienvenue, créneau relatif Aujourd'hui/Demain, publié « Il y a 3 h », réf #MDP-XXXX, durée d'écoute) ; src/hooks/use-patient-data.ts (fetch partagé appointments+senso, refresh, error) ; src/hooks/use-speech.ts (SpeechSynthesis fr-FR, sans setState en effet — règle react-hooks/set-state-in-effect) ; 7 composants src/components/patient/ (shared, next-appointment-card, health-alert-card, sensibilisation-dialog, appointment-detail-dialog, appointments-view, patient-home).
+- user-dashboard.tsx : header patient (sous-titre zone, RefreshCw actualise, Popover notifications = rappel RDV + 5 derniers contenus → article/dialog RDV, avatar → Profil), accueil routé par rôle (PatientHome vs cartes génériques), sous-vue « rdv » (back + À venir/Historique + annulation), SensibilisationDialog partagé.
+- Fix lint/TS : ZONE_LABELS importé de @/lib/auth-schemas (5 fichiers) ; TTS réécrit sans setState en effet (cancel() + événement end/error) ; wrap « Il y a 1 h » (whitespace-nowrap).
+- E2E navigateur : compte Patient UI Maquette (+2250709229992 / TestPatient2026!, YOPOUGON) + RDV réel POST (CABINET YOPOUGON lun. 05/10 09:00 PENDING) ; desktop 1440×900 (accueil, détail RDV, vue RDV, article) + mobile 390×844 (accueil, notifications) — maquette reproduite, 0 erreur console/page ; régression INFIRMIER (fixture 0755666777) : ancien espace intact. Lint 0 erreur ; tsc : fichiers nouveaux OK (erreurs préexistantes examples/scripts/skills/register-form inchangées).
+- TEST_PLAN +1 ligne PASS · CHANGELOG « Ajouté » · commit 9aefe35 pushé (fb4ac7d..9aefe35).
+
+Stage Summary:
+- Espace patient = design maquette livré sur données réelles (RDV + SENSO) ; seul l'objet « praticien » (Dr. X) reste à venir — nécessite un champ doctor/praticien côté modèle (décision PO).
+- Épargne prête visuellement ; branchement réel dès arbitrages A8 (valeur jeton) / A9 (Mobile Money).
+- « Prendre rendez-vous » = toast « bientôt » : le formulaire de réservation (grille 30 min Mon–Ven, ≥2 h/≤60 j) est le prochain livrable naturel (backend prêt, 25/25).
+- Compte de démo créé : Patient UI Maquette / +2250709229992 (purgeable via scripts/cleanup-test-users.ts).
