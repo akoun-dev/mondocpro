@@ -1,7 +1,7 @@
 "use client"
 
 // Route unique « / » — orchestration des écrans selon l'état d'auth
-// (US-AUTH-3, SPEC-AUTH). Le footer commun apparaît dans les 3 états.
+// (US-AUTH-3, SPEC-AUTH). Sans footer (décision PO 2026-10).
 import { Loader2 } from "lucide-react"
 import { AuthFlow } from "@/components/auth/auth-flow"
 import { UserDashboard } from "@/components/auth/user-dashboard"
@@ -31,11 +31,6 @@ export default function Home() {
                 {status === "unauthenticated" && <AuthFlow />}
                 {status === "authenticated" && <UserDashboard />}
             </main>
-
-            <footer className="mt-auto border-t bg-muted/50 py-4 pb-[max(1rem,env(safe-area-inset-bottom))] text-center text-sm text-muted-foreground">
-                <p>Yopougon · Songon · PK22 · N&apos;Dotré</p>
-                <p>© 2026 MondocPro — Votre santé en main</p>
-            </footer>
         </div>
     )
 }

@@ -316,3 +316,15 @@ Stage Summary:
 - 4 vues d'auth dédiées opérationnelles, parcours mot de passe oublié complet et sécurisé
 - 6 routes API auth (/register, /login, /me, /logout, /forgot-password, /reset-password)
 - Point d'intégration SMS clairement identifié (TODO INT-SMS dans forgot-password route + contrat)
+
+---
+Task ID: 5
+Agent: Super Z (retrait footer)
+Task: Retirer le footer commun (zones + copyright) de la page principale.
+
+Work Log:
+- src/app/page.tsx : élément <footer> supprimé (les 3 états loading/auth/dashboard sont impactés), commentaire mis à jour
+- Vérifié navigateur : plus de <footer> dans le DOM, rendu OK, 0 erreur console, lint 0 erreur
+
+Stage Summary:
+- Page sans footer, layout flex conservé (main flex-1)
