@@ -15,7 +15,9 @@ import {
   Loader2,
   MapPin,
   Phone,
+  Search,
   ShieldCheck,
+  ShieldPlus,
   User,
 } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -38,9 +40,17 @@ type ZoneValue = RegisterPayload["zone"];
 
 const STEPS = [
   { title: "Identité", description: "Renseignez vos coordonnées de contact", icon: User },
-  { title: "Commune", description: "Sélectionnez votre commune de résidence", icon: MapPin },
+  { title: "Zone", description: "Sélectionnez votre zone de résidence", icon: MapPin },
   { title: "Sécurité", description: "Choisissez un mot de passe robuste", icon: ShieldCheck },
 ] as const;
+
+// Quartiers indicatifs par zone (maquette étape 2) + mise en avant Yopougon.
+const ZONE_META: Record<ZoneValue, { quartier: string; recommended?: boolean }> = {
+  YOPOUGON: { quartier: "Abidjan Ouest", recommended: true },
+  SONGON: { quartier: "Route Dabou" },
+  PK22: { quartier: "Zone industrielle" },
+  NDOTRE: { quartier: "Abobo Nord" },
+};
 
 const TOTAL_STEPS = STEPS.length;
 
@@ -76,6 +86,14 @@ function formatPhoneDisplay(phone: string): string {
   return `+225 ${match[1].replace(/(\d{2})(?=\d)/g, "$1 ")}`;
 }
 
+// Comparaison insensible à la casse et aux accents pour la recherche de zone.
+function normalizeText(value: string): string {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+}
+
 // Drapeau Côte d'Ivoire en CSS (évite les emojis drapeaux, absents sur Windows).
 function FlagCI() {
   return (
@@ -97,6 +115,7 @@ export function RegisterForm() {
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
   const [zone, setZone] = useState<ZoneValue | "">("");
+  const [zoneQuery, setZoneQuery] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -109,6 +128,14 @@ export function RegisterForm() {
   const hasNavigatedRef = useRef(false);
 
   const hasFieldErrors = Object.keys(fieldErrors).length > 0;
+
+  // Recherche de zone : filtre insensible à la casse/accents sur libellé, quartier et clé.
+  const zoneQueryNormalized = normalizeText(zoneQuery.trim());
+  const visibleZones = (Object.keys(ZONE_LABELS) as ZoneValue[]).filter((z) => {
+    if (!zoneQueryNormalized) return true;
+    const haystack = normalizeText(`${ZONE_LABELS[z]} ${ZONE_META[z].quartier} ${z}`);
+    return haystack.includes(zoneQueryNormalized);
+  });
 
   // Accessibilité : après chaque navigation, le focus arrive sur le titre d'étape.
   // Délai calé sur la fin de la transition (exit 220 ms avant le montage du contenu).
@@ -234,8 +261,8 @@ export function RegisterForm() {
                 <span
                   className={cn(
                     "flex size-9 shrink-0 items-center justify-center rounded-full border-2 transition-colors duration-300",
-                    (isDone || isCurrent) && "border-primary bg-primary text-primary-foreground",
-                    isCurrent && "ring-4 ring-primary/15",
+                    isDone && "border-success bg-success text-success-foreground",
+                    isCurrent && "border-primary bg-primary text-primary-foreground ring-4 ring-primary/15",
                     !isDone && !isCurrent && "border-input bg-card text-muted-foreground",
                   )}
                   aria-hidden="true"
@@ -263,9 +290,12 @@ export function RegisterForm() {
                   aria-hidden="true"
                 >
                   <motion.span
-                    className="absolute inset-0 origin-left rounded-full bg-primary"
+                    className={cn(
+                      "absolute inset-0 origin-left rounded-full",
+                      isDone ? "bg-success" : "bg-primary",
+                    )}
                     initial={false}
-                    animate={{ scaleX: stepNumber <= step ? 1 : 0 }}
+                    animate={{ scaleX: isDone ? 1 : 0 }}
                     transition={{ duration: 0.35, ease: "easeOut" }}
                   />
                 </span>
@@ -304,7 +334,9 @@ export function RegisterForm() {
               {Math.round((step / TOTAL_STEPS) * 100)}%
             </span>
           </div>
-          <p className="-mt-2.5 text-sm text-muted-foreground">{STEPS[step - 1].description}</p>
+          {step !== 2 && (
+            <p className="-mt-2.5 text-sm text-muted-foreground">{STEPS[step - 1].description}</p>
+          )}
 
           {step === 1 && (
             <>
@@ -397,44 +429,119 @@ export function RegisterForm() {
           )}
 
           {step === 2 && (
-            <div className="flex flex-col gap-2">
-              <Label id="register-zone-label">Zone de résidence</Label>
+            <div className="flex flex-col gap-3">
+              {/* Section « Localisation sanitaire » (maquette étape 2) */}
+              <div className="flex flex-col gap-1">
+                <p className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-primary">
+                  <ShieldPlus className="size-4" aria-hidden="true" />
+                  Localisation sanitaire
+                </p>
+                <h4 id="register-zone-title" className="text-base font-semibold text-foreground">
+                  Où résidez-vous à Abidjan&nbsp;?
+                </h4>
+                <p className="text-sm text-muted-foreground">
+                  Pour afficher les médecins de garde, cliniques et officines partenaires au plus
+                  près de chez vous.
+                </p>
+              </div>
+
+              {/* Recherche de zone (filtre local, insensible casse/accents) */}
+              <div className="relative">
+                <Search
+                  className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+                  aria-hidden="true"
+                />
+                <Input
+                  type="text"
+                  value={zoneQuery}
+                  onChange={(e) => setZoneQuery(e.target.value)}
+                  placeholder="Rechercher une zone, quartier, commune…"
+                  maxLength={60}
+                  disabled={submitting}
+                  className="h-10 pl-9 pr-10"
+                  aria-label="Rechercher une zone, un quartier ou une commune"
+                />
+                <span
+                  className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-muted-foreground"
+                  aria-hidden="true"
+                >
+                  CI
+                </span>
+              </div>
+
               <RadioGroup
                 value={zone}
                 onValueChange={(value) => setZone(value as ZoneValue)}
                 disabled={submitting}
                 className="grid grid-cols-2 gap-3"
-                aria-labelledby="register-zone-label"
+                aria-labelledby="register-zone-title"
               >
-                {(Object.keys(ZONE_LABELS) as ZoneValue[]).map((z) => (
-                  <motion.label
-                    key={z}
-                    htmlFor={`register-zone-${z.toLowerCase()}`}
-                    whileTap={{ scale: 0.97 }}
-                    className={cn(
-                      "flex min-h-16 cursor-pointer flex-col items-start gap-2 rounded-lg border p-3 transition-colors",
-                      zone === z
-                        ? "border-primary bg-accent"
-                        : "border-input hover:bg-muted/60",
-                      "focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2",
-                    )}
-                  >
-                    <RadioGroupItem
-                      value={z}
-                      id={`register-zone-${z.toLowerCase()}`}
-                      className="sr-only"
-                    />
-                    <MapPin
+                {visibleZones.map((z) => {
+                  const selected = zone === z;
+                  return (
+                    <motion.label
+                      key={z}
+                      htmlFor={`register-zone-${z.toLowerCase()}`}
+                      whileTap={{ scale: 0.97 }}
                       className={cn(
-                        "size-5",
-                        zone === z ? "text-primary" : "text-muted-foreground",
+                        "relative flex cursor-pointer flex-col gap-2 rounded-xl border p-3 pb-3.5 transition-colors",
+                        selected
+                          ? "border-primary bg-primary/5"
+                          : "border-input bg-card hover:bg-muted/60",
+                        "focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2",
                       )}
-                      aria-hidden="true"
-                    />
-                    <span className="text-sm font-medium">{ZONE_LABELS[z]}</span>
-                  </motion.label>
-                ))}
+                    >
+                      <RadioGroupItem
+                        value={z}
+                        id={`register-zone-${z.toLowerCase()}`}
+                        className="sr-only"
+                      />
+                      <span
+                        className={cn(
+                          "flex size-9 items-center justify-center rounded-full transition-colors",
+                          selected
+                            ? "bg-primary text-primary-foreground"
+                            : "bg-muted text-muted-foreground",
+                        )}
+                        aria-hidden="true"
+                      >
+                        <MapPin className="size-4" />
+                      </span>
+                      <span
+                        className={cn(
+                          "absolute right-3 top-3 flex size-5 items-center justify-center rounded-full border-2 transition-colors",
+                          selected
+                            ? "border-primary bg-primary text-primary-foreground"
+                            : "border-input bg-transparent",
+                        )}
+                        aria-hidden="true"
+                      >
+                        {selected && <Check className="size-3" strokeWidth={3} />}
+                      </span>
+                      <span className="flex flex-col gap-0.5">
+                        <span className="text-sm font-semibold text-foreground">
+                          {ZONE_LABELS[z]}
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          {ZONE_META[z].quartier}
+                        </span>
+                      </span>
+                      {ZONE_META[z].recommended && (
+                        <span className="self-start rounded-full bg-success px-2 py-0.5 text-[11px] font-semibold text-success-foreground">
+                          Recommandé
+                        </span>
+                      )}
+                    </motion.label>
+                  );
+                })}
               </RadioGroup>
+
+              {visibleZones.length === 0 && (
+                <p className="rounded-lg bg-muted px-3 py-2.5 text-sm text-muted-foreground">
+                  Aucune zone ne correspond à « {zoneQuery.trim()} ».
+                </p>
+              )}
+
               {fieldErrors.zone && (
                 <p id="register-zone-error" className="text-sm text-destructive" role="alert">
                   {fieldErrors.zone}
