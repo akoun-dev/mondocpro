@@ -3,11 +3,13 @@
 Journal partagé de tous les agents. Chaque agent DOIT lire ce fichier avant de travailler et y ajouter sa section après avoir terminé.
 
 ---
+
 Task ID: 1
 Agent: ORCHESTRATEUR (CTO) + TECH LEAD & ARCHITECTE (Agent 1) + AGENT AUDIT GLOBAL
 Task: Analyse complète initiale du projet (SCAN → COMPRENDRE), sans modification de code.
 
 Work Log:
+
 - Inventaire complet de l'arborescence (src/, prisma/, db/, public/, examples/, tests/)
 - Lecture des fichiers clés : package.json, next.config.ts, Caddyfile, prisma/schema.prisma, src/lib/db.ts, src/app/{layout,page}.tsx, src/app/api/route.ts
 - Vérification environnement : .env (DATABASE_URL=file:/home/z/my-project/db/custom.db), SQLite présent
@@ -17,6 +19,7 @@ Work Log:
 - État Git : 1 commit initial (d464483), fichiers scaffold non trackés
 
 Stage Summary:
+
 - PROJET = SCAFFOLD VIERGE Next.js 16.1.1 (App Router, output standalone) + React 19 + TypeScript 5
 - Stack : Tailwind CSS 4 + shadcn/ui (44 composants) + Prisma 6/SQLite (modèles scaffold User/Post) + Zod 4 + Zustand 5 + TanStack Query 5 + framer-motion + z-ai-web-dev-sdk (backend uniquement)
 - Gateway Caddy : :81 → 3000, routage mini-services via XTransformPort ; exemple websocket fourni dans examples/
@@ -26,11 +29,13 @@ Stage Summary:
 - Décision : initialisation du dossier de pilotage .ai/ et du système de suivi (Tasks 2-a/2-b/2-c/2-d)
 
 ---
+
 Task ID: 2-b
 Agent: AGENT DOCUMENTATION (sous-agent généraliste)
 Task: Initialisation des registres de pilotage .ai/ (TEAM_STATUS, registres bugs/audit, handoffs, ADR, audits, specs)
 
 Work Log:
+
 - Lecture du worklog (contexte Task 1) + création de l'arborescence .ai/{ADR,AUDITS,SPECS/ARCHIVED,HANDOFF}
 - Registres d'équipe et suivi : TEAM_STATUS.md (12 sections de rôle, état "en attente de backlog"), DAILY_STANDUP.md (standup 2026-09-30), CHANGELOG.md (v0.1.0 Scaffold, Keep a Changelog)
 - Registres qualité : BUGS.md, SEC_BUGS.md, A11Y_BUGS.md, PERF_ISSUES.md, REGRESSIONS.md, INCIDENTS.md (tous vides, 0 entrée, avec légendes et procédures)
@@ -38,10 +43,11 @@ Work Log:
 - Audit : SECURITY_AUDIT.md (modèle + état initial scaffold), AUDIT_REPORT.md (index vide + 4 signaux faibles), AUDITS/README.md (naming AUDIT-XXX-YYYY-MM-DD)
 - Process : WORKFLOWS.md (Feature Lifecycle 8 phases, boucle autonome 20 étapes, routage des bugs), TEST_PLAN.md (stratégie E2E agent-browser)
 - ADR : ADR/TEMPLATE.md + ADR/ADR-001-technologie-stack.md (stack conservée, statut Accepté)
-- SPECS/README.md (naming FEATURE-XXX.md/_UX/_TECH_DESIGN + ARCHIVED/.gitkeep) + 8 templates de handoff dans HANDOFF/ (LEAD_TO_TEAM, BACKEND_TO_FRONTEND, FRONTEND_TO_BACKEND, TEAM_TO_QA, SECURITY_TO_TEAM, TEAM_TO_REVIEWER, TEAM_TO_COMMIT, TEAM_TO_AUDIT)
+- SPECS/README.md (naming FEATURE-XXX.md/\_UX/\_TECH_DESIGN + ARCHIVED/.gitkeep) + 8 templates de handoff dans HANDOFF/ (LEAD_TO_TEAM, BACKEND_TO_FRONTEND, FRONTEND_TO_BACKEND, TEAM_TO_QA, SECURITY_TO_TEAM, TEAM_TO_REVIEWER, TEAM_TO_COMMIT, TEAM_TO_AUDIT)
 - Vérification finale : 30 fichiers .md créés (items 1-30) + SPECS/ARCHIVED/.gitkeep ; git status : aucun fichier source suivi modifié
 
 Stage Summary:
+
 - Dossier de pilotage .ai/ opérationnel : 30 fichiers initialisés en français, tous prêts à l'emploi (en-tête, légende, état initial)
 - Registres bugs/sécurité/a11y/perf/régressions/incidents : 0 entrée (baseline scaffold saine confirmée par Task 1)
 - Dette technique tracée : DET-001 page.tsx inline (MINEUR/S), DET-002 modèles Prisma scaffold (MINEUR/S), DET-003 allowedDevOrigins (MINEUR/S), DET-004 ignoreBuildErrors:true (MAJEUR/M, à désactiver dès stabilisation du code métier)
@@ -51,11 +57,13 @@ Stage Summary:
 - AUCUN fichier de code source modifié — travail strictement limité à .ai/ et worklog.md
 
 ---
+
 Task ID: 2-a / 2-c
 Agent: ORCHESTRATEUR (CTO) + TECH LEAD (Agent 1) — exécution directe
 Task: Fichiers de gouvernance principaux .ai/ (Task 2-a) + génération TASKS.xlsx (Task 2-c)
 
 Work Log:
+
 - Rédaction des fichiers de gouvernance de référence : README.md, PROJECT_CONTEXT.md, ARCHITECTURE.md, API_CONTRACTS.md, DESIGN_SYSTEM.md, ACCESSIBILITY_GUIDE.md, PERFORMANCE_BUDGET.md, REQUIREMENTS.md, TASKS.md
 - Coordination et intégration du livrable Task 2-b (30 registres par sous-agent Doc)
 - Chargement du skill xlsx (scène create, complexité LITE) ; lecture scenes/create.md + engines/design.md + templates/base.py
@@ -65,6 +73,7 @@ Work Log:
 - Inventaire final : 41 fichiers .ai/ ; dev.log sain (GET / 200) ; aucun fichier de code source modifié
 
 Stage Summary:
+
 - Dossier de pilotage .ai/ COMPLET et opérationnel (41 fichiers) : gouvernance, registres, handoffs, ADR-001, specs, audits
 - TASKS.xlsx réel validé par le pipeline QA du skill xlsx ; miroir TASKS.md synchronisé
 - Contrat API initial ajouté : GET /api/health (VALIDÉ) — remplace le hello-world scaffold comme sonde E2E
@@ -72,11 +81,13 @@ Stage Summary:
 - SYSTÈME MULTI-AGENTS OPÉRATIONNEL : en attente de la première demande de feature (Feature Lifecycle démarrera en phase 0 UX)
 
 ---
+
 Task ID: 3 (design)
 Agent: ORCHESTRATEUR + UX/UI DESIGNER + DEV FRONTEND + TECH LEAD (exécution coordonnée, AGENT COMMIT inclus)
 Task: Palette médicale fournie par le PO — intégration design system + tokens + ADR + registres + commit
 
 Work Log:
+
 - PHASE 0/2 (UX/UI + Tech Lead) : mapping des 9 couleurs vers les tokens sémantiques shadcn ; DESIGN_SYSTEM.md §1 réécrit (usage sémantique, contrastes AA calculés, nuances dérivées) ; ADR-002 rédigé et accepté ; SYS-008 ajouté à REQUIREMENTS.md
 - PHASE 4 (Frontend) : src/app/globals.css réécrit — :root light (9 couleurs exactes) + .dark (nuances dérivées documentées) + nouveaux tokens success/warning/primary-dark + mapping @theme inline (classes bg-success, bg-warning, bg-primary-dark disponibles) ; chart-1..5 alignés palette
 - PHASE 5 (vérifications) : lint 0 erreur ; dev.log recompil OK (225 ms) ; CSS servi contrôlé (8/8 hex présents) ; agent-browser : computed styles conformes (#1565c0/#2ebd85/#f59e0b/#d32f2f, fond blanc, texte #263238), 0 erreur page, screenshot
@@ -84,26 +95,30 @@ Work Log:
 - AGENT COMMIT : constat auto-commit plateforme b3c635e (message UUID, 128 fichiers) consigné ; commit conventionnel aa26f1f "feat(design): adoption de la palette medicale officielle en tokens Tailwind 4" (13 fichiers, atomique)
 
 Stage Summary:
+
 - Palette médicale APPLIQUÉE et VÉRIFIÉE dans le navigateur — source de vérité : ADR-002 + DESIGN_SYSTEM.md §1
 - Contrainte a11y clé : texte blanc interdit sur #2EBD85 (success) et #F59E0B (warning) — foregrounds foncés imposés
 - Le code applicatif autre que globals.css reste inchangé (page scaffold intacte)
 - Prochain déclencheur : 1re demande de feature → PHASE 0 wireframes UX puis lifecycle complet
 
 ---
+
 Task ID: 4 (fix + ops)
 Agent: ORCHESTRATEUR + DEV FRONTEND (fix) + DEVOPS (push) + DEV SÉCURITÉ (avis token) + AGENT COMMIT
 Task: (1) Correction erreur d'hydratation rapportée par le PO ; (2) push vers github.com/akoun-dev/mondocpro.git
 
 Work Log:
-- Diagnostic BUG-001 : attributs bis_status/bis_frame_id/__processed_* injectés sur <body> par le script d'intégration du preview (absents en navigateur headless → cause externe confirmée) → faux mismatch SSR/client React
+
+- Diagnostic BUG-001 : attributs bis*status/bis_frame_id/\_\_processed*\* injectés sur <body> par le script d'intégration du preview (absents en navigateur headless → cause externe confirmée) → faux mismatch SSR/client React
 - Fix canonique : suppressHydrationWarning sur <body> (src/app/layout.tsx, commentaire explicatif) — vérifié : reload agent-browser 0 erreur page, console propre (HMR seulement), lint 0 erreur
 - Registres : BUGS.md (BUG-001 ✅ corrigé), CHANGELOG (section Corrigé), TASKS.md + TASKS.xlsx (BUG-T01, OPS-T01), SECURITY_AUDIT (SEC-ADV-001 rotation token)
 - OPS-T01 : git ls-remote → remote VIDE (aucun conflit) ; audit pré-push → .env et db/custom.db trackés par l'auto-commit plateforme b3c635e ; analyse risque : aucun secret (.env = chemin SQLite local), 0 donnée personnelle (2 tables, 0 ligne)
-- Conformité : git rm --cached .env db/custom.db + .gitignore (db/, *.db) → commit 90786c8
+- Conformité : git rm --cached .env db/custom.db + .gitignore (db/, \*.db) → commit 90786c8
 - Push main → remote : réussi ([new branch] main -> main) ; preuve : hash remote 90786c8 = hash local ; remote origin ajouté PROPRE (sans token) ; audit .git/config + git config → token NON persisté
 - AGENT COMMIT : 13d8d92 fix(ui) · 4f85b0d docs(gouvernance) · 90786c8 chore(securite) — tous conventionnels/atomiques, journalisés
 
 Stage Summary:
+
 - Erreur d'hydratation CORRIGÉE et vérifiée dans le navigateur (BUG-001 clôturé)
 - Dépôt distant github.com/akoun-dev/mondocpro.git synchronisé (main = 90786c8, 8 commits)
 - Historique distant contient (via b3c635e plateforme) .env bénin + db vide — retrait du suivi effectué ; nettoyage d'historique optionnel proposé au PO
@@ -111,13 +126,15 @@ Stage Summary:
 - Système prêt pour la 1re feature métier (Phase 0 UX)
 
 ---
+
 Task ID: 5 (data)
 Agent: ORCHESTRATEUR + DEVOPS/DATA + TECH LEAD + DEV SÉCURITÉ + AGENT COMMIT
 Task: Migration BDD → Supabase PostgreSQL (demande PO) — config .env, diagnostics réseau, push schéma, vérification roundtrip
 
 Work Log:
+
 - Diagnostic connectivité : host direct db.<ref>.supabase.co:5432 = IPv6-only (DNS sans A record) et sandbox sans IPv6 → direct impossible ; REST /auth/v1/health = 200 avec publishable key (projet actif, clés valides) ; /rest/v1/User avant push = PGRST205 (auth OK, table absente)
-- Pooler Supavisor : flotte aws-0-* → "tenant/user not found" (16 régions testées) ; flotte aws-1-* → RÉGION TROUVÉE par auth Prisma réelle : aws-1-eu-west-1
+- Pooler Supavisor : flotte aws-0-_ → "tenant/user not found" (16 régions testées) ; flotte aws-1-_ → RÉGION TROUVÉE par auth Prisma réelle : aws-1-eu-west-1
 - .env écrit (DATABASE_URL pooler session 5432 sslmode=require, NEXT_PUBLIC_SUPABASE_URL, PUBLISHABLE_KEY, ANON_KEY, SERVICE_ROLE_KEY) — non versionné (vérifié : absent du staging et du commit)
 - prisma/schema.prisma provider sqlite→postgresql ; schéma User/Post synchronisé ; client regénéré
 - Piège détecté et corrigé : le shell sandbox exporte DATABASE_URL=file:… (héritage scaffold) qui PRIME sur .env → P1012 ; correctif : scripts db:push/db:migrate/db:reset blindés (réexport depuis .env) + serveur dev redémarré avec la bonne variable
@@ -126,64 +143,74 @@ Work Log:
 - AGENT COMMIT : ace3161 feat(data) — commit vérifié sans .env, puis push GitHub (remote = local)
 
 Stage Summary:
+
 - SUPABASE OPÉRATIONNEL : PostgreSQL aws-1-eu-west-1 via Supavisor, schéma synchronisé, accès Prisma vérifié de bout en bout
 - Secrets en .env non versionné uniquement ; SEC-ADV-002 : PO doit rotater mot de passe DB + service_role (transmis en clair)
 - Migrations versionnées (prisma migrate + shadow DB) = prérequis PROD, planifié à la 1re feature
 - supabase-js non installé (YAGNI) — sera arbitrée par ADR si auth/realtime/storage demandés
 
 ---
+
 Task ID: 5-b (ops resilience)
 Agent: ORCHESTRATEUR + DEVOPS/DATA
 Task: Résilience cold start de la config Supabase + relance serveur persistante
 
 Work Log:
+
 - Découverte : /start.sh plateforme écrase .env (DATABASE_URL=file:...) à chaque boot et exécute .zscripts/dev.sh si présent (flux custom)
-- Création .zscripts/dev.sh : restaure .env depuis .zscripts/.env.supabase (non versionné, vérifié git check-ignore → .gitignore:34 .env*), bun install, bun run db:push, exec bun run dev
+- Création .zscripts/dev.sh : restaure .env depuis .zscripts/.env.supabase (non versionné, vérifié git check-ignore → .gitignore:34 .env\*), bun install, bun run db:push, exec bun run dev
 - Diagnostic mortalité des processus lancés depuis les appels outils (server down 2×) → relance via dev.sh doublement détachée (setsid + nohup + subshell)
 - Vérifications : HTTP 200 cross-session (2 appels consécutifs), Caddy :81 → 200, test_db.ts autonome (SELECT 1 OK, host aws-1-eu-west-1)
 - Registres : TASKS (OPS-T02), PROJECT_CONTEXT (boot plateforme), CHANGELOG, TASKS.xlsx régénéré (validate 0 issue)
 
 Stage Summary:
+
 - Config Supabase désormais RÉSISTANTE au cold start (flux dev.sh validé = flux de boot plateforme)
 - Serveur dev persistant vérifié entre appels ; chemin preview (Caddy :81) opérationnel
 - test_db.ts rendu autonome (lit .env lui-même, immunisé à l'export shell hérité)
 
 ---
+
 Task ID: 6 (ops)
 Agent: ORCHESTRATEUR + DEVOPS + DOC + SECURITY + AGENT COMMIT
 Task: Ajout du modèle .env.example versionné pour configuration locale Supabase (demande PO)
 
 Work Log:
-- Création .env.example : placeholders uniquement (<PROJECT_REF>, <MOT_DE_PASSE_DB>, <REGION>, clés), format pooler Supavisor documenté (session 5432 / transaction 6543) + alternative connexion directe en commentaire, instructions pas-à-pas locales (cp .env.example .env → Dashboard Settings → db:push → dev), avertissements sécurité (service_role jamais NEXT_PUBLIC_, référence SEC-ADV-001/002)
-- .gitignore : exception !.env.example ajoutée sous .env* ; vérifié git check-ignore → .env et .zscripts/.env.supabase toujours ignorés, .env.example trackable
+
+- Création .env.example : placeholders uniquement (<PROJECT*REF>, <MOT_DE_PASSE_DB>, <REGION>, clés), format pooler Supavisor documenté (session 5432 / transaction 6543) + alternative connexion directe en commentaire, instructions pas-à-pas locales (cp .env.example .env → Dashboard Settings → db:push → dev), avertissements sécurité (service_role jamais NEXT_PUBLIC*, référence SEC-ADV-001/002)
+- .gitignore : exception !.env.example ajoutée sous .env\* ; vérifié git check-ignore → .env et .zscripts/.env.supabase toujours ignorés, .env.example trackable
 - Scan anti-secret pre-commit : grep des valeurs réelles (mot de passe DB, project ref, publishable, JWT anon/service_role, token GitHub) dans .env.example → 0 correspondance
 - Registres : TASKS.md + TASKS.xlsx (OPS-T03, validate 0 issue), CHANGELOG, PROJECT_CONTEXT §4 (guide config locale), COMMIT_LOG (comblement entrées manquantes 7657ee2/ace3161/c6b1d34/d1370c3 + audit auto-commit 0badaee = gen_tasks_xlsx.py seul, sans secret)
 - Vérifications : lint 0 erreur, serveur dev inchangé (aucun code touché)
 
 Stage Summary:
+
 - Configuration locale reproductible : le PO clone le repo → cp .env.example .env → remplit ses valeurs Supabase → bun run db:push → bun run dev
 - Zéro secret dans l'historique git : .env.example placeholders uniquement ; .env réel reste non versionné
 - SEC-ADV-002 (rotation secrets Supabase) reste ouverte — action PO
 
 ---
+
 Task ID: 7-d
 Agent: frontend-styling-expert
 Task: Frontend auth MondocPro (layout, page, composants auth, store, hook)
 
 Work Log:
-- Lecture worklog (Tasks 1→6), SPEC-AUTH.md, ADR-004 ; lecture contrats réels des routes /api/auth/* (login/register/me/logout) et de src/lib/auth-schemas.ts (champs zod + ZONE_LABELS) pour aligner le frontend sans toucher au backend
+
+- Lecture worklog (Tasks 1→6), SPEC-AUTH.md, ADR-004 ; lecture contrats réels des routes /api/auth/\* (login/register/me/logout) et de src/lib/auth-schemas.ts (champs zod + ZONE_LABELS) pour aligner le frontend sans toucher au backend
 - src/stores/auth-store.ts (CRÉÉ) : types AppRole/AppZone/AppUser/AuthStatus + store zustand { user, status, setStatus, setUser, clear } (ADR-004 §6)
 - src/hooks/use-auth.ts (CRÉÉ) : vérification de session GET /api/auth/me au premier montage (dédupliquée via garde status === "loading" → pas d'appel multiple malgré plusieurs consommateurs du hook) ; login/register → POST JSON, mapping details [{field,message}] → fieldErrors, réseau KO → toast destructif + { ok:false } ; logout → clear TOUJOURS (finally) même si erreur réseau ; pas de react-query
 - src/components/auth/login-form.tsx (CRÉÉ) : Input tel (inputMode/autoComplete tel), mot de passe + œil show/hide (bouton 44px aria-label/aria-pressed), h-11 partout, Alert destructive sur 401/réseau, erreurs inline aria-describedby/aria-invalid, Loader2 + bouton disabled pendant submitting, toast succès
 - src/components/auth/register-form.tsx (CRÉÉ) : nom complet, téléphone, Select zone (labels Yopougon/Songon/PK22/N'Dotré importés de ZONE_LABELS), 2 cards radio Patient (User) / Infirmier (Stethoscope) avec descriptions, mot de passe + confirmation (min 8), contrôle local zone/rôle avant POST, note « Les comptes Médecin Chef sont créés par l'administration », ADMIN jamais proposé (ADR-004 §5)
 - src/components/auth/auth-screen.tsx (CRÉÉ) : brand next/image 96px rounded-full ring-primary, titre text-primary, sous-titre muted, Tabs shadcn Connexion/Inscription, Card p-6 max-w-md
 - src/components/auth/user-dashboard.tsx (CRÉÉ) : header brand + avatar initiales + nom + badge rôle ; carte profil (nom, téléphone formaté +225 07 99 00 01 11, badge coloré PATIENT→primary / INFIRMIER→success / ADMIN→warning avec foregrounds foncés — jamais de blanc sur success/warning, zone) ; carte « Espace <rôle> » à venir (3 items Clock) contextualisée Patient/Infirmier/Médecin Chef ; bouton Se déconnecter (outline, texte destructive, LogOut, h-11)
-- src/app/layout.tsx (MODIFIÉ) : lang="fr", title « MondocPro — Votre santé, à domicile », description française métier, icons /img/mondocpro.jpeg ; suppressHydrationWarning + commentaire BUG-001 CONSERVÉS, fonts Geist + Toaster inchangés
+- src/app/layout.tsx (MODIFIÉ) : lang="fr", title « MondocPro — Votre santé en main », description française métier, icons /img/mondocpro.jpeg ; suppressHydrationWarning + commentaire BUG-001 CONSERVÉS, fonts Geist + Toaster inchangés
 - src/app/page.tsx (REMPLI) : 'use client' + orchestration loading→spinner (role=status aria-live) / unauthenticated→AuthScreen / authenticated→UserDashboard ; layout commun min-h-screen flex-col + footer mt-auto commun aux 3 états (zones + © 2026, safe-area-inset-bottom) ; animations Tailwind (tw-animate) sans framer-motion
 - Correctif en cours de test : Select/RadioGroup passés en contrôlés stricts (value="" au lieu de undefined) → élimination des warnings React uncontrolled→controlled constatés au 1er passage
 - Vérifications : lint 0 erreur (3 runs) ; tsc --noEmit : 0 erreur dans src/ (seuls examples/ et skills/ scaffold ont des erreurs préexistantes) ; scan 0 console.log/TODO/FIXME dans les fichiers produits ; composants PO admin/nurses/users intacts (0 octet) ; aucun fichier backend modifié (git status vérifié)
 
 Stage Summary:
+
 - ÉCRAN D'AUTHENTIFICATION COMPLET LIVRÉ ET VÉRIFIÉ EN NAVIGATEUR (agent-browser, port 3000, sans redémarrage serveur)
 - Fichiers : src/stores/auth-store.ts, src/hooks/use-auth.ts, src/components/auth/{auth-screen,login-form,register-form,user-dashboard}.tsx (CRÉÉS) · src/app/layout.tsx, src/app/page.tsx (MODIFIÉS)
 - Tests browser RÉUSSIS : (1) rendu écran auth (brand, tabs, footer) ; (2) inscription Test Browser/+2250799000111/Songon/Patient → toast « Compte créé » → dashboard Patient avec badge « Patient », téléphone formaté, zone Songon ; (3) reload → session conservée (dashboard, pas de retour formulaire) ; (4) déconnexion → toast + retour écran auth ; (5) reconnexion compte test → dashboard ; (6) 401 mauvais mdp → Alert générique « Numéro ou mot de passe incorrect » (anti-énumération) ; (7) champ manquant zone → erreur inline locale ; (8) téléphone invalide → erreur zod serveur mappée inline ; (9) 409 numéro déjà inscrit → « Ce numéro est déjà inscrit. Connectez-vous. » ; (10) console/erreurs page propres, vue mobile 375px OK (captures /tmp/auth-screen-login.png, /tmp/dashboard-patient.png, /tmp/auth-mobile.png, /tmp/register-409.png)
@@ -191,11 +218,13 @@ Stage Summary:
 - Prochaines étapes naturelles : espaces Patient/Infirmier/Admin (composants préparés par le PO), puis transitions/graphie finale selon DESIGN_SYSTEM.md
 
 ---
+
 Task ID: 7 (orchestration)
 Agent: ORCHESTRATEUR + TECH LEAD + BACKEND + QA + COMMIT
 Task: FEATURE-AUTH — système d'authentification complet (Lifecycle 8 phases, demande PO)
 
 Work Log:
+
 - Sync git : pull du push externe PO 2b9e7b1 (logo public/img/mondocpro.jpeg + 3 composants vides admin/nurses/users) — audité, structure respectée
 - Phase 0-2 : SPECS/SPEC-AUTH.md (UX wireframe + 5 user stories + critères d'acceptation) · ADR-004 (téléphone unique, sessions DB hashées SHA-256, bcrypt 10, ADMIN par seed, zustand) · 4 contrats API VALIDÉS dans API_CONTRACTS.md AVANT tout code (API-first)
 - Phase 3 : découpage AUTH-T01..T04 dans TASKS.md
@@ -207,6 +236,7 @@ Work Log:
 - Registres : TASKS.md + TASKS.xlsx (AUTH-T01..04 TERMINÉ, validate 0 issue) · REQUIREMENTS SYS-010 · TEAM_STATUS · CHANGELOG · TEST_PLAN journal · ADR-004 · SPEC-AUTH
 
 Stage Summary:
+
 - FEATURE-AUTH LIVRÉE DE BOUT EN BOUT (Lifecycle 0→7 complet) : inscriptions patients/infirmiers opérationnelles, compte Médecin Chef Dr Kadjane seedé, sessions traçables en DB
 - Comptes de test fournis au PO (à changer) : Dr Kadjane +2250700000001 / Kadjane@Mondoc2026 — changement de mot de passe = itération suivante
 - 5 commits atomiques (fix devops, feat data, feat api, feat ui, docs gouvernance) puis push vérifié

@@ -17,11 +17,11 @@ multirôle robuste et traçable (contrainte médicale : traçabilité des action
 
 ## 2. Découpage des acteurs → rôles applicatifs
 
-| Acteur métier | Rôle applicatif | Identifiant | Particularités |
-|---|---|---|---|
-| Patient | `PATIENT` | Téléphone | Zone de résidence obligatoire (livraison/domicile) |
-| Infirmier / Assistant mobile | `INFIRMIER` | Téléphone | Zone de rattachement obligatoire (dispatch) |
-| Médecin Chef (Dr Kadjane) | `ADMIN` | Téléphone | **Compte unique** — créé par seed, pas d'auto-inscription |
+| Acteur métier                | Rôle applicatif | Identifiant | Particularités                                            |
+| ---------------------------- | --------------- | ----------- | --------------------------------------------------------- |
+| Patient                      | `PATIENT`       | Téléphone   | Zone de résidence obligatoire (livraison/domicile)        |
+| Infirmier / Assistant mobile | `INFIRMIER`     | Téléphone   | Zone de rattachement obligatoire (dispatch)               |
+| Médecin Chef (Dr Kadjane)    | `ADMIN`         | Téléphone   | **Compte unique** — créé par seed, pas d'auto-inscription |
 
 > Décision : l'identifiant est le **numéro de téléphone** (réalité terrain Côte
 > d'Ivoire — les patients n'ont pas tous un e-mail ; usage âgé inclus). Détails : ADR-004.
@@ -34,8 +34,10 @@ multirôle robuste et traçable (contrainte médicale : traçabilité des action
 ## 4. User stories + critères d'acceptation
 
 ### US-AUTH-1 — Inscription (Patient / Infirmier)
+
 **En tant que** visiteur, **je veux** créer un compte avec mon numéro, mon nom, ma
 zone et mon rôle, **afin de** accéder aux services MondocPro.
+
 - [ ] Formulaire : nom complet (2-80), téléphone (format international ou local 8-15 chiffres), zone (select 4 zones), rôle (Patient ou Infirmier — cards radio), mot de passe (≥ 8 car.) + confirmation
 - [ ] Validation temps réel avec messages d'erreur explicites (fr)
 - [ ] Succès → session ouverte automatiquement → redirection vers l'espace du rôle
@@ -43,21 +45,27 @@ zone et mon rôle, **afin de** accéder aux services MondocPro.
 - [ ] `ADMIN` **jamais proposé** dans le formulaire (compte seedé uniquement — ADR-004 §5)
 
 ### US-AUTH-2 — Connexion
+
 **En tant qu'utilisateur**, **je veux** me connecter avec téléphone + mot de passe.
+
 - [ ] 2 champs + bouton ; message d'erreur générique 401 (jamais d'indice sur l'existence du compte)
 - [ ] Succès → dashboard selon rôle (PATIENT → espace patient, INFIRMIER → espace infirmier, ADMIN → console admin)
 - [ ] Session persistante 30 jours (cookie httpOnly) — reload garde l'utilisateur connecté
 
 ### US-AUTH-3 — Session / Guard de route
+
 **En tant que système**, **je veux** que `/` affiche le bon écran selon l'état d'auth.
+
 - [ ] Chargement initial → état "checking" (spinner), pas de flash de formulaire
 - [ ] Non connecté → écran auth (connexion/inscription)
 - [ ] Connecté → espace du rôle (MVP : placeholder profil + déconnexion ; les espaces complets admin/nurses/users sont des itérations suivantes — composants préparés par le PO)
 
 ### US-AUTH-4 — Déconnexion
+
 - [ ] Bouton visible dans l'espace connecté → session détruite (DB + cookie) → retour écran auth
 
 ### US-AUTH-5 — Sécurité (transverse)
+
 - [ ] Mots de passe hashés bcrypt (10 rounds) — jamais stockés/envoyés en clair
 - [ ] Cookie `httpOnly` + `sameSite=lax` (+ `secure` en production) — inaccessible au JS
 - [ ] Validation zod côté API — jamais de confiance aux données client
@@ -70,7 +78,7 @@ zone et mon rôle, **afin de** accéder aux services MondocPro.
 ┌─────────────────────────────┐
 │  [img mondocpro.jpeg]       │  ← brand rond 96px, centré
 │  MondocPro                  │  ← titre, bleu médical #1565C0
-│  « Votre santé, à domicile »│  ← sous-titre muted
+│  « Votre santé en main »│  ← sous-titre muted
 │                             │
 │  ┌─────────┬───────────┐    │  ← Tabs (shadcn)
 │  │Connexion│Inscription│    │
