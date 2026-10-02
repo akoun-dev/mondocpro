@@ -217,69 +217,73 @@ export function AuthFlow() {
       <div className="flex min-w-0 flex-1 flex-col bg-gradient-to-b from-secondary/60 via-background to-background">
         <MobileBrandHeader />
 
+        {/* Style app mobile : carte en « feuille » pleine largeur aux coins
+            supérieurs arrondis, flottante et centrée dès sm (tablet/desktop). */}
         <section
           aria-label="Authentification MondocPro"
-          className="mx-auto flex w-full max-w-md flex-1 animate-in flex-col justify-center gap-6 px-4 py-8 fade-in slide-in-from-bottom-2 duration-500 sm:px-6 sm:py-12"
+          className="flex w-full flex-1 animate-in flex-col fade-in slide-in-from-bottom-2 duration-500 sm:justify-center sm:px-4 sm:py-10"
         >
-          <Card className="w-full rounded-xl border-border/70 p-6 shadow-xl shadow-primary/[0.08] sm:p-8">
-            <AnimatePresence mode="wait" initial={false}>
-              <motion.div
-                key={view}
-                variants={viewVariants}
-                initial="enter"
-                animate="center"
-                exit="exit"
-                transition={{ duration: 0.25, ease: "easeOut" }}
-              >
-                {parent && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => goTo(parent)}
-                    className="-ml-2 mb-3 h-9 gap-1.5 text-muted-foreground hover:text-foreground"
-                  >
-                    <ArrowLeft className="size-4" aria-hidden="true" />
-                    Retour
-                  </Button>
-                )}
-
-                <h2
-                  ref={headingRef}
-                  tabIndex={-1}
-                  className="text-xl font-semibold tracking-tight text-primary-dark focus:outline-none"
+          <Card className="relative flex w-full flex-1 flex-col rounded-t-3xl border-x-0 border-b-0 px-5 pb-10 pt-7 shadow-[0_-10px_40px_-12px_rgb(13_71_161/0.18)] sm:mx-auto sm:max-w-md sm:flex-none sm:rounded-xl sm:border sm:px-8 sm:pb-8 sm:shadow-xl sm:shadow-primary/[0.08]">
+            <div className="flex flex-1 flex-col sm:flex-none">
+              <AnimatePresence mode="wait" initial={false}>
+                <motion.div
+                  key={view}
+                  variants={viewVariants}
+                  initial="enter"
+                  animate="center"
+                  exit="exit"
+                  transition={{ duration: 0.25, ease: "easeOut" }}
                 >
-                  {VIEW_META[view].title}
-                </h2>
-                <p className="mt-0.5 mb-5 text-sm text-muted-foreground">
-                  {VIEW_META[view].description}
-                </p>
+                  {parent && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => goTo(parent)}
+                      className="-ml-2 mb-3 h-9 gap-1.5 text-muted-foreground hover:text-foreground"
+                    >
+                      <ArrowLeft className="size-4" aria-hidden="true" />
+                      Retour
+                    </Button>
+                  )}
 
-                {view === "login" && (
-                  <LoginForm
-                    onForgotPassword={() => goTo("forgot")}
-                    onSwitchToRegister={() => goTo("register")}
-                  />
-                )}
+                  <h2
+                    ref={headingRef}
+                    tabIndex={-1}
+                    className="text-xl font-semibold tracking-tight text-primary-dark focus:outline-none"
+                  >
+                    {VIEW_META[view].title}
+                  </h2>
+                  <p className="mt-0.5 mb-5 text-sm text-muted-foreground">
+                    {VIEW_META[view].description}
+                  </p>
 
-                {view === "register" && <RegisterForm />}
+                  {view === "login" && (
+                    <LoginForm
+                      onForgotPassword={() => goTo("forgot")}
+                      onSwitchToRegister={() => goTo("register")}
+                    />
+                  )}
 
-                {view === "forgot" && <ForgotPasswordForm onCodeSent={handleCodeSent} />}
+                  {view === "register" && <RegisterForm />}
 
-                {view === "reset" && (
-                  <ResetPasswordForm
-                    phone={resetPhone}
-                    onBack={() => goTo("forgot")}
-                    onReset={() => goTo("login")}
-                  />
-                )}
-              </motion.div>
-            </AnimatePresence>
+                  {view === "forgot" && <ForgotPasswordForm onCodeSent={handleCodeSent} />}
+
+                  {view === "reset" && (
+                    <ResetPasswordForm
+                      phone={resetPhone}
+                      onBack={() => goTo("forgot")}
+                      onReset={() => goTo("login")}
+                    />
+                  )}
+                </motion.div>
+              </AnimatePresence>
+            </div>
+
+            <p className="mt-8 text-center text-xs text-muted-foreground sm:hidden">
+              © {new Date().getFullYear()} MondocPro — Abidjan, Côte d&apos;Ivoire
+            </p>
           </Card>
-
-          <p className="text-center text-xs text-muted-foreground lg:hidden">
-            © {new Date().getFullYear()} MondocPro — Abidjan, Côte d&apos;Ivoire
-          </p>
         </section>
       </div>
     </div>
