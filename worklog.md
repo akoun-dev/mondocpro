@@ -379,3 +379,23 @@ Work Log:
 
 Stage Summary:
 - Footer auth : uniquement "© MondocPro — Abidjan, Côte d'Ivoire" ; les chips de vente (Rendez-vous, Tokens, Soins de proximité) restent inchangées
+
+---
+Task ID: 9
+Agent: main (Super Z)
+Task: Redesigner l'étape 1 de l'inscription selon la maquette fournie par le PO (image upload)
+
+Work Log:
+- auth-flow.tsx : rangée « Retour » (ChevronLeft) + badge « Accès Patient » (pastille verte), titre Inscription en text-2xl bold, sous-titre « ...3 étapes simples »
+- register-form.tsx : stepper refondu — pastilles iconées (size-9) avec libellés dessous (toujours visibles), fil de progression bleu médical, étape « Zone » renommée « Commune »
+- Bloc « Étape N sur 3 — Titre » avec pourcentage (33/67/100 %) à droite
+- Champ Nom complet : icône User à gauche, astérisques rouges + sr-only « obligatoire »
+- Champ Téléphone : indicatif +225 fixe avec drapeau CI en CSS (FlagCI), saisie locale 10 chiffres (sanitization chiffres/espaces), aide « Un code SMS de validation vous sera envoyé. »
+- Normalisation toInternationalPhone() (tolère collage avec +225) avant validation zod et appel API ; récapitulatif formaté « +225 07 01 02 03 04 »
+- E2E complet : inscription « Aya Konaté Test » / 07 01 02 03 99 → compte PATIENT créé, phone stocké +2250701020399 (vérifié en DB), dashboard « Bonjour, Aya »
+- Vues desktop 1440x900 + mobile 390x844 conformes à la maquette, 0 erreur console, lint 0 erreur
+- CHANGELOG [Non publié] § Modifié mis à jour ; commit 53298e0 poussé
+
+Stage Summary:
+- Étape 1 conforme à la maquette PO ; étapes 2-3 conservées (Commune renommée) ; contrat API inchangé (téléphone toujours +225XXXXXXXXX)
+- Compte de test créé en base : +2250701020399 (Aya Konaté Test) — à supprimer si non désiré
