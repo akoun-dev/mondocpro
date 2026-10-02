@@ -1,5 +1,7 @@
 // POST /api/auth/register — FEATURE-AUTH (contrat API_CONTRACTS.md)
-// Inscription Patient / Infirmier. ADMIN refusé (seed uniquement — ADR-004 §5).
+// Inscription Patient uniquement — le rôle PATIENT est forcé côté serveur
+// (décision PO 2026-10 : pas de choix de rôle à l'inscription, INFIRMIER/ADMIN
+// créés par l'administration). ADMIN refusé (seed uniquement — ADR-004 §5).
 import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
@@ -28,12 +30,13 @@ export async function POST(request: Request) {
     );
   }
 
-  const { fullName, phone, password, role, zone } = parsed.data;
+  const { fullName, phone, password, zone } = parsed.data;
 
   try {
     const passwordHash = await hashPassword(password);
     const user = await db.user.create({
-      data: { fullName, phone, passwordHash, role, zone },
+      // Rôle forcé serveur : aucune confiance aux données client (convention API).
+      data: { fullName, phone, passwordHash, role: "PATIENT" as const, zone },
     });
 
     await createSession(user.id);

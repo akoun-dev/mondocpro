@@ -14,6 +14,7 @@ Format basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) — ve
 - Séries de graphiques `--chart-1..5` alignées sur la palette.
 
 ### Modifié
+- **Inscription multi-étapes + rôle Patient par défaut (décision PO 2026-10)** : parcours guidé en 3 étapes (Identité → Zone → Sécurité) avec animations framer-motion sobres (glissement directionnel, fil d'étapes animé bleu médical/vert santé, récapitulatif avant soumission) ; choix de rôle retiré de l'UI — `PATIENT` forcé en triple couche (hook `use-auth`, API `/api/auth/register` ignore toute valeur `role` cliente, schéma zod sans rôle) ; `API_CONTRACTS.md` mis à jour.
 - Thème sombre recalculé par nuances dérivées documentées (`DESIGN_SYSTEM.md` §1.4).
 
 ### Vérifié

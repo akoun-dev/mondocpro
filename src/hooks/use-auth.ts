@@ -16,7 +16,6 @@ export type RegisterPayload = {
   phone: string;
   password: string;
   confirmPassword: string;
-  role: Extract<AppRole, "PATIENT" | "INFIRMIER">;
   zone: AppZone;
 };
 
@@ -131,7 +130,9 @@ export function useAuth() {
   const register = useCallback(
     async (data: RegisterPayload): Promise<AuthResult> => {
       try {
-        const res = await postJson("/api/auth/register", data);
+        // Rôle PATIENT imposé : l'inscription publique ne crée que des patients
+        // (INFIRMIER/ADMIN = administration). Le serveur le reforce de toute façon.
+        const res = await postJson("/api/auth/register", { ...data, role: "PATIENT" as const });
         if (res.ok) {
           const body = (await res.json()) as { user: AppUser };
           setUser(body.user);

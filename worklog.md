@@ -275,3 +275,21 @@ Work Log:
 Stage Summary:
 - App pleinement opérationnelle : UI + API auth + PostgreSQL Supabase connectés
 - Compte de test : +2250700000001 / Admin#MonDocPro (à changer à la première connexion)
+
+---
+Task ID: 3
+Agent: Super Z (inscription multi-étapes + rôle PATIENT)
+Task: Transformer l'inscription en parcours par étapes animé (framer-motion, palette ADR-002) et retirer le choix de rôle (PATIENT par défaut).
+
+Work Log:
+- auth-schemas.ts : registerSchema sans champ role + sous-schémas par étape (identity/zone/security) + helper zodIssuesToFieldErrors
+- API /api/auth/register : rôle PATIENT forcé serveur (valeur cliente ignorée — testé : POST role=INFIRMIER → user PATIENT en base)
+- use-auth.ts : RegisterPayload sans role, POST avec role:"PATIENT"
+- register-form.tsx réécrit : wizard 3 étapes (Identité → Zone → Sécurité), fil d'étapes animé (bleu médical courant / vert santé terminé), transitions directionnelles AnimatePresence (220ms), cartes de zone avec whileTap, récapitulatif avant soumission, validation zod par étape, erreurs API → retour à l'étape du champ, focus a11y sur changement d'étape
+- Gouvernance : API_CONTRACTS.md (contrat register) + CHANGELOG.md mis à jour
+- Vérifié agent-browser : parcours complet Awa Traoré → espace Patient (badge), validation inline, 0 erreur console ; lint 0 erreur
+- Nettoyage : 2 comptes de test supprimés (scripts/cleanup-test-users.ts, pattern export DATABASE_URL du repo)
+
+Stage Summary:
+- Inscription guidée 3 étapes opérationnelle, rôle PATIENT garanti hook + API + schéma
+- Contrat API register v2 (sans role) consigné dans .ai/API_CONTRACTS.md

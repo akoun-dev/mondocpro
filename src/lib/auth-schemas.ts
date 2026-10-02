@@ -1,4 +1,6 @@
 // Schémas de validation zod — FEATURE-AUTH (miroir des contrats API_CONTRACTS.md)
+// Inscription : rôle supprimé du contrat public — PATIENT forcé côté serveur
+// (décision PO 2026-10 : pas de choix de rôle à l'inscription).
 import { z } from "zod";
 
 export const ROLES = ["PATIENT", "INFIRMIER"] as const; // ADMIN = seed uniquement (ADR-004 §5)
@@ -16,22 +18,35 @@ const phoneSchema = z
   .trim()
   .regex(/^\+?[0-9]{8,15}$/, "Numéro de téléphone invalide (8 à 15 chiffres, indicatif optionnel)");
 
-export const registerSchema = z
-  .object({
-    fullName: z
-      .string()
-      .trim()
-      .min(2, "Le nom complet doit contenir au moins 2 caractères")
-      .max(80, "Le nom complet ne peut pas dépasser 80 caractères"),
-    phone: phoneSchema,
-    password: z
-      .string()
-      .min(8, "Le mot de passe doit contenir au moins 8 caractères")
-      .max(72, "Le mot de passe ne peut pas dépasser 72 caractères"),
-    confirmPassword: z.string(),
-    role: z.enum(ROLES, { message: "Rôle invalide" }),
-    zone: z.enum(ZONES, { message: "Zone invalide" }),
-  })
+// Base partagée : un seul endroit définit chaque règle de champ (DRY).
+const registerBase = z.object({
+  fullName: z
+    .string()
+    .trim()
+    .min(2, "Le nom complet doit contenir au moins 2 caractères")
+    .max(80, "Le nom complet ne peut pas dépasser 80 caractères"),
+  phone: phoneSchema,
+  password: z
+    .string()
+    .min(8, "Le mot de passe doit contenir au moins 8 caractères")
+    .max(72, "Le mot de passe ne peut pas dépasser 72 caractères"),
+  confirmPassword: z.string(),
+  zone: z.enum(ZONES, { message: "Zone invalide" }),
+});
+
+export const registerSchema = registerBase.refine((d) => d.password === d.confirmPassword, {
+  message: "Les mots de passe ne correspondent pas",
+  path: ["confirmPassword"],
+});
+
+// Sous-schémas par étape du parcours d'inscription guidé (register-form) —
+// mêmes règles que le contrat complet, validées incrementalement côté client.
+export const registerStepIdentitySchema = registerBase.pick({ fullName: true, phone: true });
+
+export const registerStepZoneSchema = registerBase.pick({ zone: true });
+
+export const registerStepSecuritySchema = registerBase
+  .pick({ password: true, confirmPassword: true })
   .refine((d) => d.password === d.confirmPassword, {
     message: "Les mots de passe ne correspondent pas",
     path: ["confirmPassword"],
@@ -44,3 +59,15 @@ export const loginSchema = z.object({
 
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
+
+// Convertit les issues zod en dictionnaire { champ: message } pour l'affichage inline.
+export function zodIssuesToFieldErrors(error: z.ZodError): Record<string, string> {
+  const errors: Record<string, string> = {};
+  for (const issue of error.issues) {
+    const field = issue.path[0];
+    if (typeof field === "string" && !(field in errors)) {
+      errors[field] = issue.message;
+    }
+  }
+  return errors;
+}

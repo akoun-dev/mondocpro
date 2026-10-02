@@ -28,12 +28,12 @@ Validation: schéma zod de référence (src/lib/<domaine>.ts)
 - Response: 200 `{ "status": "ok", "timestamp": string }`
 - Notes: remplace le hello-world scaffold comme vérification de santé lors des tests E2E.
 
-### [POST] /api/auth/register — Inscription (Patient / Infirmier)
-- Feature: FEATURE-AUTH (SYS-010) | Owner: Backend | Statut: **VALIDÉ** (ADR-004)
-- Request: `{ "fullName": string(2..80), "phone": string(regex ^\+?[0-9]{8,15}$), "password": string(8..72), "confirmPassword": string, "role": "PATIENT"|"INFIRMIER", "zone": "YOPOUGON"|"SONGON"|"PK22"|"NDOTRE" }`
+### [POST] /api/auth/register — Inscription (Patient)
+- Feature: FEATURE-AUTH (SYS-010) | Owner: Backend | Statut: **VALIDÉ** (ADR-004, maj PO 2026-10)
+- Request: `{ "fullName": string(2..80), "phone": string(regex ^\+?[0-9]{8,15}$), "password": string(8..72), "confirmPassword": string, "zone": "YOPOUGON"|"SONGON"|"PK22"|"NDOTRE" }`
 - Response: 201 `{ "user": { "id": string, "fullName": string, "phone": string, "role": string, "zone": string, "createdAt": string } }` — cookie de session posé
 - Errors: 400 `{ error, details }` (zod) · 409 `{ error }` numéro déjà inscrit · 500
-- Notes: `ADMIN` refusé (seed uniquement) ; `confirmPassword` validé = `password` ; jamais de retour de `passwordHash`.
+- Notes: **rôle `PATIENT` forcé côté serveur** (décision PO 2026-10 : pas de choix de rôle à l'inscription ; toute valeur `role` cliente est ignorée) ; `INFIRMIER`/`ADMIN` créés par l'administration ; `confirmPassword` validé = `password` ; jamais de retour de `passwordHash`.
 
 ### [POST] /api/auth/login — Connexion
 - Feature: FEATURE-AUTH (SYS-010) | Owner: Backend | Statut: **VALIDÉ** (ADR-004)
