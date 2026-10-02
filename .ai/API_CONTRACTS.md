@@ -23,10 +23,43 @@ Validation: schéma zod de référence (src/lib/<domaine>.ts)
 
 ## Contrats actifs
 
-### [GET] /api/health — Sonde de vie
-- Feature: SYS-001 (système) | Owner: Backend | Statut: **VALIDÉ**
-- Response: 200 `{ "status": "ok", "timestamp": string }`
-- Notes: remplace le hello-world scaffold comme vérification de santé lors des tests E2E.
+### [GET] /api/health — Sonde de vie + base de données
+- Feature: SYS-001 (système) | Owner: Backend | Statut: **VALIDÉ** (v2, lot P0 2026-10-03 : ajout probe DB)
+- Response: 200 `{ "status": "ok" | "degraded", "database": "up" | "down", "timestamp": string }`
+- Notes: remplace le hello-world scaffold comme vérification de santé lors des tests E2E et du monitoring. La sonde exécute `SELECT 1` via Prisma — toujours HTTP 200 (l'état porté par le corps permet à l'app de répondre même en cas d'incident DB) ; `status: "degraded"` ⇔ `database: "down"`.
+
+### [GET] /api/appointments — Mes rendez-vous
+- Feature: FEATURE-RDV | Owner: Backend | Statut: **IMPLÉMENTÉ** (lot P0/P1 2026-10-03, audit §4 validé par GO PO)
+- Request: — (cookie de session, rôle PATIENT)
+- Response: 200 `{ "appointments": [{ "id": string, "type": "CABINET" | "DOMICILE", "zone": Zone, "scheduledAt": string(ISO UTC), "status": "PENDING" | "CONFIRMED" | "CANCELLED" | "DONE", "reason": string | null, "createdAt": string }] }` — tri décroissant par créneau, 100 derniers
+- Errors: 401 `{ error }` non authentifié · 403 `{ error }` rôle hors PATIENT · 500
+
+### [POST] /api/appointments — Prendre un rendez-vous
+- Feature: FEATURE-RDV | Owner: Backend | Statut: **IMPLÉMENTÉ** (lot P0/P1 2026-10-03)
+- Request: `{ "type": "CABINET" | "DOMICILE", "zone": Zone, "date": string("YYYY-MM-DD"), "time": string("HH:MM"), "reason"?: string(≤500) }` — date/heure saisis séparément (Afrique/Abidjan = UTC+0 : l'heure locale est l'heure UTC)
+- Response: 201 `{ "appointment": { ...idem GET } }`
+- Errors: 400 `{ error, details }` (zod ou règle créneau : grille 30 min, lundi–vendredi 08:00–16:30, ≥ 2 h à l'avance, ≤ 60 jours) · 401 · 403 · 409 `{ error }` RDV actif déjà réservé sur ce créneau par le patient · 500
+- Notes: arbitrages MVP (spec FEATURE-PATIENT §arbitrages) modifiables sans migration — constantes `src/lib/appointments.ts`.
+
+### [PATCH] /api/appointments/:id — Annuler un rendez-vous
+- Feature: FEATURE-RDV | Owner: Backend | Statut: **IMPLÉMENTÉ** (lot P0/P1 2026-10-03)
+- Request: `{ "action": "CANCEL" }` — seule action patient supportée au MVP
+- Response: 200 `{ "appointment": { ...idem GET, status: "CANCELLED" } }`
+- Errors: 400 `{ error, details }` (action non supportée) · 401 · 403 · 404 `{ error }` introuvable ou hors propriété (indistinguables) · 409 `{ error }` statut non annulable (CANCELLED/DONE) · 500
+- Notes: propriété vérifiée côté serveur (`patientId` = session) ; pas de délai limite d'annulation au MVP (arbitrage PO à trancher pour la phase 2).
+
+### [GET] /api/sensibilisations — Fil de sensibilisations santé
+- Feature: FEATURE-SENSO | Owner: Backend | Statut: **IMPLÉMENTÉ** (lot P0/P1 2026-10-03)
+- Request: — (cookie de session, tous rôles) — filtrage par la zone du lecteur
+- Response: 200 `{ "sensibilisations": [{ "id": string, "title": string, "body": string, "category": "CONSEIL" | "ALERTE", "zones": Zone[], "publishedAt": string }] }` — tri décroissant publication, 50 derniers
+- Errors: 401 · 500
+- Notes: ciblage vide (`zones: []`) = visible de toutes les zones ; contenu éditorial seedé (6 contenus référence) jusqu'à la rédaction ADMIN (phase 2).
+
+### [GET] /api/sensibilisations/:id — Détail d'une sensibilisation
+- Feature: FEATURE-SENSO | Owner: Backend | Statut: **IMPLÉMENTÉ** (lot P0/P1 2026-10-03)
+- Request: — (cookie de session, tous rôles)
+- Response: 200 `{ "sensibilisation": { ...idem liste } }`
+- Errors: 401 · 404 `{ error }` introuvable **ou** hors ciblage de zone du lecteur (indistinguables — pas de fuite d'existence) · 500
 
 ### [POST] /api/auth/register — Inscription (Patient)
 - Feature: FEATURE-AUTH (SYS-010) | Owner: Backend | Statut: **VALIDÉ** (ADR-004, maj PO 2026-10)
@@ -74,4 +107,6 @@ Validation: schéma zod de référence (src/lib/<domaine>.ts)
 
 | Endpoint | Feature | Statut |
 |---|---|---|
-| — | — | — |
+| [GET] /api/tokens | FEATURE-TOKENS (P2) | À venir — contrat à rédiger (ledger `TokenAccount`/`TokenTransaction`, audit §2)
+| [POST] /api/tokens/topup | FEATURE-TOKENS (P2) | À venir — crédit manuel ADMIN au MVP ; paiement Mobile Money suspendu à l'ADR-005
+| [POST] /api/admin/sensibilisations | FEATURE-SENSO phase 2 | À venir — rédaction ADMIN (au MVP : seed éditorial) |
