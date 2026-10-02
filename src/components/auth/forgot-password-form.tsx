@@ -3,14 +3,19 @@
 // Vue Mot de passe oublié — US-AUTH-5 étape 1 (contrat API_CONTRACTS.md)
 // Saisie du numéro : le serveur répond toujours OK (anti-énumération) et
 // déclenche l'envoi du code si le compte existe. Passe à la vue Reset.
+// Indicatif +225 fixe (drapeau CI) comme sur la Connexion : l'utilisateur
+// saisit le numéro local, normalisé vers l'international avant envoi.
 import { useState, type FormEvent } from "react";
 import { Loader2, MessageSquareText } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { FlagCI } from "@/components/auth/ci-flag";
+import { toInternationalPhone } from "@/lib/phone";
 import { forgotPasswordSchema, zodIssuesToFieldErrors } from "@/lib/auth-schemas";
 import { useAuth } from "@/hooks/use-auth";
+import { cn } from "@/lib/utils";
 
 export function ForgotPasswordForm({ onCodeSent }: { onCodeSent: (phone: string) => void }) {
   const { forgotPassword } = useAuth();
@@ -25,7 +30,9 @@ export function ForgotPasswordForm({ onCodeSent }: { onCodeSent: (phone: string)
     event.preventDefault();
     if (submitting) return;
 
-    const parsed = forgotPasswordSchema.safeParse({ phone: phone.trim() });
+    const parsed = forgotPasswordSchema.safeParse({
+      phone: toInternationalPhone(phone),
+    });
     if (!parsed.success) {
       setFieldErrors(zodIssuesToFieldErrors(parsed.error));
       setFormError(null);
@@ -68,21 +75,43 @@ export function ForgotPasswordForm({ onCodeSent }: { onCodeSent: (phone: string)
       </div>
 
       <div className="flex flex-col gap-2">
-        <Label htmlFor="forgot-phone">Téléphone</Label>
-        <Input
-          id="forgot-phone"
-          name="phone"
-          type="tel"
-          inputMode="tel"
-          autoComplete="tel"
-          placeholder="+225 07 01 02 03 04"
-          value={phone}
-          onChange={(e) => setPhone(e.target.value)}
-          disabled={submitting}
-          className="h-11"
-          aria-invalid={fieldErrors.phone ? true : undefined}
-          aria-describedby={fieldErrors.phone ? "forgot-phone-error" : undefined}
-        />
+        <Label
+          htmlFor="forgot-phone"
+          className="text-xs font-semibold uppercase tracking-wide text-muted-foreground"
+        >
+          Téléphone
+        </Label>
+        <div
+          className={cn(
+            "relative flex h-11 items-stretch overflow-hidden rounded-md border border-input bg-transparent shadow-xs transition-[color,box-shadow]",
+            "focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/50",
+            fieldErrors.phone && "border-destructive focus-within:ring-destructive/30",
+          )}
+        >
+          <span
+            className="flex shrink-0 select-none items-center gap-1.5 border-r border-input bg-muted/50 px-3"
+            aria-hidden="true"
+          >
+            <FlagCI />
+            <span className="text-sm font-semibold text-foreground">+225</span>
+          </span>
+          <Input
+            id="forgot-phone"
+            name="phone"
+            type="tel"
+            inputMode="tel"
+            autoComplete="tel-national"
+            placeholder="07 01 02 03 04"
+            required
+            maxLength={14}
+            value={phone}
+            onChange={(e) => setPhone(e.target.value.replace(/[^\d\s]/g, ""))}
+            disabled={submitting}
+            className="h-full flex-1 rounded-none border-0 pl-3 shadow-none focus-visible:ring-0"
+            aria-invalid={fieldErrors.phone ? true : undefined}
+            aria-describedby={fieldErrors.phone ? "forgot-phone-error" : undefined}
+          />
+        </div>
         {fieldErrors.phone && (
           <p id="forgot-phone-error" className="text-sm text-destructive">
             {fieldErrors.phone}
