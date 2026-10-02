@@ -87,6 +87,10 @@ model Appointment {
   id          String            @id @default(cuid())
   patientId   String
   patient     User              @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  // Spécialité demandée (FEATURE-RDV wizard étape 2) — configurable par
+  // l'ADMIN. Nullable pour les RDV créés avant la feature (backfill seed).
+  specialtyId String?
+  specialty   Specialty?        @relation(fields: [specialtyId], references: [id], onDelete: SetNull)
   type        AppointmentType
   zone        Zone
   // Créneau aligné sur la grille de 30 min (Afrique/Abidjan = UTC+0 sans
@@ -101,7 +105,25 @@ model Appointment {
 
   @@index([patientId])
   @@index([scheduledAt])
+  @@index([specialtyId])
   @@map("appointments")
+}
+
+// ——— FEATURE-RDV — Spécialités de consultation (configurables ADMIN) ———
+// Catalogue géré par le Médecin Chef (POST/PATCH/DELETE admin) ; les patients
+// choisissent parmi les spécialités actives (wizard étape 2).
+model Specialty {
+  id           String        @id @default(cuid())
+  name         String        @unique @db.VarChar(80)
+  // Désactivation douce : masquée aux patients, conservée pour l'historique.
+  isActive     Boolean       @default(true)
+  // Ordre d'affichage dans le wizard (ascendant, puis nom).
+  sortOrder    Int           @default(0)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  appointments Appointment[]
+
+  @@map("specialties")
 }
 
 // ——— FEATURE-SENSO — Sensibilisations santé ———

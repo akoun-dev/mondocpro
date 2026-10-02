@@ -29,17 +29,17 @@ Validation: schéma zod de référence (src/lib/<domaine>.ts)
 - Notes: remplace le hello-world scaffold comme vérification de santé lors des tests E2E et du monitoring. La sonde exécute `SELECT 1` via Prisma — toujours HTTP 200 (l'état porté par le corps permet à l'app de répondre même en cas d'incident DB) ; `status: "degraded"` ⇔ `database: "down"`.
 
 ### [GET] /api/appointments — Mes rendez-vous
-- Feature: FEATURE-RDV | Owner: Backend | Statut: **IMPLÉMENTÉ** (lot P0/P1 2026-10-03, audit §4 validé par GO PO)
+- Feature: FEATURE-RDV | Owner: Backend | Statut: **IMPLÉMENTÉ** (lot P0/P1 2026-10-03, audit §4 validé par GO PO ; spécialité ajoutée Task 19)
 - Request: — (cookie de session, rôle PATIENT)
-- Response: 200 `{ "appointments": [{ "id": string, "type": "CABINET" | "DOMICILE", "zone": Zone, "scheduledAt": string(ISO UTC), "status": "PENDING" | "CONFIRMED" | "CANCELLED" | "DONE", "reason": string | null, "createdAt": string }] }` — tri décroissant par créneau, 100 derniers
+- Response: 200 `{ "appointments": [{ "id": string, "type": "CABINET" | "DOMICILE", "zone": Zone, "specialty": { "id": string, "name": string } | null, "scheduledAt": string(ISO UTC), "status": "PENDING" | "CONFIRMED" | "CANCELLED" | "DONE", "reason": string | null, "createdAt": string }] }` — tri décroissant par créneau, 100 derniers ; `specialty: null` = RDV antérieurs au wizard (backfill « Médecine générale » en base)
 - Errors: 401 `{ error }` non authentifié · 403 `{ error }` rôle hors PATIENT · 500
 
 ### [POST] /api/appointments — Prendre un rendez-vous
-- Feature: FEATURE-RDV | Owner: Backend | Statut: **IMPLÉMENTÉ** (lot P0/P1 2026-10-03)
-- Request: `{ "type": "CABINET" | "DOMICILE", "zone": Zone, "date": string("YYYY-MM-DD"), "time": string("HH:MM"), "reason"?: string(≤500) }` — date/heure saisis séparément (Afrique/Abidjan = UTC+0 : l'heure locale est l'heure UTC)
+- Feature: FEATURE-RDV | Owner: Backend | Statut: **IMPLÉMENTÉ** (lot P0/P1 2026-10-03 ; wizard 4 étapes + specialtyId requis — Task 19)
+- Request: `{ "type": "CABINET" | "DOMICILE", "specialtyId": string, "zone": Zone, "date": string("YYYY-MM-DD"), "time": string("HH:MM"), "reason"?: string(≤500) }` — date/heure saisis séparément (Afrique/Abidjan = UTC+0 : l'heure locale est l'heure UTC)
 - Response: 201 `{ "appointment": { ...idem GET } }`
-- Errors: 400 `{ error, details }` (zod ou règle créneau : grille 30 min, lundi–vendredi 08:00–16:30, ≥ 2 h à l'avance, ≤ 60 jours) · 401 · 403 · 409 `{ error }` RDV actif déjà réservé sur ce créneau par le patient · 500
-- Notes: arbitrages MVP (spec FEATURE-PATIENT §arbitrages) modifiables sans migration — constantes `src/lib/appointments.ts`.
+- Errors: 400 `{ error, details }` (zod, règle créneau : grille 30 min, lundi–vendredi 08:00–16:30, ≥ 2 h à l'avance, ≤ 60 jours, ou spécialité inexistante/inactive) · 401 · 403 · 409 `{ error }` RDV actif déjà réservé sur ce créneau par le patient · 500
+- Notes: arbitrages MVP (spec FEATURE-PATIENT §arbitrages) modifiables sans migration — constantes `src/lib/schedule.ts` (client-safe partagé avec le formulaire) ; `specialtyId` validé en base (doit référencer une spécialité ACTIVE du catalogue ADMIN).
 
 ### [PATCH] /api/appointments/:id — Annuler un rendez-vous
 - Feature: FEATURE-RDV | Owner: Backend | Statut: **IMPLÉMENTÉ** (lot P0/P1 2026-10-03)
@@ -47,6 +47,39 @@ Validation: schéma zod de référence (src/lib/<domaine>.ts)
 - Response: 200 `{ "appointment": { ...idem GET, status: "CANCELLED" } }`
 - Errors: 400 `{ error, details }` (action non supportée) · 401 · 403 · 404 `{ error }` introuvable ou hors propriété (indistinguables) · 409 `{ error }` statut non annulable (CANCELLED/DONE) · 500
 - Notes: propriété vérifiée côté serveur (`patientId` = session) ; pas de délai limite d'annulation au MVP (arbitrage PO à trancher pour la phase 2).
+
+### [GET] /api/specialties — Catalogue des spécialités actives
+- Feature: FEATURE-RDV (wizard étape 2) | Owner: Backend | Statut: **IMPLÉMENTÉ** (Task 19)
+- Request: — (cookie de session, tous rôles)
+- Response: 200 `{ "specialties": [{ "id": string, "name": string, "isActive": true, "sortOrder": number }] }` — actives uniquement, tri sortOrder asc puis nom
+- Errors: 401 `{ error }` non authentifié · 500
+- Notes: catalogue géré par l'ADMIN (voir /api/admin/specialties) ; seed référence : Médecine générale, Pédiatrie, Gynécologie, Cardiologie, Diabétologie, Chirurgie dentaire, Ophtalmologie (`scripts/seed-specialties.ts`, idempotent + backfill).
+
+### [GET] /api/admin/specialties — Catalogue complet (gestion)
+- Feature: FEATURE-RDV | Owner: Backend | Statut: **IMPLÉMENTÉ** (Task 19)
+- Request: — (cookie de session, rôle ADMIN)
+- Response: 200 `{ "specialties": [{ "id", "name", "isActive", "sortOrder" }] }` — actives ET désactivées
+- Errors: 401 · 403 `{ error }` hors ADMIN · 500
+
+### [POST] /api/admin/specialties — Créer une spécialité
+- Feature: FEATURE-RDV | Owner: Backend | Statut: **IMPLÉMENTÉ** (Task 19)
+- Request: `{ "name": string(2–80 après nettoyage), "sortOrder"?: int ≥ 0 }` — défaut : compteur ×10
+- Response: 201 `{ "specialty": { id, name, isActive: true, sortOrder } }`
+- Errors: 400 `{ error, details }` (zod, nom < 2 ou > 80) · 401 · 403 hors ADMIN · 409 `{ error }` nom déjà existant · 500
+
+### [PATCH] /api/admin/specialties/:id — Renommer / activer-désactiver
+- Feature: FEATURE-RDV | Owner: Backend | Statut: **IMPLÉMENTÉ** (Task 19)
+- Request: `{ "name"?: string(2–80), "isActive"?: boolean }` — au moins un champ
+- Response: 200 `{ "specialty": { id, name, isActive, sortOrder } }`
+- Errors: 400 `{ error, details }` · 401 · 403 hors ADMIN · 404 `{ error }` introuvable · 409 `{ error }` nom déjà existant · 500
+- Notes: désactivation douce = masquée aux patients, conservée pour l'historique des RDV.
+
+### [DELETE] /api/admin/specialties/:id — Supprimer une spécialité
+- Feature: FEATURE-RDV | Owner: Backend | Statut: **IMPLÉMENTÉ** (Task 19)
+- Request: —
+- Response: 204 (sans corps)
+- Errors: 401 · 403 hors ADMIN · 404 `{ error }` introuvable · 409 `{ error }` des RDV y sont rattachés (désactivation recommandée) · 500
+- Notes: la suppression détache les RDV via FK `onDelete: SetNull` — refusée si des RDV existent (l'historique clinique reste rattaché à une spécialité).
 
 ### [GET] /api/sensibilisations — Fil de sensibilisations santé
 - Feature: FEATURE-SENSO | Owner: Backend | Statut: **IMPLÉMENTÉ** (lot P0/P1 2026-10-03)

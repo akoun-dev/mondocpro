@@ -86,7 +86,8 @@ export function AppointmentsView({ data, onBack, onBook }: Props) {
               {APPOINTMENT_TYPE_LABELS[appointment.type]}
             </p>
             <p className="mt-0.5 truncate text-xs text-muted-foreground">
-              Médecine générale • {ZONE_LABELS[appointment.zone]}
+              {appointment.specialty?.name ?? "Médecine générale"} •{" "}
+              {ZONE_LABELS[appointment.zone]}
             </p>
           </div>
         </div>

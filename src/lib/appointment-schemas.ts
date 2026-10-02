@@ -30,6 +30,9 @@ export const createAppointmentSchema = z.object({
   type: z.enum(APPOINTMENT_TYPES, {
     message: "Choisissez un type de rendez-vous",
   }),
+  // Spécialité demandée (wizard étape 2) — doit référencer une spécialité
+  // ACTIVE du catalogue (validé en base par le service).
+  specialtyId: z.string().min(1, "Choisissez une spécialité"),
   zone: z.enum(ZONES, { message: "Zone invalide" }),
   date: appointmentDateSchema,
   time: appointmentTimeSchema,

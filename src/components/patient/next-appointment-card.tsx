@@ -90,7 +90,9 @@ export function NextAppointmentCard({
               <p className="truncate text-lg font-bold leading-tight">
                 {APPOINTMENT_TYPE_LABELS[next.type]}
               </p>
-              <p className="text-sm text-white/80">Médecine générale</p>
+              <p className="text-sm text-white/80">
+                {next.specialty?.name ?? "Médecine générale"}
+              </p>
             </div>
           </div>
 

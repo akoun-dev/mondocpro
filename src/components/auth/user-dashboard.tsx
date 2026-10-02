@@ -14,6 +14,7 @@ import {
     Bell,
     BellRing,
     CalendarCheck,
+    ChevronRight,
     ClipboardCheck,
     Clock,
     HeartPulse,
@@ -62,6 +63,7 @@ import { AppointmentsView } from "@/components/patient/appointments-view"
 import { SensibilisationsView } from "@/components/patient/sensibilisations-view"
 import { BookAppointmentDialog } from "@/components/patient/book-appointment-dialog"
 import { SensibilisationDialog } from "@/components/patient/sensibilisation-dialog"
+import { SpecialtiesView } from "@/components/admin/specialties-view"
 
 const ROLE_LABELS: Record<AppRole, string> = {
     PATIENT: "Patient",
@@ -160,10 +162,10 @@ const ROLE_SPACE: Record<
     },
 }
 
-// Onglets de la navigation basse (style app mobile). Sous-vues patient hors
-// navigation basse : « rdv » (entrée « Mes rendez-vous » de l'accueil) et
-// « senso » (entrée « Tout voir » de la carte santé).
-type DashboardTab = "accueil" | "rdv" | "senso" | "profil"
+// Onglets de la navigation basse (style app mobile). Sous-vues hors navigation
+// basse : patient « rdv » (entrée « Mes rendez-vous ») et « senso » (entrée
+// « Tout voir ») ; admin « specialties » (entrée « Gérer les spécialités »).
+type DashboardTab = "accueil" | "rdv" | "senso" | "specialties" | "profil"
 
 const DASHBOARD_TABS: { id: DashboardTab; label: string; icon: LucideIcon }[] =
     [
@@ -546,6 +548,33 @@ export function UserDashboard() {
                                 </div>
                             </div>
 
+                            {/* Raccourci ADMIN — gestion du catalogue de spécialités
+                                consommé par l'étape 2 du wizard patient (feature live,
+                                contrairement aux modules « à venir » ci-dessous) */}
+                            {user.role === "ADMIN" && (
+                                <button
+                                    type="button"
+                                    onClick={() => setTab("specialties")}
+                                    className="mb-6 flex w-full items-center gap-3 rounded-2xl border bg-card p-4 text-left shadow-sm transition-colors hover:border-primary/40 hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:p-5"
+                                >
+                                    <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                                        <Stethoscope className="size-5" aria-hidden="true" />
+                                    </span>
+                                    <span className="min-w-0 flex-1">
+                                        <span className="block text-sm font-bold">
+                                            Gérer les spécialités
+                                        </span>
+                                        <span className="block text-xs text-muted-foreground">
+                                            Catalogue proposé aux patients à la prise de RDV
+                                        </span>
+                                    </span>
+                                    <span className="flex shrink-0 items-center gap-0.5 text-sm font-semibold text-primary">
+                                        Ouvrir
+                                        <ChevronRight className="size-4" aria-hidden="true" />
+                                    </span>
+                                </button>
+                            )}
+
                             {/* Espace par rôle — cartes fonctionnalités avec badges « à venir » */}
                             <Card className="rounded-2xl">
                                 <CardHeader>
@@ -638,6 +667,19 @@ export function UserDashboard() {
                                 onRefresh={() => void patientData.refresh()}
                                 onOpenArticle={setOpenArticle}
                             />
+                        </motion.section>
+                    )}
+
+                    {tab === "specialties" && user.role === "ADMIN" && (
+                        <motion.section
+                            key="specialties"
+                            variants={tabVariants}
+                            initial="enter"
+                            animate="center"
+                            exit="exit"
+                            aria-label="Gestion des spécialités"
+                        >
+                            <SpecialtiesView onBack={() => setTab("accueil")} />
                         </motion.section>
                     )}
 

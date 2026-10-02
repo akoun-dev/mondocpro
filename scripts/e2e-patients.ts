@@ -66,25 +66,37 @@ for (const [m, p, b] of [
   check(`${m} ${p} sans session → 401`, r.status === 401, `got ${r.status}`);
 }
 
+// Catalogue spécialités — requis par POST /api/appointments depuis le wizard
+// (Task 19). La 1re active sert à toutes les créations du scénario.
+const specialties = await call("/api/specialties", { cookie: jarA });
+check("GET specialties → 200 (actives, ordre sortOrder)", specialties.status === 200 && Array.isArray(specialties.json?.specialties) && specialties.json.specialties.length > 0, `count ${specialties.json?.specialties?.length}`);
+const SPECIALTY_ID = specialties.json?.specialties?.[0]?.id as string | undefined;
+if (!SPECIALTY_ID) { console.error("FATAL: aucune spécialité active (seed-specialties.ts requis)"); process.exit(1); }
+
 // 3. RDV — création
 const slot = nextBusinessSlot();
-const post1 = await call("/api/appointments", { method: "POST", cookie: jarA, body: { type: "CABINET", zone: "YOPOUGON", ...slot, reason: "Consultation générale" } });
+const post1 = await call("/api/appointments", { method: "POST", cookie: jarA, body: { type: "CABINET", specialtyId: SPECIALTY_ID, zone: "YOPOUGON", ...slot, reason: "Consultation générale" } });
 check("POST appointment → 201", post1.status === 201, JSON.stringify(post1.json?.appointment ?? post1.json));
 const apptId = post1.json?.appointment?.id as string | undefined;
 check("appointment.status = PENDING", post1.json?.appointment?.status === "PENDING");
+check("appointment.specialty.name renvoyé", typeof post1.json?.appointment?.specialty?.name === "string", post1.json?.appointment?.specialty?.name);
+
+// 3bis. Spécialité absente/invalide → 400
+const rBadSpec = await call("/api/appointments", { method: "POST", cookie: jarA, body: { type: "CABINET", specialtyId: "specialite-inexistante", zone: "YOPOUGON", date: slot.date, time: "11:00" } });
+check("POST specialtyId inconnu → 400", rBadSpec.status === 400, `got ${rBadSpec.status}`);
 
 // 4. Collision 409
-const post2 = await call("/api/appointments", { method: "POST", cookie: jarA, body: { type: "DOMICILE", zone: "YOPOUGON", ...slot } });
+const post2 = await call("/api/appointments", { method: "POST", cookie: jarA, body: { type: "DOMICILE", specialtyId: SPECIALTY_ID, zone: "YOPOUGON", ...slot } });
 check("POST même créneau → 409", post2.status === 409, `got ${post2.status}`);
 
 // 5. Règles créneau 400 (dimanche, hors grille, délai insuffisant, > 60 jours)
 const sunday = new Date(); sunday.setUTCDate(sunday.getUTCDate() + 7 + (7 - sunday.getUTCDay()) % 7);
-const rSunday = await call("/api/appointments", { method: "POST", cookie: jarA, body: { type: "CABINET", zone: "YOPOUGON", date: sunday.toISOString().slice(0, 10), time: "10:00" } });
+const rSunday = await call("/api/appointments", { method: "POST", cookie: jarA, body: { type: "CABINET", specialtyId: SPECIALTY_ID, zone: "YOPOUGON", date: sunday.toISOString().slice(0, 10), time: "10:00" } });
 check("POST dimanche → 400", rSunday.status === 400, `got ${rSunday.status}`);
-const rGrid = await call("/api/appointments", { method: "POST", cookie: jarA, body: { type: "CABINET", zone: "YOPOUGON", date: slot.date, time: "10:07" } });
+const rGrid = await call("/api/appointments", { method: "POST", cookie: jarA, body: { type: "CABINET", specialtyId: SPECIALTY_ID, zone: "YOPOUGON", date: slot.date, time: "10:07" } });
 check("POST hors grille 30 min → 400", rGrid.status === 400, `got ${rGrid.status}`);
 const today = new Date(); today.setUTCHours(23, 0, 0, 0);
-const rLead = await call("/api/appointments", { method: "POST", cookie: jarA, body: { type: "CABINET", zone: "YOPOUGON", date: today.toISOString().slice(0, 10), time: "23:00" } });
+const rLead = await call("/api/appointments", { method: "POST", cookie: jarA, body: { type: "CABINET", specialtyId: SPECIALTY_ID, zone: "YOPOUGON", date: today.toISOString().slice(0, 10), time: "23:00" } });
 check("POST délai < 2 h → 400", rLead.status === 400, `got ${rLead.status}`);
 
 // 6. Liste
@@ -112,8 +124,17 @@ const cookieC = loginC.setCookie?.split(";")[0];
 check("login INFIRMIER → 200 + cookie", loginC.status === 200 && !!cookieC, `got ${loginC.status}`);
 const r403a = await call("/api/appointments", { cookie: cookieC });
 check("GET appointments INFIRMIER → 403", r403a.status === 403, `got ${r403a.status}`);
-const r403b = await call("/api/appointments", { method: "POST", cookie: cookieC, body: { type: "CABINET", zone: "YOPOUGON", ...slot } });
+const r403b = await call("/api/appointments", { method: "POST", cookie: cookieC, body: { type: "CABINET", specialtyId: SPECIALTY_ID, zone: "YOPOUGON", ...slot } });
 check("POST appointments INFIRMIER → 403", r403b.status === 403, `got ${r403b.status}`);
+
+// 9bis. Spécialités — 401 sans session (le GET est dans les 401 initiaux ? non,
+// ajouté ici) + garde admin pour la gestion complète.
+const specNoAuth = await call("/api/specialties");
+check("GET specialties sans session → 401", specNoAuth.status === 401, `got ${specNoAuth.status}`);
+const adminList403 = await call("/api/admin/specialties", { cookie: jarA });
+check("GET admin specialties PATIENT → 403", adminList403.status === 403, `got ${adminList403.status}`);
+const adminCreate403 = await call("/api/admin/specialties", { method: "POST", cookie: jarA, body: { name: "Test interdit" } });
+check("POST admin specialties PATIENT → 403", adminCreate403.status === 403, `got ${adminCreate403.status}`);
 
 // 10. SENSO — liste, ciblage zone, détail, 404
 // Seed : 6 contenus — 3 sans ciblage, YOPOUGON ciblé par Vaccination + Grossesse,

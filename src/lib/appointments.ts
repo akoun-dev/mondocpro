@@ -27,21 +27,36 @@ export {
 } from "@/lib/schedule";
 
 // DTO exposé au client — dates en ISO UTC, le rendu formate en Africa/Abidjan.
+// Spécialité demandée (nullable : RDV créés avant la FEATURE-RDV wizard).
+export type SpecialtyDto = { id: string; name: string };
+
+// Payload Prisma attendu : Appointment + relation specialty incluse (select
+// id/name) — cf. include dans les requêtes du service.
+type AppointmentWithSpecialty = Appointment & {
+  specialty: SpecialtyDto | null;
+};
+
 export type AppointmentDto = {
   id: string;
   type: Appointment["type"];
   zone: Appointment["zone"];
+  specialty: SpecialtyDto | null;
   scheduledAt: string;
   status: AppointmentStatus;
   reason: string | null;
   createdAt: string;
 };
 
-export function toAppointmentDto(appointment: Appointment): AppointmentDto {
+export function toAppointmentDto(
+  appointment: AppointmentWithSpecialty,
+): AppointmentDto {
   return {
     id: appointment.id,
     type: appointment.type,
     zone: appointment.zone,
+    specialty: appointment.specialty
+      ? { id: appointment.specialty.id, name: appointment.specialty.name }
+      : null,
     scheduledAt: appointment.scheduledAt.toISOString(),
     status: appointment.status,
     reason: appointment.reason,
@@ -58,6 +73,7 @@ export async function listAppointmentsForPatient(
     where: { patientId },
     orderBy: [{ scheduledAt: "desc" }],
     take: 100,
+    include: { specialty: { select: { id: true, name: true } } },
   });
   return rows.map(toAppointmentDto);
 }
@@ -68,6 +84,18 @@ export async function createAppointmentForPatient(
 ): Promise<AppointmentDto> {
   const scheduledAt = slotToDate(input.date, input.time);
   validateSlot(scheduledAt);
+
+  // Spécialité : doit exister et être ACTIVE (catalogue piloté par l'ADMIN).
+  const specialty = await db.specialty.findUnique({
+    where: { id: input.specialtyId },
+    select: { id: true, isActive: true },
+  });
+  if (!specialty || !specialty.isActive) {
+    throw new AppointmentError(
+      "La spécialité choisie n'est plus disponible — choisissez-en une autre",
+      400,
+    );
+  }
 
   // Collision : le patient a déjà un RDV actif sur ce créneau exact.
   const clash = await db.appointment.findFirst({
@@ -88,11 +116,13 @@ export async function createAppointmentForPatient(
   const created = await db.appointment.create({
     data: {
       patientId,
+      specialtyId: specialty.id,
       type: input.type,
       zone: input.zone,
       scheduledAt,
       reason: input.reason || null,
     },
+    include: { specialty: { select: { id: true, name: true } } },
   });
   return toAppointmentDto(created);
 }
@@ -118,6 +148,7 @@ export async function cancelAppointmentForPatient(
   const cancelled = await db.appointment.update({
     where: { id: appointmentId },
     data: { status: "CANCELLED", cancelledAt: new Date() },
+    include: { specialty: { select: { id: true, name: true } } },
   });
   return toAppointmentDto(cancelled);
 }

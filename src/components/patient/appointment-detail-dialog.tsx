@@ -155,7 +155,10 @@ export function AppointmentDetailDialog({
                 <AppointmentStatusBadge status={appointment.status} />
               </DialogTitle>
               <DialogDescription className="text-left">
-                {APPOINTMENT_TYPE_LABELS[appointment.type]} — Médecine générale
+                {APPOINTMENT_TYPE_LABELS[appointment.type]}
+                {appointment.specialty?.name
+                  ? ` — ${appointment.specialty.name}`
+                  : ""}
               </DialogDescription>
             </DialogHeader>
 
