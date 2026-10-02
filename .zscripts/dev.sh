@@ -17,9 +17,11 @@ export DATABASE_URL=$(grep '^DATABASE_URL=' .env | cut -d= -f2- | tr -d '"')
 if [ -n "$DATABASE_URL" ]; then
   echo "[dev.sh] DATABASE_URL exportée depuis .env (postgresql://…pooler.supabase.com)"
   bun install
-  bun run db:push
+  # SYS-009 : schéma piloté par les migrations versionnées (prisma/migrations).
+  # db:push conservé en filet de sécurité si deploy échoue (comportement historique).
+  bun run db:migrate-deploy || bun run db:push
 else
-  echo "[dev.sh] ⚠️ DATABASE_URL absente de .env — db:push ignoré, le serveur démarre sans base de données"
+  echo "[dev.sh] ⚠️ DATABASE_URL absente de .env — migrations ignorées, le serveur démarre sans base de données"
   bun install
 fi
 echo "[dev.sh] Démarrage du serveur Next.js..."

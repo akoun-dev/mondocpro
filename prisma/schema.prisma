@@ -36,6 +36,7 @@ model User {
   updatedAt           DateTime             @updatedAt
   sessions            Session[]
   passwordResetTokens PasswordResetToken[]
+  appointments        Appointment[]
 
   @@map("users")
 }
@@ -66,4 +67,61 @@ model PasswordResetToken {
 
   @@index([userId])
   @@map("password_reset_tokens")
+}
+
+// ——— FEATURE-RDV — Rendez-vous cabinet / domicile ———
+
+enum AppointmentType {
+  CABINET
+  DOMICILE
+}
+
+enum AppointmentStatus {
+  PENDING // en attente de confirmation par l'équipe (défaut à la création)
+  CONFIRMED // confirmé par l'équipe
+  CANCELLED // annulé (patient ou équipe)
+  DONE // consultation réalisée
+}
+
+model Appointment {
+  id          String            @id @default(cuid())
+  patientId   String
+  patient     User              @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  type        AppointmentType
+  zone        Zone
+  // Créneau aligné sur la grille de 30 min (Afrique/Abidjan = UTC+0 sans
+  // heure d'été : l'heure locale est l'heure UTC).
+  scheduledAt DateTime
+  status      AppointmentStatus @default(PENDING)
+  reason      String?           @db.VarChar(500)
+  notes       String?           @db.VarChar(1000)
+  cancelledAt DateTime?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  @@index([patientId])
+  @@index([scheduledAt])
+  @@map("appointments")
+}
+
+// ——— FEATURE-SENSO — Sensibilisations santé ———
+
+enum SensibilisationCategory {
+  CONSEIL
+  ALERTE
+}
+
+model Sensibilisation {
+  id          String                  @id @default(cuid())
+  title       String                  @db.VarChar(120)
+  body        String                  @db.Text
+  category    SensibilisationCategory @default(CONSEIL)
+  // Zones ciblées — liste vide = visible depuis toutes les zones.
+  zones       Zone[]
+  publishedAt DateTime                @default(now())
+  createdAt   DateTime                @default(now())
+  updatedAt   DateTime                @updatedAt
+
+  @@index([publishedAt])
+  @@map("sensibilisations")
 }

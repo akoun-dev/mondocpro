@@ -2,6 +2,7 @@
 // Côté serveur uniquement (bcrypt, sessions, cookies) — jamais importé côté client.
 import { createHash, randomBytes, randomInt } from "node:crypto"
 import { cookies } from "next/headers"
+import { NextResponse } from "next/server"
 import bcrypt from "bcryptjs"
 import { db } from "@/lib/db"
 import type { Role, Zone } from "@prisma/client"
@@ -132,4 +133,39 @@ export async function destroySession(): Promise<void> {
         path: "/",
         maxAge: 0,
     })
+}
+
+// Garde API factorisée (audit patients 2026-10-03 §3) : un seul endroit gère
+// l'authentification et l'autorisation par rôle des routes métier.
+// 401 si session absente/expirée · 403 si rôle hors liste autorisée.
+export type RequireRoleResult =
+    | { ok: true; user: PublicUser }
+    | { ok: false; response: NextResponse }
+
+export async function requireRole(
+    allowed: Role[]
+): Promise<RequireRoleResult> {
+    const user = await getCurrentUser()
+
+    if (!user) {
+        return {
+            ok: false,
+            response: NextResponse.json(
+                { error: "Authentification requise" },
+                { status: 401 }
+            ),
+        }
+    }
+
+    if (!allowed.includes(user.role)) {
+        return {
+            ok: false,
+            response: NextResponse.json(
+                { error: "Accès non autorisé pour ce rôle" },
+                { status: 403 }
+            ),
+        }
+    }
+
+    return { ok: true, user }
 }
