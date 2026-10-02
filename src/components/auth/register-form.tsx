@@ -29,6 +29,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { CguDialog } from "@/components/auth/cgu-dialog";
 import { FlagCI } from "@/components/auth/ci-flag";
 import {
   ZONE_LABELS,
@@ -105,6 +106,7 @@ export function RegisterForm({
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [consent, setConsent] = useState(false);
+  const [cguOpen, setCguOpen] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -761,9 +763,13 @@ export function RegisterForm({
                     className="text-sm leading-snug text-muted-foreground"
                   >
                     J&apos;accepte les{" "}
-                    <span className="font-medium text-primary underline underline-offset-2">
+                    <button
+                      type="button"
+                      onClick={() => setCguOpen(true)}
+                      className="font-medium text-primary underline underline-offset-2 transition-colors hover:text-primary-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    >
                       Conditions Générales
-                    </span>{" "}
+                    </button>{" "}
                     et consens au traitement sécurisé de mes données de santé.
                   </label>
                 </div>
@@ -819,6 +825,9 @@ export function RegisterForm({
           Les comptes Médecin Chef et Infirmier sont créés par l&apos;administration.
         </p>
       )}
+
+      {/* Conditions Générales — Dialog (préserve l'état du wizard) */}
+      <CguDialog open={cguOpen} onOpenChange={setCguOpen} />
     </form>
   );
 }
