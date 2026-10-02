@@ -581,3 +581,29 @@ Stage Summary:
 - Épargne prête visuellement ; branchement réel dès arbitrages A8 (valeur jeton) / A9 (Mobile Money).
 - « Prendre rendez-vous » = toast « bientôt » : le formulaire de réservation (grille 30 min Mon–Ven, ≥2 h/≤60 j) est le prochain livrable naturel (backend prêt, 25/25).
 - Compte de démo créé : Patient UI Maquette / +2250709229992 (purgeable via scripts/cleanup-test-users.ts).
+
+---
+Task ID: 18
+Agent: Super Z
+Task: "enchaîne sur le formulaire de prise de RDV et le design des autres vues" (maquettes upload pasted_image_1790982089460.png + pasted_image_1790982858232.png — vue « Mes Rendez-vous »).
+
+Work Log:
+- Maquette analysée : en-tête titre « Mes Rendez-vous » + sous-titre + bouton bleu « + Nouveau RDV », onglets segmentés « À venir (2) » actif bleu / « Passées (3) », cartes RDV (réf #MDP-2024-XXXX + badge CONFIRMÉ vert / EN ATTENTE bleu, icône praticien en pastille bleu clair, intitulé + « spécialité • zone », créneau bleu « Vendredi 25 Oct. 2024 à 09:30 », actions Détail outline + Annuler rouge).
+- Refactor source unique : règles de créneaux extraites de src/lib/appointments.ts (server) vers src/lib/schedule.ts CLIENT-SAFE (constantes, listDaySlots, slotToDate, validateSlot, AppointmentError + nouveaux listBookableDays/isSlotBookableNow/utcDateKey) — appointments.ts ré-exporte (route API et scripts intacts), zéro divergence front/back.
+- datetime.ts : formatCardSlotUTC « Vendredi 25 oct. 2025 à 09:30 » (Intl fr-FR insère « , » → replace « à », conforme maquette).
+- shared.tsx : badges statut conformes maquette — PENDING → bg-primary/10 text-primary (bleu, était ambre), DONE → bg-success-light, CANCELLED muted, CONFIRMED inchangé (a11y ADR-002 respectée).
+- appointments-view.tsx refondue : header titre+sous-titre+Nouveau RDV (retour accueil conservé), onglets segmentés bg-muted/actif bg-primary, cartes maquette (réf appointmentRef, badge, icône Building2/CalendarDays, type + « Médecine générale • zone », créneau formatCardSlotUTC bleu, Détail + Annuler si actif), empty states avec CTA, skeletons 172px.
+- book-appointment-dialog.tsx (nouveau) : type en 2 cartes sélectionnables (Au cabinet/À domicile), zone Select pré-remplie (user.zone, modifiable sur ZONES), puces jours ouvrés défilantes 60 j (today désactivé si dernier créneau < now+2h), grille slots 4 col 08:00–16:30 (non conformes grisés), motif Textarea 500 c. compteur, résumé créneau « Lundi 5 oct. 2026 à 10:30 — Yopougon », CTA désactivé si incomplet, POST /api/appointments réel — 201 → toast succès + onBooked → refresh partagé + close + reset ; 409 → toast erreur serveur + setTime("") ; errors réseau → toast.
+- Bug de layout détecté et corrigé E2E : le scroller de 43 puces jours gonflait la piste grid du dialog (min-width:auto) → tout le contenu débordait à droite (slots « vides » pleine largeur) ; fix canonical min-w-0 sur le wrapper direct de DialogContent + jour par défaut = premier jour RÉSERVABLE (today désactivé n'était plus « sélectionné ») ; fix TDZ (dayBookable déclaré avant effectiveDate).
+- React key warning corrigé (cartes map sans key → key=appointment.id).
+- sensibilisations-view.tsx (nouveau) : même gabarit visuel — titre+sous-titre zone, onglets Tout/Alertes/Conseils avec compteurs, cartes pill catégorie + ancienneté relative + titre + extrait 3 lignes + Écouter (TTS) / Lire l'article ; entrée « Tout voir » ajoutée sur HealthAlertCard (accueil) à côté de la date relative.
+- patient-home.tsx : BOOKING_SOON supprimé — « Prendre rendez-vous » ouvre le vrai dialog (onBook prop) ; user-dashboard.tsx : onglet « senso » ajouté, BookAppointmentDialog monté 1× (isPatient) avec zone=user.zone, onBooked → patientData.refresh().
+- E2E navigateur (compte Patient UI Maquette) : desktop 1440×900 — vue RDV maquette, dialog réservation complet, **collision 409** (09:00 déjà pris → toast « Vous avez déjà un rendez-vous sur ce créneau… »), **POST 201 réel** (10:30, motif « Fièvre et maux de tête depuis deux jours » → toast « Rendez-vous enregistré », « À venir (2) » carte #MDP-62GT) ; mobile 390×844 — vue RDV (2 cartes) + formulaire quasi pixel-perfect ; vue Sensibilisations (Tout (5)/Alertes (1)/Conseils (4), filtre Alertes → 1 carte) ; 0 erreur console (après clear), régression INFIRMIER (fixture 0755666777) espace inchangé. Lint 0 erreur ; tsc : seules les erreurs préexistantes register-form/examples/scripts inchangées.
+- CHANGELOG « Ajouté » + TEST_PLAN +1 ligne PASS.
+
+Stage Summary:
+- Parcours de réservation COMPLET de bout en bout sur API réelle : accueil/vues → « + Nouveau RDV » → type/zone/jour/créneau/motif → POST 201 → carte visible « À venir (2) » ; 409 restitué honnêtement (serveur revalide, front = miroir de schedule.ts).
+- Design maquette appliqué à la vue RDV + décliné sur la vue Sensibilisations (même langage : onglets segmentés, cartes pill/créneau bleu) ; « Tout voir » relie accueil → feed complet.
+- Cartes RDV : intitulé = type de consultation (« Consultation au cabinet ») faute de champ praticien côté modèle — décision PO toujours en attente pour afficher « Dr. X » comme la maquette (nécessite champ doctor/praticien + seed).
+- Règles créneaux : source unique client-safe src/lib/schedule.ts — toute évolution A1 (horaires, samedi) se propage au formulaire ET à l'API simultanément.
+- RDV de test créés : #MDP-62GT (lun. 05/10 10:30, patient UI Maquette) — purgeable via scripts/cleanup-test-users.ts.
