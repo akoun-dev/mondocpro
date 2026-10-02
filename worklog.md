@@ -541,3 +541,22 @@ Stage Summary:
 - Backend P1 (RDV + SENSO) validé 25/25 — UI patient restante (vues RDV/SENSO dans l'espace connecté, route unique /).
 - Arbitrages PO restants avant P2 TOKENS : A8 valeur jeton (1 token = ? FCFA), A9 fournisseur Mobile Money (ADR-005), A10 passerelle SMS ; A4/A5 (délai annulation, confirmateur) pour RDV phase 2.
 - Fixtures de test créées : Patient B E2E (par run), Infirmier Test E2E (+2250755666777) — à purger éventuellement.
+
+---
+Task ID: 16
+Agent: Super Z
+Task: "Je vois que on a ds migrations dans @prisma/ c'est pas normal, il doivent etre dans @supabase/migrations/ corrige" — relocaliser toutes les migrations sous supabase/migrations/.
+
+Work Log:
+- Constat initial : deux familles séparées — supabase/migrations/ (4 scripts SQL plats du scaffold 2026-10-02, miroirs documentaires) et prisma/migrations/ (init_auth + patient_business, appliquées via prisma migrate deploy, registre _prisma_migrations).
+- Déplacement git mv : prisma/schema.prisma → supabase/schema.prisma ; prisma/migrations/{20261003000000_init_auth,20261003000001_patient_business} → supabase/migrations/ (renames suivis par git, historique préservé) ; dossier prisma/ supprimé.
+- Découvertes traitées au passage : migration_lock.toml jamais versionné (absent disque ET git) → créé à la racine de supabase/migrations (provider postgresql) ; supabase/.temp/cli-latest (état local CLI Supabase) commité par erreur au scaffold → déversionné + .gitignore supabase/.temp/.
+- Résolution du schéma : clé package.json#prisma ajoutée puis RETIRÉE — warning constaté « deprecated, will be removed in Prisma 7 » (CLI 6.19.2) → prisma.config.ts créé (defineConfig, schema supabase/schema.prisma), source unique, sans warning. Note : en mode config le CLI ne charge plus .env — déjà couvert par le design existant (scripts db:* réexportent DATABASE_URL depuis .env, piège 2 dev.sh ; bun charge .env nativement ; Next.js charge .env).
+- supabase/migrations/README.md : documente les 2 familles (Prisma = source de vérité SYS-009 ; SQL plats = historiques à NE PAS réappliquer) + règle de non-mélange des formats (Prisma ne lit que ses dossiers, CLI Supabase ne lirait que les .sql plats).
+- Vérif E2E (DATABASE_URL exportée depuis .env) : prisma validate « schema at supabase/schema.prisma is valid 🚀 » ; migrate status (aws-0-eu-west-1, 2 migrations found, up to date) ; db:migrate-deploy « No pending migrations » (chaîne boot intacte) ; db:generate client v6.19.2 OK ; lint 0 erreur. Le libellé CLI « in prisma/migrations » est cosmétique — prisma/ n'existe plus sur disque, les 2 migrations ne peuvent venir que de supabase/migrations (les 4 .sql plats ignorés : preuve du scan format-Prisma).
+- dev.sh : commentaire SYS-009 mis à jour (supabase/migrations). CHANGELOG « Modifié ».
+
+Stage Summary:
+- TOUTES les migrations vivent désormais dans supabase/migrations/ : format Prisma (dossiers) appliqué par migrate deploy, registre _prisma_migrations inchangé, zéro impact base (up to date).
+- Future-proof Prisma 7 : prisma.config.ts remplace package.json#prisma ; migration_lock.toml désormais versionné ; dossier prisma/ disparu.
+- Commit 4921eb9 + push origin/main ; preview sans impact runtime (client généré identique, serveur en mémoire non affecté).
