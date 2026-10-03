@@ -1,0 +1,798 @@
+     1→     1→"use client"
+     2→     2→
+     3→     3→// Espace connecté MVP — US-AUTH-3/4 (SPEC-AUTH) + FEATURE-PATIENT UI (maquette PO 2026-10)
+     4→     4→// Design v3 « app mobile » : barre d'app sticky (zone, actualiser, notifications),
+     5→     5→// navigation basse flottante (Accueil / Profil), vues animées sobres framer-motion
+     6→     6→// (DESIGN_SYSTEM §4). Accueil patient dédié (src/components/patient/) branché sur les
+     7→     7→// API contractées ; rôles INFIRMIER/ADMIN inchangés (cartes « à venir »).
+     8→     8→import Image from "next/image"
+     9→     9→import { useState } from "react"
+    10→    10→import { AnimatePresence, motion } from "framer-motion"
+    11→    11→import {
+    12→    12→    Activity,
+    13→    13→    BarChart3,
+    14→    14→    Bell,
+    15→    15→    BellRing,
+    16→    16→    CalendarCheck,
+    17→    17→    ChevronRight,
+    18→    18→    ClipboardCheck,
+    19→    19→    Clock,
+    20→    20→    HeartPulse,
+    21→    21→    Home,
+    22→    22→    LogOut,
+    23→    23→    MapPin,
+    24→    24→    MapPinned,
+    25→    25→    Megaphone,
+    26→    26→    Phone,
+    27→    27→    RefreshCw,
+    28→    28→    Stethoscope,
+    29→    29→    UserRound,
+    30→    30→    UsersRound,
+    31→    31→    Wallet,
+    32→    32→    type LucideIcon,
+    33→    33→} from "lucide-react"
+    34→    34→import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+    35→    35→import { Badge } from "@/components/ui/badge"
+    36→    36→import { Button } from "@/components/ui/button"
+    37→    37→import {
+    38→    38→    Card,
+    39→    39→    CardContent,
+    40→    40→    CardDescription,
+    41→    41→    CardHeader,
+    42→    42→    CardTitle,
+    43→    43→} from "@/components/ui/card"
+    44→    44→import {
+    45→    45→    Popover,
+    46→    46→    PopoverContent,
+    47→    47→    PopoverTrigger,
+    48→    48→} from "@/components/ui/popover"
+    49→    49→import { ZONE_LABELS } from "@/lib/auth-schemas"
+    50→    50→import {
+    51→    51→    relativePublishedLabel,
+    52→    52→    relativeSlotLabel,
+    53→    53→} from "@/lib/datetime"
+    54→    54→import { useAuth } from "@/hooks/use-auth"
+    55→    55→import { usePatientData } from "@/hooks/use-patient-data"
+    56→    56→import { toast } from "@/hooks/use-toast"
+    57→    57→import type { AppRole, AppUser } from "@/stores/auth-store"
+    58→    58→import type { PatientData } from "@/hooks/use-patient-data"
+    59→    59→import type { SensibilisationDto } from "@/lib/sensibilisations"
+    60→    60→import type { AppointmentDto } from "@/lib/appointments"
+    61→    61→import { PatientHome } from "@/components/patient/patient-home"
+    62→    62→import { AppointmentsView } from "@/components/patient/appointments-view"
+    63→    63→import { SensibilisationsView } from "@/components/patient/sensibilisations-view"
+    64→    64→import { BookAppointmentDialog } from "@/components/patient/book-appointment-dialog"
+    65→    65→import { SensibilisationDialog } from "@/components/patient/sensibilisation-dialog"
+    66→    66→import { SpecialtiesView } from "@/components/admin/specialties-view"
+    67→    67→
+    68→    68→const ROLE_LABELS: Record<AppRole, string> = {
+    69→    69→    PATIENT: "Patient",
+    70→    70→    INFIRMIER: "Infirmier",
+    71→    71→    ADMIN: "Médecin Chef",
+    72→    72→}
+    73→    73→
+    74→    74→const ROLE_SPACE_ICON: Record<AppRole, LucideIcon> = {
+    75→    75→    PATIENT: HeartPulse,
+    76→    76→    INFIRMIER: Stethoscope,
+    77→    77→    ADMIN: UsersRound,
+    78→    78→}
+    79→    79→
+    80→    80→// Contrainte a11y (ADR-002) : jamais de texte blanc sur success/warning —
+    81→    81→// les foregrounds foncés des tokens sont utilisés tels quels.
+    82→    82→const ROLE_BADGE_CLASSES: Record<AppRole, string> = {
+    83→    83→    PATIENT: "bg-primary text-primary-foreground",
+    84→    84→    INFIRMIER: "bg-success text-success-foreground",
+    85→    85→    ADMIN: "bg-warning text-warning-foreground",
+    86→    86→}
+    87→    87→
+    88→    88→interface SpaceFeature {
+    89→    89→    icon: LucideIcon
+    90→    90→    title: string
+    91→    91→    description: string
+    92→    92→}
+    93→    93→
+    94→    94→const ROLE_SPACE: Record<
+    95→    95→    AppRole,
+    96→    96→    { title: string; description: string; features: SpaceFeature[] }
+    97→    97→> = {
+    98→    98→    PATIENT: {
+    99→    99→        title: "Espace Patient",
+   100→   100→        description: "Prise de rendez-vous et épargne santé Tokens — à venir",
+   101→   101→        features: [
+   102→   102→            {
+   103→   103→                icon: CalendarCheck,
+   104→   104→                title: "Rendez-vous",
+   105→   105→                description:
+   106→   106→                    "Au cabinet ou à domicile, planifiez vos consultations.",
+   107→   107→            },
+   108→   108→            {
+   109→   109→                icon: Wallet,
+   110→   110→                title: "Épargne santé",
+   111→   111→                description:
+   112→   112→                    "Constituez votre épargne en Tokens, à votre rythme.",
+   113→   113→            },
+   114→   114→            {
+   115→   115→                icon: Megaphone,
+   116→   116→                title: "Sensibilisations",
+   117→   117→                description: "Recevez des conseils et alertes santé fiables.",
+   118→   118→            },
+   119→   119→        ],
+   120→   120→    },
+   121→   121→    INFIRMIER: {
+   122→   122→        title: "Espace Infirmier",
+   123→   123→        description: "Missions et géolocalisation — à venir",
+   124→   124→        features: [
+   125→   125→            {
+   126→   126→                icon: BellRing,
+   127→   127→                title: "Missions en direct",
+   128→   128→                description: "Recevez les missions en temps réel.",
+   129→   129→            },
+   130→   130→            {
+   131→   131→                icon: MapPinned,
+   132→   132→                title: "Géolocalisation",
+   133→   133→                description: "Suivez vos interventions trajet par trajet.",
+   134→   134→            },
+   135→   135→            {
+   136→   136→                icon: ClipboardCheck,
+   137→   137→                title: "Comptes rendus",
+   138→   138→                description: "Documentez chaque visite effectuée.",
+   139→   139→            },
+   140→   140→        ],
+   141→   141→    },
+   142→   142→    ADMIN: {
+   143→   143→        title: "Espace Médecin Chef",
+   144→   144→        description: "Supervision et dispatch des équipes — à venir",
+   145→   145→        features: [
+   146→   146→            {
+   147→   147→                icon: Activity,
+   148→   148→                title: "Supervision",
+   149→   149→                description: "Suivez l'activité des équipes soignantes.",
+   150→   150→            },
+   151→   151→            {
+   152→   152→                icon: UsersRound,
+   153→   153→                title: "Dispatch",
+   154→   154→                description: "Affectez les missions entre infirmiers.",
+   155→   155→            },
+   156→   156→            {
+   157→   157→                icon: BarChart3,
+   158→   158→                title: "Statistiques",
+   159→   159→                description: "Analysez l'activité zone par zone.",
+   160→   160→            },
+   161→   161→        ],
+   162→   162→    },
+   163→   163→}
+   164→   164→
+   165→   165→// Onglets de la navigation basse (style app mobile). Sous-vues hors navigation
+   166→   166→// basse : patient « rdv » (entrée « Mes rendez-vous ») et « senso » (entrée
+   167→   167→// « Tout voir ») ; admin « specialties » (entrée « Gérer les spécialités »).
+   168→   168→type DashboardTab = "accueil" | "rdv" | "senso" | "specialties" | "profil"
+   169→   169→
+   170→   170→const DASHBOARD_TABS: { id: DashboardTab; label: string; icon: LucideIcon }[] =
+   171→   171→    [
+   172→   172→        { id: "accueil", label: "Accueil", icon: Home },
+   173→   173→        { id: "profil", label: "Profil", icon: UserRound },
+   174→   174→    ]
+   175→   175→
+   176→   176→// Formatage lisible : +2250701020304 → +225 07 01 02 03 04 ; 01020304 → 01 02 03 04
+   177→   177→function formatPhoneDisplay(phone: string): string {
+   178→   178→    const cleaned = phone.replace(/[\s.-]/g, "")
+   179→   179→    const hasPlus = cleaned.startsWith("+")
+   180→   180→    const digits = hasPlus ? cleaned.slice(1) : cleaned
+   181→   181→    if (!/^\d{8,15}$/.test(digits)) return phone
+   182→   182→
+   183→   183→    if (hasPlus && digits.length > 10) {
+   184→   184→        const countryCode = digits.slice(0, digits.length - 10)
+   185→   185→        const local = digits.slice(-10)
+   186→   186→        return `+${countryCode} ${local.replace(/(\d{2})(?=\d)/g, "$1 ")}`
+   187→   187→    }
+   188→   188→    return `${hasPlus ? "+" : ""}${digits.replace(/(\d{2})(?=\d)/g, "$1 ")}`
+   189→   189→}
+   190→   190→
+   191→   191→function getInitials(fullName: string): string {
+   192→   192→    const parts = fullName.trim().split(/\s+/).filter(Boolean)
+   193→   193→    if (parts.length === 0) return "?"
+   194→   194→    const first = parts[0].charAt(0)
+   195→   195→    const second = parts.length > 1 ? parts[parts.length - 1].charAt(0) : ""
+   196→   196→    return `${first}${second}`.toUpperCase()
+   197→   197→}
+   198→   198→
+   199→   199→function getFirstName(fullName: string): string {
+   200→   200→    return fullName.trim().split(/\s+/)[0] ?? ""
+   201→   201→}
+   202→   202→
+   203→   203→function RoleBadge({ role, className }: { role: AppRole; className?: string }) {
+   204→   204→    return (
+   205→   205→        <Badge
+   206→   206→            className={ROLE_BADGE_CLASSES[role]}
+   207→   207→            aria-label={`Rôle : ${ROLE_LABELS[role]}`}
+   208→   208→        >
+   209→   209→            {ROLE_LABELS[role]}
+   210→   210→        </Badge>
+   211→   211→    )
+   212→   212→}
+   213→   213→
+   214→   214→// Transition de vue sobre (DESIGN_SYSTEM §4 : 220 ms, décalage vertical léger).
+   215→   215→const tabVariants = {
+   216→   216→    enter: { y: 14, opacity: 0 },
+   217→   217→    center: {
+   218→   218→        y: 0,
+   219→   219→        opacity: 1,
+   220→   220→        transition: { duration: 0.22, ease: "easeOut" as const },
+   221→   221→    },
+   222→   222→    exit: {
+   223→   223→        y: -10,
+   224→   224→        opacity: 0,
+   225→   225→        transition: { duration: 0.15, ease: "easeIn" as const },
+   226→   226→    },
+   227→   227→}
+   228→   228→
+   229→   229→export function UserDashboard() {
+   230→   230→    const { user, logout } = useAuth()
+   231→   231→    const [tab, setTab] = useState<DashboardTab>("accueil")
+   232→   232→    const [openArticle, setOpenArticle] =
+   233→   233→        useState<SensibilisationDto | null>(null)
+   234→   234→    const [notifOpen, setNotifOpen] = useState(false)
+   235→   235→    const [bookingOpen, setBookingOpen] = useState(false)
+   236→   236→
+   237→   237→    // Espace patient : RDV + sensibilisations partagés par le header (cloche),
+   238→   238→    // l'accueil et la vue « Mes rendez-vous » (une annulation rafraîchit tout).
+   239→   239→    const isPatient = user?.role === "PATIENT"
+   240→   240→    const patientData: PatientData = usePatientData(isPatient)
+   241→   241→
+   242→   242→    if (!user) return null
+   243→   243→
+   244→   244→    const space = ROLE_SPACE[user.role]
+   245→   245→    const SpaceIcon = ROLE_SPACE_ICON[user.role]
+   246→   246→
+   247→   247→    // Notifications patient : nouveautés des 7 derniers jours (badge cap 9+).
+   248→   248→    const notificationCount = isPatient
+   249→   249→        ? (patientData.sensibilisations ?? []).filter(
+   250→   250→              item =>
+   251→   251→                  Date.now() - new Date(item.publishedAt).getTime() <
+   252→   252→                  7 * 24 * 60 * 60 * 1000,
+   253→   253→          ).length
+   254→   254→        : 0
+   255→   255→    // Prochain RDV actif — rappel en tête des notifications.
+   256→   256→    const nextPatientAppointment: AppointmentDto | null = isPatient
+   257→   257→        ? (patientData.appointments ?? [])
+   258→   258→              .filter(
+   259→   259→                  appointment =>
+   260→   260→                      (appointment.status === "PENDING" ||
+   261→   261→                          appointment.status === "CONFIRMED") &&
+   262→   262→                      new Date(appointment.scheduledAt).getTime() >=
+   263→   263→                          Date.now() - 60_000,
+   264→   264→              )
+   265→   265→              .sort((a, b) =>
+   266→   266→                  a.scheduledAt.localeCompare(b.scheduledAt),
+   267→   267→              )[0] ?? null
+   268→   268→        : null
+   269→   269→
+   270→   270→    async function handleLogout() {
+   271→   271→        await logout()
+   272→   272→        toast({
+   273→   273→            title: "Déconnecté",
+   274→   274→            description: "À bientôt sur Mon doc Pro !",
+   275→   275→        })
+   276→   276→    }
+   277→   277→
+   278→   278→    const profileFields: { icon: LucideIcon; label: string; value: string }[] =
+   279→   279→        [
+   280→   280→            { icon: UserRound, label: "Nom complet", value: user.fullName },
+   281→   281→            {
+   282→   282→                icon: Phone,
+   283→   283→                label: "Téléphone",
+   284→   284→                value: formatPhoneDisplay(user.phone),
+   285→   285→            },
+   286→   286→            {
+   287→   287→                icon: MapPin,
+   288→   288→                label: "Zone de résidence",
+   289→   289→                value: ZONE_LABELS[user.zone],
+   290→   290→            },
+   291→   291→        ]
+   292→   292→
+   293→   293→    return (
+   294→   294→        <div className="flex w-full flex-col">
+   295→   295→            {/* Barre d'app — sticky avec flou en verre dépoli */}
+   296→   296→            <header className="sticky top-0 z-20 border-b bg-card/80 backdrop-blur-md">
+   297→   297→                <div className="mx-auto flex w-full max-w-3xl items-center justify-between gap-3 px-4 py-3">
+   298→   298→                    <div className="flex items-center gap-2.5">
+   299→   299→                        <Image
+   300→   300→                            src="/img/Mon doc Pro.jpeg"
+   301→   301→                            alt="Mon doc Pro"
+   302→   302→                            width={40}
+   303→   303→                            height={40}
+   304→   304→                            className="size-10 rounded-xl object-cover ring-1 ring-primary/30"
+   305→   305→                        />
+   306→   306→                        <div className="flex flex-col leading-tight">
+   307→   307→                            <span className="text-base font-bold tracking-tight text-primary sm:text-lg">
+   308→   308→                                Mon doc Pro
+   309→   309→                            </span>
+   310→   310→                            {isPatient && (
+   311→   311→                                <span className="flex items-center gap-1 text-xs text-muted-foreground">
+   312→   312→                                    <MapPin
+   313→   313→                                        className="size-3"
+   314→   314→                                        aria-hidden="true"
+   315→   315→                                    />
+   316→   316→                                    {ZONE_LABELS[user.zone]}, Abidjan
+   317→   317→                                </span>
+   318→   318→                            )}
+   319→   319→                        </div>
+   320→   320→                    </div>
+   321→   321→                    {isPatient ? (
+   322→   322→                        <div className="flex items-center gap-1 sm:gap-1.5">
+   323→   323→                            <button
+   324→   324→                                type="button"
+   325→   325→                                onClick={() => void patientData.refresh()}
+   326→   326→                                aria-label="Actualiser mes données"
+   327→   327→                                className="flex size-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+   328→   328→                            >
+   329→   329→                                <RefreshCw
+   330→   330→                                    className={`size-4.5 ${patientData.refreshing ? "animate-spin" : ""}`}
+   331→   331→                                    aria-hidden="true"
+   332→   332→                                />
+   333→   333→                            </button>
+   334→   334→                            <Popover
+   335→   335→                                open={notifOpen}
+   336→   336→                                onOpenChange={setNotifOpen}
+   337→   337→                            >
+   338→   338→                                <PopoverTrigger asChild>
+   339→   339→                                    <button
+   340→   340→                                        type="button"
+   341→   341→                                        aria-label={
+   342→   342→                                            notificationCount > 0
+   343→   343→                                                ? `Notifications (${notificationCount} nouveautés)`
+   344→   344→                                                : "Notifications"
+   345→   345→                                        }
+   346→   346→                                        className="relative flex size-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+   347→   347→                                    >
+   348→   348→                                        <Bell
+   349→   349→                                            className="size-4.5"
+   350→   350→                                            aria-hidden="true"
+   351→   351→                                        />
+   352→   352→                                        {notificationCount > 0 && (
+   353→   353→                                            <span
+   354→   354→                                                aria-hidden="true"
+   355→   355→                                                className="absolute right-0.5 top-0.5 flex size-4 items-center justify-center rounded-full bg-destructive text-[10px] font-bold leading-none text-destructive-foreground"
+   356→   356→                                            >
+   357→   357→                                                {notificationCount > 9
+   358→   358→                                                    ? "9+"
+   359→   359→                                                    : notificationCount}
+   360→   360→                                            </span>
+   361→   361→                                        )}
+   362→   362→                                    </button>
+   363→   363→                                </PopoverTrigger>
+   364→   364→                                <PopoverContent
+   365→   365→                                    align="end"
+   366→   366→                                    className="w-80 rounded-xl p-0"
+   367→   367→                                >
+   368→   368→                                    <p className="border-b px-4 py-3 text-sm font-semibold">
+   369→   369→                                        Notifications
+   370→   370→                                    </p>
+   371→   371→                                    <ul className="max-h-80 overflow-y-auto">
+   372→   372→                                        {nextPatientAppointment && (
+   373→   373→                                            <li>
+   374→   374→                                                <button
+   375→   375→                                                    type="button"
+   376→   376→                                                    onClick={() => {
+   377→   377→                                                        setNotifOpen(false)
+   378→   378→                                                        setTab("rdv")
+   379→   379→                                                    }}
+   380→   380→                                                    className="flex w-full items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/60"
+   381→   381→                                                >
+   382→   382→                                                    <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+   383→   383→                                                        <CalendarCheck
+   384→   384→                                                            className="size-4"
+   385→   385→                                                            aria-hidden="true"
+   386→   386→                                                        />
+   387→   387→                                                    </span>
+   388→   388→                                                    <span className="min-w-0 flex-1">
+   389→   389→                                                        <span
+   390→   390→                                                            className="block truncate text-sm font-medium"
+   391→   391→                                                            suppressHydrationWarning
+   392→   392→                                                        >
+   393→   393→                                                            Rendez-vous {relativeSlotLabel(nextPatientAppointment.scheduledAt)}
+   394→   394→                                                        </span>
+   395→   395→                                                        <span className="text-xs text-muted-foreground">
+   396→   396→                                                            Mes rendez-vous
+   397→   397→                                                        </span>
+   398→   398→                                                    </span>
+   399→   399→                                                </button>
+   400→   400→                                            </li>
+   401→   401→                                        )}
+   402→   402→                                        {(patientData.sensibilisations ?? [])
+   403→   403→                                            .slice(0, 5)
+   404→   404→                                            .map(item => (
+   405→   405→                                                <li key={item.id}>
+   406→   406→                                                    <button
+   407→   407→                                                        type="button"
+   408→   408→                                                        onClick={() => {
+   409→   409→                                                            setNotifOpen(false)
+   410→   410→                                                            setOpenArticle(item)
+   411→   411→                                                        }}
+   412→   412→                                                        className="flex w-full items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/60"
+   413→   413→                                                    >
+   414→   414→                                                        <span
+   415→   415→                                                            aria-hidden="true"
+   416→   416→                                                            className={`mt-1.5 size-2 shrink-0 rounded-full ${item.category === "ALERTE" ? "bg-destructive" : "bg-success"}`}
+   417→   417→                                                        />
+   418→   418→                                                        <span className="min-w-0 flex-1">
+   419→   419→                                                            <span className="block truncate text-sm font-medium">
+   420→   420→                                                                {item.title}
+   421→   421→                                                            </span>
+   422→   422→                                                            <span
+   423→   423→                                                                className="text-xs text-muted-foreground"
+   424→   424→                                                                suppressHydrationWarning
+   425→   425→                                                            >
+   426→   426→                                                                {relativePublishedLabel(item.publishedAt)}
+   427→   427→                                                            </span>
+   428→   428→                                                        </span>
+   429→   429→                                                    </button>
+   430→   430→                                                </li>
+   431→   431→                                            ))}
+   432→   432→                                        {!nextPatientAppointment &&
+   433→   433→                                            (patientData.sensibilisations ?? [])
+   434→   434→                                                .length === 0 && (
+   435→   435→                                                <li className="px-4 py-6 text-center text-sm text-muted-foreground">
+   436→   436→                                                    Aucune notification pour le moment
+   437→   437→                                                </li>
+   438→   438→                                            )}
+   439→   439→                                    </ul>
+   440→   440→                                </PopoverContent>
+   441→   441→                            </Popover>
+   442→   442→                            <button
+   443→   443→                                type="button"
+   444→   444→                                onClick={() => setTab("profil")}
+   445→   445→                                aria-label="Ouvrir mon profil"
+   446→   446→                                className="rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+   447→   447→                            >
+   448→   448→                                <Avatar className="size-10 ring-2 ring-primary/20">
+   449→   449→                                    <AvatarFallback className="bg-primary text-sm font-semibold text-primary-foreground">
+   450→   450→                                        {getInitials(user.fullName)}
+   451→   451→                                    </AvatarFallback>
+   452→   452→                                </Avatar>
+   453→   453→                            </button>
+   454→   454→                        </div>
+   455→   455→                    ) : (
+   456→   456→                        <div className="flex items-center gap-2">
+   457→   457→                            <div className="flex flex-col items-end gap-0.5">
+   458→   458→                                <span className="max-w-[10rem] truncate text-sm font-medium sm:max-w-none">
+   459→   459→                                    {user.fullName}
+   460→   460→                                </span>
+   461→   461→                                <RoleBadge
+   462→   462→                                    role={user.role}
+   463→   463→                                    className="hidden sm:inline-flex"
+   464→   464→                                />
+   465→   465→                            </div>
+   466→   466→                            <Avatar className="size-10 ring-2 ring-primary/20">
+   467→   467→                                <AvatarFallback className="bg-primary text-sm font-semibold text-primary-foreground">
+   468→   468→                                    {getInitials(user.fullName)}
+   469→   469→                                </AvatarFallback>
+   470→   470→                            </Avatar>
+   471→   471→                        </div>
+   472→   472→                    )}
+   473→   473→                </div>
+   474→   474→            </header>
+   475→   475→
+   476→   476→            {/* Contenu rendu à l'intérieur du <main> de app/page.tsx (HTML sémantique :
+   477→   477→          un seul élément <main> par page). */}
+   478→   478→            <h1 className="sr-only">Mon espace Mon doc Pro</h1>
+   479→   479→
+   480→   480→            <div className="mx-auto w-full max-w-3xl px-4 py-6 pb-32 sm:py-8">
+   481→   481→                <AnimatePresence mode="wait" initial={false}>
+   482→   482→                    {tab === "accueil" && (
+   483→   483→                        <motion.section
+   484→   484→                            key="accueil"
+   485→   485→                            variants={tabVariants}
+   486→   486→                            initial="enter"
+   487→   487→                            animate="center"
+   488→   488→                            exit="exit"
+   489→   489→                            aria-label="Accueil"
+   490→   490→                        >
+   491→   491→                            {isPatient ? (
+   492→   492→                                <PatientHome
+   493→   493→                                    user={user}
+   494→   494→                                    data={patientData}
+   495→   495→                                    onOpenAppointments={() => setTab("rdv")}
+   496→   496→                                    onOpenArticle={setOpenArticle}
+   497→   497→                                    onOpenAllArticles={() => setTab("senso")}
+   498→   498→                                    onBook={() => setBookingOpen(true)}
+   499→   499→                                />
+   500→   500→                            ) : (
+   501→   501→                            <>
+   502→   502→                            {/* Hero de bienvenue — dégradé médical, texte blanc AA sur primary/dark */}
+   503→   503→                            <div className="relative mb-6 overflow-hidden rounded-2xl bg-gradient-to-br from-primary to-primary-dark p-6 text-primary-foreground sm:p-8">
+   504→   504→                                <div
+   505→   505→                                    aria-hidden="true"
+   506→   506→                                    className="pointer-events-none absolute inset-0"
+   507→   507→                                >
+   508→   508→                                    <div className="absolute -right-16 -top-16 size-48 rounded-full bg-white/10 blur-xl" />
+   509→   509→                                    <div className="absolute -bottom-20 -left-10 size-56 rounded-full bg-white/[0.07] blur-xl" />
+   510→   510→                                </div>
+   511→   511→                                <div className="relative flex flex-col gap-3">
+   512→   512→                                    <p className="text-sm text-white/80">
+   513→   513→                                        <Clock
+   514→   514→                                            className="mr-1.5 inline size-3.5 -translate-y-px"
+   515→   515→                                            aria-hidden="true"
+   516→   516→                                        />
+   517→   517→                                        <span suppressHydrationWarning>
+   518→   518→                                            {new Date().toLocaleDateString(
+   519→   519→                                                "fr-FR",
+   520→   520→                                                {
+   521→   521→                                                    weekday: "long",
+   522→   522→                                                    day: "numeric",
+   523→   523→                                                    month: "long",
+   524→   524→                                                }
+   525→   525→                                            )}
+   526→   526→                                        </span>
+   527→   527→                                    </p>
+   528→   528→                                    <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">
+   529→   529→                                        Bonjour, {getFirstName(user.fullName)}
+   530→   530→                                    </h2>
+   531→   531→                                    <p className="max-w-lg text-sm leading-relaxed text-white/80">
+   532→   532→                                        Votre espace santé Mon doc Pro —
+   533→   533→                                        consultations, épargne et suivi, proches
+   534→   534→                                        de chez vous.
+   535→   535→                                    </p>
+   536→   536→                                    <div className="mt-1 flex flex-wrap items-center gap-2">
+   537→   537→                                        <span className="rounded-full bg-white/15 px-3 py-1 text-xs font-medium ring-1 ring-white/25">
+   538→   538→                                            {ROLE_LABELS[user.role]}
+   539→   539→                                        </span>
+   540→   540→                                        <span className="rounded-full bg-white/15 px-3 py-1 text-xs font-medium ring-1 ring-white/25">
+   541→   541→                                            <MapPin
+   542→   542→                                                className="mr-1 inline size-3 -translate-y-px"
+   543→   543→                                                aria-hidden="true"
+   544→   544→                                            />
+   545→   545→                                            {ZONE_LABELS[user.zone]}
+   546→   546→                                        </span>
+   547→   547→                                    </div>
+   548→   548→                                </div>
+   549→   549→                            </div>
+   550→   550→
+   551→   551→                            {/* Raccourci ADMIN — gestion du catalogue de spécialités
+   552→   552→                                consommé par l'étape 2 du wizard patient (feature live,
+   553→   553→                                contrairement aux modules « à venir » ci-dessous) */}
+   554→   554→                            {user.role === "ADMIN" && (
+   555→   555→                                <button
+   556→   556→                                    type="button"
+   557→   557→                                    onClick={() => setTab("specialties")}
+   558→   558→                                    className="mb-6 flex w-full items-center gap-3 rounded-2xl border bg-card p-4 text-left shadow-sm transition-colors hover:border-primary/40 hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:p-5"
+   559→   559→                                >
+   560→   560→                                    <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+   561→   561→                                        <Stethoscope className="size-5" aria-hidden="true" />
+   562→   562→                                    </span>
+   563→   563→                                    <span className="min-w-0 flex-1">
+   564→   564→                                        <span className="block text-sm font-bold">
+   565→   565→                                            Gérer les spécialités
+   566→   566→                                        </span>
+   567→   567→                                        <span className="block text-xs text-muted-foreground">
+   568→   568→                                            Catalogue proposé aux patients à la prise de RDV
+   569→   569→                                        </span>
+   570→   570→                                    </span>
+   571→   571→                                    <span className="flex shrink-0 items-center gap-0.5 text-sm font-semibold text-primary">
+   572→   572→                                        Ouvrir
+   573→   573→                                        <ChevronRight className="size-4" aria-hidden="true" />
+   574→   574→                                    </span>
+   575→   575→                                </button>
+   576→   576→                            )}
+   577→   577→
+   578→   578→                            {/* Espace par rôle — cartes fonctionnalités avec badges « à venir » */}
+   579→   579→                            <Card className="rounded-2xl">
+   580→   580→                                <CardHeader>
+   581→   581→                                    <CardTitle className="flex items-center gap-2.5">
+   582→   582→                                        <span className="flex size-9 items-center justify-center rounded-lg bg-success-light text-success-foreground">
+   583→   583→                                            <SpaceIcon
+   584→   584→                                                className="size-4.5"
+   585→   585→                                                aria-hidden="true"
+   586→   586→                                            />
+   587→   587→                                        </span>
+   588→   588→                                        {space.title}
+   589→   589→                                    </CardTitle>
+   590→   590→                                    <CardDescription>
+   591→   591→                                        {space.description}
+   592→   592→                                    </CardDescription>
+   593→   593→                                </CardHeader>
+   594→   594→                                <CardContent>
+   595→   595→                                    <ul className="grid gap-3 sm:grid-cols-3">
+   596→   596→                                        {space.features.map(feature => (
+   597→   597→                                            <li
+   598→   598→                                                key={feature.title}
+   599→   599→                                                className="group flex flex-col gap-2.5 rounded-xl border p-4 transition-colors hover:border-primary/40 hover:bg-muted/40"
+   600→   600→                                            >
+   601→   601→                                                <span className="flex size-10 items-center justify-center rounded-lg bg-primary/10 text-primary transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
+   602→   602→                                                    <feature.icon
+   603→   603→                                                        className="size-5"
+   604→   604→                                                        aria-hidden="true"
+   605→   605→                                                    />
+   606→   606→                                                </span>
+   607→   607→                                                <span className="flex flex-col gap-1">
+   608→   608→                                                    <span className="text-sm font-semibold">
+   609→   609→                                                        {feature.title}
+   610→   610→                                                    </span>
+   611→   611→                                                    <span className="text-sm leading-relaxed text-muted-foreground">
+   612→   612→                                                        {feature.description}
+   613→   613→                                                    </span>
+   614→   614→                                                </span>
+   615→   615→                                                <Badge
+   616→   616→                                                    variant="secondary"
+   617→   617→                                                    className="mt-auto w-fit gap-1"
+   618→   618→                                                >
+   619→   619→                                                    <Clock
+   620→   620→                                                        className="size-3"
+   621→   621→                                                        aria-hidden="true"
+   622→   622→                                                    />
+   623→   623→                                                    Bientôt disponible
+   624→   624→                                                </Badge>
+   625→   625→                                            </li>
+   626→   626→                                        ))}
+   627→   627→                                    </ul>
+   628→   628→                                </CardContent>
+   629→   629→                            </Card>
+   630→   630→                            </>
+   631→   631→                            )}
+   632→   632→                        </motion.section>
+   633→   633→                    )}
+   634→   634→
+   635→   635→                    {tab === "rdv" && isPatient && (
+   636→   636→                        <motion.section
+   637→   637→                            key="rdv"
+   638→   638→                            variants={tabVariants}
+   639→   639→                            initial="enter"
+   640→   640→                            animate="center"
+   641→   641→                            exit="exit"
+   642→   642→                            aria-label="Mes rendez-vous"
+   643→   643→                        >
+   644→   644→                            <AppointmentsView
+   645→   645→                                data={patientData}
+   646→   646→                                onBack={() => setTab("accueil")}
+   647→   647→                                onBook={() => setBookingOpen(true)}
+   648→   648→                            />
+   649→   649→                        </motion.section>
+   650→   650→                    )}
+   651→   651→
+   652→   652→                    {tab === "senso" && isPatient && (
+   653→   653→                        <motion.section
+   654→   654→                            key="senso"
+   655→   655→                            variants={tabVariants}
+   656→   656→                            initial="enter"
+   657→   657→                            animate="center"
+   658→   658→                            exit="exit"
+   659→   659→                            aria-label="Sensibilisations"
+   660→   660→                        >
+   661→   661→                            <SensibilisationsView
+   662→   662→                                feed={patientData.sensibilisations}
+   663→   663→                                zone={user.zone}
+   664→   664→                                loading={patientData.loading}
+   665→   665→                                error={patientData.error}
+   666→   666→                                onBack={() => setTab("accueil")}
+   667→   667→                                onRefresh={() => void patientData.refresh()}
+   668→   668→                                onOpenArticle={setOpenArticle}
+   669→   669→                            />
+   670→   670→                        </motion.section>
+   671→   671→                    )}
+   672→   672→
+   673→   673→                    {tab === "specialties" && user.role === "ADMIN" && (
+   674→   674→                        <motion.section
+   675→   675→                            key="specialties"
+   676→   676→                            variants={tabVariants}
+   677→   677→                            initial="enter"
+   678→   678→                            animate="center"
+   679→   679→                            exit="exit"
+   680→   680→                            aria-label="Gestion des spécialités"
+   681→   681→                        >
+   682→   682→                            <SpecialtiesView onBack={() => setTab("accueil")} />
+   683→   683→                        </motion.section>
+   684→   684→                    )}
+   685→   685→
+   686→   686→                    {tab === "profil" && (
+   687→   687→                        <motion.section
+   688→   688→                            key="profil"
+   689→   689→                            variants={tabVariants}
+   690→   690→                            initial="enter"
+   691→   691→                            animate="center"
+   692→   692→                            exit="exit"
+   693→   693→                            aria-label="Mon profil"
+   694→   694→                        >
+   695→   695→                            <Card className="rounded-2xl">
+   696→   696→                                <CardHeader>
+   697→   697→                                    <CardTitle className="flex flex-wrap items-center justify-between gap-2">
+   698→   698→                                        <span>Mon profil</span>
+   699→   699→                                        <RoleBadge role={user.role} />
+   700→   700→                                    </CardTitle>
+   701→   701→                                    <CardDescription>
+   702→   702→                                        Vos informations de compte
+   703→   703→                                    </CardDescription>
+   704→   704→                                </CardHeader>
+   705→   705→                                <CardContent>
+   706→   706→                                    <ul className="grid gap-3 sm:grid-cols-3">
+   707→   707→                                        {profileFields.map(field => (
+   708→   708→                                            <li
+   709→   709→                                                key={field.label}
+   710→   710→                                                className="flex items-start gap-3 rounded-xl border bg-muted/40 p-3"
+   711→   711→                                            >
+   712→   712→                                                <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+   713→   713→                                                    <field.icon
+   714→   714→                                                        className="size-4"
+   715→   715→                                                        aria-hidden="true"
+   716→   716→                                                    />
+   717→   717→                                                </span>
+   718→   718→                                                <span className="flex min-w-0 flex-col">
+   719→   719→                                                    <span className="text-xs text-muted-foreground">
+   720→   720→                                                        {field.label}
+   721→   721→                                                    </span>
+   722→   722→                                                    <span className="truncate text-sm font-medium">
+   723→   723→                                                        {field.value}
+   724→   724→                                                    </span>
+   725→   725→                                                </span>
+   726→   726→                                            </li>
+   727→   727→                                        ))}
+   728→   728→                                    </ul>
+   729→   729→                                </CardContent>
+   730→   730→                            </Card>
+   731→   731→
+   732→   732→                            <Button
+   733→   733→                                variant="outline"
+   734→   734→                                onClick={handleLogout}
+   735→   735→                                disabled={!user}
+   736→   736→                                className="mt-6 h-11 w-full border-destructive/30 text-destructive hover:bg-destructive/5 hover:text-destructive sm:w-auto"
+   737→   737→                            >
+   738→   738→                                <LogOut className="size-4" aria-hidden="true" />
+   739→   739→                                Se déconnecter
+   740→   740→                            </Button>
+   741→   741→                        </motion.section>
+   742→   742→                    )}
+   743→   743→                </AnimatePresence>
+   744→   744→            </div>
+   745→   745→
+   746→   746→            {/* Article sensibilisation — dialog partagé accueil / vues / notifications */}
+   747→   747→            {isPatient && (
+   748→   748→                <SensibilisationDialog
+   749→   749→                    sensibilisation={openArticle}
+   750→   750→                    onClose={() => setOpenArticle(null)}
+   751→   751→                />
+   752→   752→            )}
+   753→   753→
+   754→   754→            {/* Réservation — dialog partagé accueil / vue RDV, POST réel (201) */}
+   755→   755→            {isPatient && (
+   756→   756→                <BookAppointmentDialog
+   757→   757→                    open={bookingOpen}
+   758→   758→                    onClose={() => setBookingOpen(false)}
+   759→   759→                    onBooked={() => void patientData.refresh()}
+   760→   760→                    zone={user.zone}
+   761→   761→                />
+   762→   762→            )}
+   763→   763→
+   764→   764→            {/* Navigation basse flottante — style app native, safe-area iOS respectée */}
+   765→   765→            <nav
+   766→   766→                aria-label="Navigation principale"
+   767→   767→                className="fixed inset-x-0 bottom-0 z-20 px-4 pb-[max(env(safe-area-inset-bottom),1rem)]"
+   768→   768→            >
+   769→   769→                <ul className="mx-auto flex max-w-sm items-center justify-around gap-1 rounded-2xl border border-border/70 bg-card/95 p-1.5 shadow-lg shadow-primary/[0.08] backdrop-blur-md">
+   770→   770→                    {DASHBOARD_TABS.map(item => {
+   771→   771→                        const isActive = tab === item.id
+   772→   772→                        return (
+   773→   773→                            <li key={item.id} className="flex-1">
+   774→   774→                                <button
+   775→   775→                                    type="button"
+   776→   776→                                    onClick={() => setTab(item.id)}
+   777→   777→                                    aria-current={isActive ? "page" : undefined}
+   778→   778→                                    className={`flex min-h-11 w-full flex-col items-center justify-center gap-0.5 rounded-xl px-3 py-1.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+   779→   779→                                        isActive
+   780→   780→                                            ? "bg-primary/10 text-primary"
+   781→   781→                                            : "text-muted-foreground hover:bg-muted hover:text-foreground"
+   782→   782→                                    }`}
+   783→   783→                                >
+   784→   784→                                    <item.icon
+   785→   785→                                        className="size-5"
+   786→   786→                                        aria-hidden="true"
+   787→   787→                                    />
+   788→   788→                                    {item.label}
+   789→   789→                                </button>
+   790→   790→                            </li>
+   791→   791→                        )
+   792→   792→                    })}
+   793→   793→                </ul>
+   794→   794→            </nav>
+   795→   795→        </div>
+   796→   796→    )
+   797→   797→}
+   798→   798→
