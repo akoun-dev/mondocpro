@@ -634,3 +634,23 @@ Stage Summary:
 - Serveur local NON persistant depuis les sessions outil (moissonnage) : la preview sera rétablie au prochain restart conteneur — la chaîne boot remontera tout (env auto-réparée, migrations déjà appliquées, client Prisma frais incluant Specialty).
 - Mot de passe admin démo : Admin#MonDocPro2026 (à changer par le PO) ; script reset-admin-fixture.ts conservé pour les tests.
 - Le RDV wizard actif le plus récent : Pédiatrie lun. 05/10 09:30 (Patient UI Maquette) — purgeable via cleanup-test-users.ts.
+
+---
+Task ID: 20
+Agent: Super Z
+Task: "Il y'a le menu 'Rendez-vous' QUI MANQUE" — ajouter l'accès direct aux RDV dans la navigation basse de l'espace patient.
+
+Work Log:
+- Constat : la nav basse (DASHBOARD_TABS) ne comptait que Accueil / Profil — la vue « Mes Rendez-vous » n'était atteignable que par raccourcis (carte d'accueil « Consulter », cloche de notifications) ; le PO la veut en menu direct.
+- user-dashboard.tsx : onglets par rôle — PATIENT_TABS (Accueil / Rendez-vous / Profil, icône CalendarCheck) vs BASE_TABS (Accueil / Profil, INFIRMIER/ADMIN inchangés) ; nav rendue via (isPatient ? PATIENT_TABS : BASE_TABS), conteneur max-w-sm → max-w-md (3 onglets à l'aise) ; commentaires d'en-tête mis à jour.
+- appointments-view.tsx : promue vue de 1er niveau — flèche « Retour à l'accueil » retirée (onBack supprimé des props, import ArrowLeft nettoyé) car redondante avec la nav basse toujours visible ; en-tête titre+sous-titre conservé, « + Nouveau RDV » inchangé.
+- Raccourcis conservés et re-testés : carte d'accueil « Mes rendez-vous → Consulter » et item de la cloche mènent toujours à la vue (l'onglet s'active via aria-current).
+- Piège plateforme ré-découvert et documenté : serveur relancé via `nohup bun run dev` hérite du DATABASE_URL=file:... du shell outil → /api/health « database down » + login 500 (run 2) ; fix : exporter DATABASE_URL depuis .env avant boot (comme les scripts db:*). Le script E2E l'intègre désormais.
+- scripts/e2e-rdv-menu.sh (versionné) : boot serveur + parcours complets en un seul appel (moissonnage des process entre appels) — login par refs snapshot (les noms accessibles des champs sont en MAJUSCULES via CSS, matching par ordre des textbox), clics nav hit-testés via sélecteur CSS `nav li:nth-child(n) button`, assertions par eval DOM (strip des quotes JSON), attente toast post-login 6 s.
+- E2E 11/11 PASS : desktop 1440×900 — nav 3 onglets, clic « Rendez-vous » → vue Mes Rendez-vous, onglet actif aria-current, plus de flèche retour, segments À venir/Passées, dialog « Nouveau RDV » ouvert, raccourci accueil → vue RDV ; mobile 390×844 — 3 onglets, libellé sans débordement (scrollWidth ≤ clientWidth), vue OK ; régression INFIRMIER — nav inchangée Accueil / Profil. 0 erreur page. Captures tool-results/rdv-menu-{desktop,dialog,mobile,infirmier}.png.
+- Lint 0 erreur sur les 2 fichiers modifiés ; TEST_PLAN +1 ligne PASS ; CHANGELOG « Ajouté ».
+
+Stage Summary:
+- Le menu « Rendez-vous » est désormais visible en direct dans la navigation basse du patient (3 onglets), conformément à la demande PO — vues/parcours existants inchangés, autres rôles non affectés.
+- scripts/e2e-rdv-menu.sh devient l'E2E navigable réutilisable du parcours RDV (avec le piège DATABASE_URL documenté en tête).
+- Reste ouvert (décisions PO) : champ praticien sur les RDV (affichage « Dr. X »), A4/A5 délai d'annulation & confirmateur, A8/A9/A10 tokens/Mobile Money/SMS.

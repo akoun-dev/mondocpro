@@ -2,7 +2,8 @@
 
 // Espace connecté MVP — US-AUTH-3/4 (SPEC-AUTH) + FEATURE-PATIENT UI (maquette PO 2026-10)
 // Design v3 « app mobile » : barre d'app sticky (zone, actualiser, notifications),
-// navigation basse flottante (Accueil / Profil), vues animées sobres framer-motion
+// navigation basse flottante (patient : Accueil / Rendez-vous / Profil — autres
+// rôles : Accueil / Profil), vues animées sobres framer-motion
 // (DESIGN_SYSTEM §4). Accueil patient dédié (src/components/patient/) branché sur les
 // API contractées ; rôles INFIRMIER/ADMIN inchangés (cartes « à venir »).
 import Image from "next/image"
@@ -162,16 +163,23 @@ const ROLE_SPACE: Record<
     },
 }
 
-// Onglets de la navigation basse (style app mobile). Sous-vues hors navigation
-// basse : patient « rdv » (entrée « Mes rendez-vous ») et « senso » (entrée
-// « Tout voir ») ; admin « specialties » (entrée « Gérer les spécialités »).
+// Onglets de la navigation basse (style app mobile), par rôle : le patient a
+// « Rendez-vous » en accès direct (menu de 1er niveau) ; les autres rôles
+// conservent Accueil / Profil. Sous-vues hors navigation basse : patient
+// « senso » (entrée « Tout voir ») ; admin « specialties » (entrée « Gérer
+// les spécialités »).
 type DashboardTab = "accueil" | "rdv" | "senso" | "specialties" | "profil"
 
-const DASHBOARD_TABS: { id: DashboardTab; label: string; icon: LucideIcon }[] =
-    [
-        { id: "accueil", label: "Accueil", icon: Home },
-        { id: "profil", label: "Profil", icon: UserRound },
-    ]
+const PATIENT_TABS: { id: DashboardTab; label: string; icon: LucideIcon }[] = [
+    { id: "accueil", label: "Accueil", icon: Home },
+    { id: "rdv", label: "Rendez-vous", icon: CalendarCheck },
+    { id: "profil", label: "Profil", icon: UserRound },
+]
+
+const BASE_TABS: { id: DashboardTab; label: string; icon: LucideIcon }[] = [
+    { id: "accueil", label: "Accueil", icon: Home },
+    { id: "profil", label: "Profil", icon: UserRound },
+]
 
 // Formatage lisible : +2250701020304 → +225 07 01 02 03 04 ; 01020304 → 01 02 03 04
 function formatPhoneDisplay(phone: string): string {
@@ -643,7 +651,6 @@ export function UserDashboard() {
                         >
                             <AppointmentsView
                                 data={patientData}
-                                onBack={() => setTab("accueil")}
                                 onBook={() => setBookingOpen(true)}
                             />
                         </motion.section>
@@ -766,8 +773,8 @@ export function UserDashboard() {
                 aria-label="Navigation principale"
                 className="fixed inset-x-0 bottom-0 z-20 px-4 pb-[max(env(safe-area-inset-bottom),1rem)]"
             >
-                <ul className="mx-auto flex max-w-sm items-center justify-around gap-1 rounded-2xl border border-border/70 bg-card/95 p-1.5 shadow-lg shadow-primary/[0.08] backdrop-blur-md">
-                    {DASHBOARD_TABS.map(item => {
+                <ul className="mx-auto flex max-w-md items-center justify-around gap-1 rounded-2xl border border-border/70 bg-card/95 p-1.5 shadow-lg shadow-primary/[0.08] backdrop-blur-md">
+                    {(isPatient ? PATIENT_TABS : BASE_TABS).map(item => {
                         const isActive = tab === item.id
                         return (
                             <li key={item.id} className="flex-1">

@@ -3,11 +3,11 @@
 // Vue « Mes rendez-vous » — maquette PO 2026-10 (pastedImage 1790982…):
 // titre + sous-titre + bouton « + Nouveau RDV », onglets segmentés
 // À venir (n) / Passées (n), cartes RDV (réf, badge statut, type • spécialité,
-// créneau bleu, actions Détail / Annuler). Réservation via le dialog partagé
-// BookAppointmentDialog (monté dans UserDashboard) ; annulation via le détail.
+// créneau bleu, actions Détail / Annuler). Vue de 1er niveau (menu « Rendez-vous »
+// de la navigation basse — pas de flèche retour). Réservation via le dialog
+// partagé BookAppointmentDialog (monté dans UserDashboard) ; annulation via le détail.
 import { useMemo, useState } from "react";
 import {
-  ArrowLeft,
   Building2,
   CalendarDays,
   CalendarPlus,
@@ -28,7 +28,6 @@ import { AppointmentDetailDialog } from "./appointment-detail-dialog";
 
 type Props = {
   data: PatientData;
-  onBack: () => void;
   onBook: () => void;
 };
 
@@ -36,7 +35,7 @@ type RdvTab = "upcoming" | "past";
 
 const NOW_MARGIN_MS = 60_000;
 
-export function AppointmentsView({ data, onBack, onBook }: Props) {
+export function AppointmentsView({ data, onBook }: Props) {
   const [tab, setTab] = useState<RdvTab>("upcoming");
   const [detail, setDetail] = useState<AppointmentDto | null>(null);
 
@@ -150,24 +149,13 @@ export function AppointmentsView({ data, onBack, onBook }: Props) {
     <div className="flex flex-col gap-5">
       {/* En-tête maquette : titre + sous-titre à gauche, « + Nouveau RDV » à droite */}
       <div className="flex items-start justify-between gap-3">
-        <div className="flex min-w-0 items-start gap-1.5">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={onBack}
-            aria-label="Retour à l'accueil"
-            className="size-9 shrink-0 rounded-full"
-          >
-            <ArrowLeft className="size-5" aria-hidden="true" />
-          </Button>
-          <div className="min-w-0">
-            <h2 className="text-xl font-bold tracking-tight sm:text-2xl">
-              Mes Rendez-vous
-            </h2>
-            <p className="mt-0.5 text-xs text-muted-foreground sm:text-sm">
-              Consultez et gérez vos consultations
-            </p>
-          </div>
+        <div className="min-w-0">
+          <h2 className="text-xl font-bold tracking-tight sm:text-2xl">
+            Mes Rendez-vous
+          </h2>
+          <p className="mt-0.5 text-xs text-muted-foreground sm:text-sm">
+            Consultez et gérez vos consultations
+          </p>
         </div>
         <Button
           onClick={onBook}
