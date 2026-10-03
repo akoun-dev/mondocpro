@@ -37,7 +37,7 @@ export function HealthAlertCard({
   onOpenAll,
 }: Props) {
   const item = useMemo(
-    () => feed?.find(entry => entry.category === "ALERTE") ?? feed?.[0] ?? null,
+    () => feed?.find(entry => entry.category === "ALERT") ?? feed?.[0] ?? null,
     [feed],
   );
 
@@ -50,7 +50,7 @@ export function HealthAlertCard({
   }
   if (!item) return null;
 
-  const isAlert = item.category === "ALERTE";
+  const isAlert = item.category === "ALERT";
   const minutes = estimatedListenMinutes(speechText ?? "");
 
   return (

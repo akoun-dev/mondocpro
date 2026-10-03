@@ -98,7 +98,7 @@ valeur d'usage d'un token (1 token = ? FCFA / = 1 consultation ?), plafonds, rem
 | Dépendances externes | **aucune** → quick win |
 
 **Contenu MVP proposé** : modèle `Sensibilisation` (titre, corps, catégorie
-`CONSEIL|ALERTE`, zones cibles — null = toutes, publiée par l'ADMIN, `publishedAt`) ;
+`ADVICE|ALERT`, zones cibles — null = toutes, publiée par l'ADMIN, `publishedAt`) ;
 API de lecture (liste filtrée par zone du patient + détail) ; UI fil de cartes avec badge
 « Alerte » (`destructive`) / « Conseil » (`success-light`), indicateur « Nouveau » ;
 **seed éditorial initial** (4–6 contenus réalistes paludisme/hygiène/vaccination).

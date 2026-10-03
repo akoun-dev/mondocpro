@@ -129,15 +129,15 @@ model Specialty {
 // ——— FEATURE-SENSO — Sensibilisations santé ———
 
 enum SensibilisationCategory {
-  CONSEIL
-  ALERTE
+  ADVICE
+  ALERT
 }
 
 model Sensibilisation {
   id          String                  @id @default(cuid())
   title       String                  @db.VarChar(120)
   body        String                  @db.Text
-  category    SensibilisationCategory @default(CONSEIL)
+  category    SensibilisationCategory @default(ADVICE)
   // Zones ciblées — liste vide = visible depuis toutes les zones.
   zones       Zone[]
   publishedAt DateTime                @default(now())

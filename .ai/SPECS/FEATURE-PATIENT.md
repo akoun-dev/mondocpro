@@ -27,7 +27,7 @@ manuel). Ce document fixe le périmètre fonctionnel et les **arbitrages MVP** r
 ### FEATURE-SENSO — Sensibilisations (REQ-002)
 - Fil consultable par tout utilisateur authentifié (50 derniers, tri décroissant) ;
   détail par id avec 404 indistinguable absent/hors ciblage.
-- Catégories : `CONSEIL` · `ALERTE`. Ciblage par zone : liste vide = visible de toutes.
+- Catégories API : `ADVICE` · `ALERT` (libellés UI français « Conseil » · « Alerte »). Ciblage par zone : liste vide = visible de toutes.
 - Éditorial : 6 contenus de référence seedés (`.zscripts/seed_sensibilisations.ts`,
   idempotent) ; rédaction ADMIN (route POST admin) en phase 2.
 

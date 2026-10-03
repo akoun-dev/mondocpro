@@ -13,14 +13,12 @@ create table if not exists public."sessions" (
   "expiresAt" timestamp(3) not null,
   "createdAt" timestamp(3) not null default current_timestamp,
 
-  constraint "sessions_pkey" primary key ("id")
+  constraint "sessions_pkey" primary key ("id"),
+  constraint "sessions_userId_fkey"
+    foreign key ("userId") references public."users" ("id")
+    on delete cascade on update cascade
 );
 
 create unique index if not exists "sessions_tokenHash_key" on public."sessions" ("tokenHash");
 
 create index if not exists "sessions_userId_idx" on public."sessions" ("userId");
-
-alter table public."sessions"
-  add constraint "sessions_userId_fkey"
-  foreign key ("userId") references public."users" ("id")
-  on delete cascade on update cascade;

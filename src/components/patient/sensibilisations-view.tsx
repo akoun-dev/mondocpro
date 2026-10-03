@@ -49,7 +49,7 @@ function FeedCard({
   item: SensibilisationDto;
   onOpenArticle: (item: SensibilisationDto) => void;
 }) {
-  const isAlert = item.category === "ALERTE";
+  const isAlert = item.category === "ALERT";
   const speechText = `${item.title}. ${item.body}`;
   const { speaking, supported, toggle } = useSpeech(speechText);
   const minutes = estimatedListenMinutes(speechText);
@@ -145,16 +145,16 @@ export function SensibilisationsView({
 
   const visible = useMemo(() => {
     const list = feed ?? [];
-    if (tab === "alertes") return list.filter(i => i.category === "ALERTE");
-    if (tab === "conseils") return list.filter(i => i.category !== "ALERTE");
+    if (tab === "alertes") return list.filter(i => i.category === "ALERT");
+    if (tab === "conseils") return list.filter(i => i.category !== "ALERT");
     return list;
   }, [feed, tab]);
 
   const countFor = (id: SensoTab): number => {
     const list = feed ?? [];
     if (id === "all") return list.length;
-    if (id === "alertes") return list.filter(i => i.category === "ALERTE").length;
-    return list.filter(i => i.category !== "ALERTE").length;
+    if (id === "alertes") return list.filter(i => i.category === "ALERT").length;
+    return list.filter(i => i.category !== "ALERT").length;
   };
 
   return (

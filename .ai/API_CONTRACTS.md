@@ -84,7 +84,7 @@ Validation: schéma zod de référence (src/lib/<domaine>.ts)
 ### [GET] /api/sensibilisations — Fil de sensibilisations santé
 - Feature: FEATURE-SENSO | Owner: Backend | Statut: **IMPLÉMENTÉ** (lot P0/P1 2026-10-03)
 - Request: — (cookie de session, tous rôles) — filtrage par la zone du lecteur
-- Response: 200 `{ "sensibilisations": [{ "id": string, "title": string, "body": string, "category": "CONSEIL" | "ALERTE", "zones": Zone[], "publishedAt": string }] }` — tri décroissant publication, 50 derniers
+- Response: 200 `{ "sensibilisations": [{ "id": string, "title": string, "body": string, "category": "ADVICE" | "ALERT", "zones": Zone[], "publishedAt": string }] }` — tri décroissant publication, 50 derniers
 - Errors: 401 · 500
 - Notes: ciblage vide (`zones: []`) = visible de toutes les zones ; contenu éditorial seedé (6 contenus référence) jusqu'à la rédaction ADMIN (phase 2).
 

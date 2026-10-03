@@ -50,17 +50,17 @@ export function SensibilisationDialog({ sensibilisation, onClose }: Props) {
               <div className="flex flex-wrap items-center gap-2">
                 <span
                   className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${
-                    sensibilisation.category === "ALERTE"
+                      sensibilisation.category === "ALERT"
                       ? "bg-destructive/10 text-destructive"
                       : "bg-success-light text-success-foreground"
                   }`}
                 >
-                  {sensibilisation.category === "ALERTE" ? (
+                  {sensibilisation.category === "ALERT" ? (
                     <TriangleAlert className="size-3.5" aria-hidden="true" />
                   ) : (
                     <HeartPulse className="size-3.5" aria-hidden="true" />
                   )}
-                  {sensibilisation.category === "ALERTE"
+                  {sensibilisation.category === "ALERT"
                     ? "Alerte Santé"
                     : "Conseil Santé"}
                 </span>

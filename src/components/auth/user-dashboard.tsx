@@ -404,7 +404,7 @@ export function UserDashboard() {
                                                     >
                                                         <span
                                                             aria-hidden="true"
-                                                            className={`mt-1.5 size-2 shrink-0 rounded-full ${item.category === "ALERTE" ? "bg-destructive" : "bg-success"}`}
+                                                            className={`mt-1.5 size-2 shrink-0 rounded-full ${item.category === "ALERT" ? "bg-destructive" : "bg-success"}`}
                                                         />
                                                         <span className="min-w-0 flex-1">
                                                             <span className="block truncate text-sm font-medium">
