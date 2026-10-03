@@ -20,3 +20,12 @@ export function formatPhoneDisplay(phone: string): string {
   }
   return `${hasPlus ? "+" : ""}${digits.replace(/(\d{2})(?=\d)/g, "$1 ")}`
 }
+
+// Initiales pour avatars : "Aboa Akoun Bernard" → "AB", "Aya Konaté" → "AK".
+export function getInitials(fullName: string): string {
+  const parts = fullName.trim().split(/\s+/).filter(Boolean)
+  if (parts.length === 0) return "?"
+  const first = parts[0].charAt(0)
+  const second = parts.length > 1 ? parts[parts.length - 1].charAt(0) : ""
+  return `${first}${second}`.toUpperCase()
+}
