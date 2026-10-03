@@ -654,3 +654,21 @@ Stage Summary:
 - Le menu « Rendez-vous » est désormais visible en direct dans la navigation basse du patient (3 onglets), conformément à la demande PO — vues/parcours existants inchangés, autres rôles non affectés.
 - scripts/e2e-rdv-menu.sh devient l'E2E navigable réutilisable du parcours RDV (avec le piège DATABASE_URL documenté en tête).
 - Reste ouvert (décisions PO) : champ praticien sur les RDV (affichage « Dr. X »), A4/A5 délai d'annulation & confirmateur, A8/A9/A10 tokens/Mobile Money/SMS.
+
+---
+Task ID: 21
+Agent: Super Z
+Task: "Voici la vue profil" (maquette upload pasted_image_1790992312025.png) — implémenter la vue Profil patient selon la maquette.
+
+Work Log:
+- Maquette analysée : héro avatar carré + badge vert, nom, pastille zone ; « Informations Personnelles » (naissance, mobile actif + drapeau CI + check, secteur + crayon) ; « Sécurité & Accès » (mot de passe, bandeau conformité RGPD) ; « Préférences & Alertes » (2 toggles + langue FR) ; « Urgences Médicales Abidjan » (SAMU 185 / Pompiers 180, pill 24h/24 7j/7) ; « Centre d'aide & Assistance ».
+- Mapping honnête données↔maquette (pattern « Épargne ») : le modèle User ne porte ni birthDate, ni passwordUpdatedAt, ni préférences → date de naissance « Non renseignée » + badge Bientôt, mot de passe « Par code SMS — à venir » (le flux oublié existant utilise déjà un code SMS), préférences = switches DÉSACTIVÉS + badge Bientôt (aucune fausse promesse de persistance), langue = badge statique FR ; urgences = numéros réels en liens tel: ; « Membre · Il y a X » depuis user.createdAt (exposé par AppUser).
+- Nouveau src/components/patient/profile-view.tsx : InfoRow/PreferenceRow factorisées, héro dégradé primary→primary-dark, check badge en bg-success + texte success-foreground (ADR-002 : jamais de blanc sur success), bandeau RGPD bg-success-light citant la loi ivoirienne n° 2013-430 du 14 mai 2013, carte urgences border-destructive/20 bg-destructive/5.
+- user-dashboard.tsx : onglet « profil » routé par rôle — PATIENT → <ProfileView user onLogout> ; INFIRMIER/ADMIN → carte simple historique inchangée ; helpers dédupliqués : getInitials déplacée vers lib/utils.ts, formatPhoneDisplay consommé depuis lib/phone.ts (la copie locale +225-agnostique supprimée — le composeur lib/phone est plus strict : match +225^\d{1,15}$).
+- E2E scripts/e2e-profile-view.sh (versionné, même squelette que e2e-rdv-menu.sh) : 3 itérations de fix — (1) aiguilles test erronées (« Test Patient » au lieu de « Patient UI Maquette » ; apostrophes non échappées dans les eval JS pour Secteur d'habitation / Centre d'aide → eval syntax error silencieux), (2) logout cliqué via find role button → point de clic couvert par un <svg> → remplacé par click() JS direct, (3) session patient persistait → cascade sur l'étape infirmier.
+- E2E final 16/16 PASS : desktop (12 checks contenu + switches disabled=2 + liens tel:=2) · mobile 390×844 (rendu + scrollWidth ≤ 392) · régression INFIRMIER (nav 2 onglets, profil simple conservé) · 0 erreur page. Captures tool-results/profile-{desktop,mobile,infirmier}.png.
+- Lint 0 erreur ; tsc : aucune erreur sur les fichiers nouveaux/modifiés ; TEST_PLAN +1 ; CHANGELOG « Ajouté ».
+
+Stage Summary:
+- Vue Profil patient conforme à la maquette sur données réelles, états « Bientôt » explicites là où le modèle n'a pas (encore) les champs — next naturels : champ birthDate + édition de profil (API PATCH), persistance des préférences (A10 SMS gateway dépendant pour les rappels).
+- getInitials / formatPhoneDisplay désormais mutualisés (lib/utils.ts, lib/phone.ts) — plus de doublon dans user-dashboard.tsx.

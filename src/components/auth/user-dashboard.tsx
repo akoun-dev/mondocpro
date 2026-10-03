@@ -52,6 +52,8 @@ import {
     relativePublishedLabel,
     relativeSlotLabel,
 } from "@/lib/datetime"
+import { formatPhoneDisplay } from "@/lib/phone"
+import { getInitials } from "@/lib/utils"
 import { useAuth } from "@/hooks/use-auth"
 import { usePatientData } from "@/hooks/use-patient-data"
 import { toast } from "@/hooks/use-toast"
@@ -62,6 +64,7 @@ import type { AppointmentDto } from "@/lib/appointments"
 import { PatientHome } from "@/components/patient/patient-home"
 import { AppointmentsView } from "@/components/patient/appointments-view"
 import { SensibilisationsView } from "@/components/patient/sensibilisations-view"
+import { ProfileView } from "@/components/patient/profile-view"
 import { BookAppointmentDialog } from "@/components/patient/book-appointment-dialog"
 import { SensibilisationDialog } from "@/components/patient/sensibilisation-dialog"
 import { SpecialtiesView } from "@/components/admin/specialties-view"
@@ -181,28 +184,8 @@ const BASE_TABS: { id: DashboardTab; label: string; icon: LucideIcon }[] = [
     { id: "profil", label: "Profil", icon: UserRound },
 ]
 
-// Formatage lisible : +2250701020304 → +225 07 01 02 03 04 ; 01020304 → 01 02 03 04
-function formatPhoneDisplay(phone: string): string {
-    const cleaned = phone.replace(/[\s.-]/g, "")
-    const hasPlus = cleaned.startsWith("+")
-    const digits = hasPlus ? cleaned.slice(1) : cleaned
-    if (!/^\d{8,15}$/.test(digits)) return phone
-
-    if (hasPlus && digits.length > 10) {
-        const countryCode = digits.slice(0, digits.length - 10)
-        const local = digits.slice(-10)
-        return `+${countryCode} ${local.replace(/(\d{2})(?=\d)/g, "$1 ")}`
-    }
-    return `${hasPlus ? "+" : ""}${digits.replace(/(\d{2})(?=\d)/g, "$1 ")}`
-}
-
-function getInitials(fullName: string): string {
-    const parts = fullName.trim().split(/\s+/).filter(Boolean)
-    if (parts.length === 0) return "?"
-    const first = parts[0].charAt(0)
-    const second = parts.length > 1 ? parts[parts.length - 1].charAt(0) : ""
-    return `${first}${second}`.toUpperCase()
-}
+// Formatage lisible du téléphone : source unique src/lib/phone.ts
+// (+225 07 01 02 03 04) — la copie locale historique est retirée.
 
 function getFirstName(fullName: string): string {
     return fullName.trim().split(/\s+/)[0] ?? ""
@@ -699,6 +682,15 @@ export function UserDashboard() {
                             exit="exit"
                             aria-label="Mon profil"
                         >
+                            {isPatient ? (
+                                // Profil patient — maquette PO 2026-10-03
+                                // (héro, infos, sécurité RGPD, préférences, urgences)
+                                <ProfileView
+                                    user={user}
+                                    onLogout={handleLogout}
+                                />
+                            ) : (
+                            <>
                             <Card className="rounded-2xl">
                                 <CardHeader>
                                     <CardTitle className="flex flex-wrap items-center justify-between gap-2">
@@ -745,6 +737,8 @@ export function UserDashboard() {
                                 <LogOut className="size-4" aria-hidden="true" />
                                 Se déconnecter
                             </Button>
+                            </>
+                            )}
                         </motion.section>
                     )}
                 </AnimatePresence>

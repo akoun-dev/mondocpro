@@ -12,6 +12,7 @@
 // inventées ; les interrupteurs sont désactivés (aucune persistance côté API).
 import {
   Ambulance,
+  BellRing,
   Cake,
   ChevronRight,
   CircleCheck,
@@ -114,7 +115,7 @@ function PreferenceRow({
   description,
   switchLabel,
 }: {
-  icon: typeof Bell;
+  icon: typeof BellRing;
   title: string;
   description: string;
   switchLabel: string;
@@ -300,13 +301,13 @@ export function ProfileView({ user, onLogout }: Props) {
         </h3>
         <div className="flex flex-col gap-2.5">
           <PreferenceRow
-            icon={Megaphone}
+            icon={BellRing}
             title="Rappels de rendez-vous"
-            description="Notification SMS &amp; WhatsApp 24h avant"
+            description="Notification SMS & WhatsApp 24h avant"
             switchLabel="Rappels de rendez-vous"
           />
           <PreferenceRow
-            icon={Bell}
+            icon={Megaphone}
             title="Alertes de santé locales"
             description="Campagnes de vaccination, gestes santé"
             switchLabel="Alertes de santé locales"
