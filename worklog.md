@@ -742,3 +742,20 @@ Stage Summary:
 - L'anti-doublon est structurel (unique userId+type+entityId + upsert idempotent) : ni doublon de notification, ni doublon de rappel, même en cas de retentement SMS.
 - ADR-006 livre le comparatif + plan de pilote (Infobip / Africa's Talking, critères de sortie mesurés) : l'arbitrage A10 n'attend plus que la validation PO sur des mesures réelles.
 - Pièges consignés : RDV opt-out redevient éligible au ré-opt-in (purge fixture avant les ticks de comptage) ; « Se déconnecter » n'existe que sur la vue Profil ; titre vue RDV = « Mes Rendez-vous » (R majuscule) ; notifications InApp d'un RDV supprimé survivent (entityId sans FK) → purge explicite en E2E.
+
+---
+Task ID: 25
+Agent: Super Z
+Task: Nettoyage git post-Task 24 + resynchronisation avec origin (nouveau commit upstream)
+
+Work Log:
+- Constat : commit-bruit UUID c8d37e8 (14 artefacts tool-results/ auto-commités — captures E2E + sortie d'outil, même récurrence qu'en Tasks 23/24) présent au-dessus du commit fonctionnel 036b37c déjà poussé.
+- `git reset --hard HEAD~1` → bruit supprimé (artefacts régénérables), main réalignée sur 036b37c.
+- Correction de la RACINE de la récurrence : `tool-results/` ajouté au .gitignore (artefacts d'outillage AI régénérables, preuves E2E conservées en local uniquement) → commit c7113e4 « chore(git): ignorer tool-results/ (artefacts E2E régénérables) ».
+- Push 1er essai rejeté (remote en avance) → `git fetch` : nouveau commit upstream 22e6187 « feat(ui): enrichir l'écran de chargement avec une animation cardiaque » (hors périmètre de cette session) → `git pull --rebase origin main` sans conflit → push OK.
+- État final : main == origin/main (c7113e4), arbre propre, aucun fichier produit modifié.
+
+Stage Summary:
+- Le dépôt ne peut plus auto-committer les artefacts tool-results/ (cause racine des commits-bruits traitée).
+- Historique poussé propre : ADR-006 + notifs InApp (036b37c) + gitignore (c7113e4), avec le commit upstream animation chargement (22e6187) intégré.
+- Reste ouvert côté PO : arbitrage A10 (pilote Infobip / Africa's Talking documenté dans ADR-006), dérive enum SensibilisationCategory (base CONSEIL/ALERTE vs schéma ADVICE/ALERT).
