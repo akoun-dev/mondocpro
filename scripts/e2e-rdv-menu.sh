@@ -65,7 +65,7 @@ check "Patient — nav basse 3 onglets" "Accueil | Rendez-vous | Profil" "$(nav_
 # Clic direct (hit-testé) sur l'onglet Rendez-vous (2e onglet)
 nav_click 2 >/dev/null
 sleep 2
-check "Patient — vue Mes Rendez-vous affichée" "yes" "$(body_has 'Mes Rendez-vous')"
+check "Patient — vue Mes rendez-vous affichée" "yes" "$(body_has 'Mes rendez-vous')"
 check "Patient — onglet actif = Rendez-vous" "Rendez-vous" "$(active_tab)"
 check "Patient — plus de flèche retour (vue 1er niveau)" "0" "$($AB eval "document.querySelectorAll('button[aria-label=\"Retour à l\\'accueil\"]').length" 2>/dev/null | tail -1 | tr -d '"')"
 check "Patient — segments À venir/Passées" "yes/yes" "$(body_has 'À venir')/$(body_has 'Passées')"
@@ -89,7 +89,7 @@ $AB set viewport 390 844 >/dev/null
 sleep 2
 check "Mobile — nav 3 onglets visibles" "Accueil | Rendez-vous | Profil" "$(nav_labels)"
 nav_click 2 >/dev/null; sleep 2
-check "Mobile — vue RDV affichée" "yes" "$(body_has 'Mes Rendez-vous')"
+check "Mobile — vue RDV affichée" "yes" "$(body_has 'Mes rendez-vous')"
 check "Mobile — libellé sans débordement" "ok" "$($AB eval "var b=Array.from(document.querySelectorAll('nav button')).find(x=>x.textContent.trim()==='Rendez-vous'); b ? (b.scrollWidth<=b.clientWidth+2 ? 'ok' : 'overflow') : 'absent'" 2>/dev/null | tail -1 | tr -d '"')"
 $AB screenshot $SHOT/rdv-menu-mobile.png >/dev/null
 

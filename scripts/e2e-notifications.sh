@@ -201,7 +201,7 @@ check "Panneau — rappel consultable après lecture" "yes" "$(body_has 'Rappel 
 # Clic sur l'item → navigation vers la vue Rendez-vous.
 $AB eval "Array.from(document.querySelectorAll('button')).find(function(b){return b.textContent.indexOf('Rappel de rendez-vous')>=0})?.click(); 'ok'" >/dev/null 2>&1
 sleep 3
-check "Navigation — clic rappel → vue Rendez-vous" "yes" "$(body_has 'Mes Rendez-vous')"
+check "Navigation — clic rappel → vue Rendez-vous" "yes" "$(body_has 'Mes rendez-vous')"
 $AB screenshot $SHOT/notifications-desktop.png >/dev/null
 
 # ── 3. Mobile 390×844 ────────────────────────────────────────────────────────

@@ -58,13 +58,20 @@ function movementDisplay(tx: WalletDto["transactions"][number]) {
   }
 }
 
-export function WalletSection() {
+type Props = {
+  openRecharge?: boolean;
+  onRechargeOpened?: () => void;
+};
+
+export function WalletSection({ openRecharge = false, onRechargeOpened }: Props) {
   const [wallet, setWallet] = useState<WalletDto | null>(null);
   const [loadError, setLoadError] = useState(false);
   const [rechargeOpen, setRechargeOpen] = useState(false);
   const [selectedFcfa, setSelectedFcfa] = useState<number | null>(null);
   const [selectedPaymentMethod, setSelectedPaymentMethod] =
     useState<PaymentMethod | null>(null);
+  const [rechargeStep, setRechargeStep] = useState<1 | 2 | 3>(1);
+  const [historyFilter, setHistoryFilter] = useState<"ALL" | "RECHARGE" | "SPEND">("ALL");
   const [submitting, setSubmitting] = useState(false);
 
   const loadWallet = useCallback(async () => {
@@ -81,6 +88,15 @@ export function WalletSection() {
   useEffect(() => {
     void loadWallet();
   }, [loadWallet]);
+
+  useEffect(() => {
+    if (!openRecharge) return;
+    setSelectedFcfa(null);
+    setSelectedPaymentMethod(null);
+    setRechargeStep(1);
+    setRechargeOpen(true);
+    onRechargeOpened?.();
+  }, [onRechargeOpened, openRecharge]);
 
   async function handleRecharge() {
     if (selectedFcfa === null || selectedPaymentMethod === null) return;
@@ -128,13 +144,23 @@ export function WalletSection() {
     wallet?.transactions.filter(
       tx => tx.type === "RECHARGE" && tx.status === "PENDING",
     ).length ?? 0;
+  const filteredTransactions = wallet?.transactions.filter(tx =>
+    historyFilter === "ALL"
+      ? true
+      : historyFilter === "RECHARGE"
+        ? tx.type === "RECHARGE"
+        : tx.type === "CONSUMPTION" || tx.type === "RESERVATION",
+  ) ?? [];
 
   return (
     <section aria-labelledby="profil-portefeuille">
       <div className="mb-2.5 flex items-center justify-between gap-2">
-        <h3 id="profil-portefeuille" className="text-[15px] font-bold tracking-tight">
-          Portefeuille de Tokens
-        </h3>
+        <div>
+          <h3 id="profil-portefeuille" className="text-xl font-bold tracking-tight">
+            Portefeuille santé
+          </h3>
+          <p className="text-xs text-muted-foreground">Épargne santé &amp; tokens médicaux</p>
+        </div>
         {wallet && (
           <span className="text-xs text-muted-foreground">
             1 Token = {TOKEN_VALUE_FCFA.toLocaleString("fr-FR")} FCFA
@@ -143,7 +169,7 @@ export function WalletSection() {
       </div>
 
       {/* Carte solde — dégradé primaire ADR-002 */}
-      <div className="rounded-2xl bg-gradient-to-br from-primary to-primary-dark p-5 text-primary-foreground shadow-md shadow-primary/20">
+      <div className="overflow-hidden rounded-2xl bg-gradient-to-br from-primary to-primary-dark text-primary-foreground shadow-md shadow-primary/20">
         {wallet === null ? (
           loadError ? (
             <div className="flex flex-col items-start gap-2">
@@ -168,7 +194,8 @@ export function WalletSection() {
           )
         ) : (
           <>
-            <div className="flex items-start justify-between gap-3">
+            <div className="p-5">
+              <div className="flex items-start justify-between gap-3">
               <div>
                 <p className="text-xs font-medium opacity-80">
                   Tokens disponibles
@@ -189,6 +216,7 @@ export function WalletSection() {
                 onClick={() => {
                    setSelectedFcfa(null);
                    setSelectedPaymentMethod(null);
+                   setRechargeStep(1);
                    setRechargeOpen(true);
                 }}
                 className="h-10 gap-1.5 rounded-xl bg-card text-sm font-bold text-primary shadow-sm hover:bg-card/90"
@@ -196,7 +224,7 @@ export function WalletSection() {
                 <Plus className="size-4" aria-hidden="true" />
                 Recharger
               </Button>
-            </div>
+              </div>
             <div className="mt-4 grid grid-cols-2 gap-2 text-xs">
               <div className="rounded-xl bg-card/15 p-2.5">
                 <p className="font-semibold">{wallet.reservedTokens}</p>
@@ -209,11 +237,11 @@ export function WalletSection() {
                 </p>
               </div>
             </div>
+            </div>
             {pendingRecharges > 0 && (
-              <p className="mt-3 flex items-center gap-1.5 text-xs opacity-90">
-                <CircleAlert className="size-3.5" aria-hidden="true" />
-                {pendingRecharges} recharge{pendingRecharges > 1 ? "s" : ""} en
-                attente de validation du paiement
+              <p className="flex items-center gap-1.5 bg-slate-950/25 px-5 py-3 text-xs opacity-90">
+                <CircleAlert className="size-3.5 text-warning" aria-hidden="true" />
+                {pendingRecharges} recharge{pendingRecharges > 1 ? "s" : ""} en attente de validation
               </p>
             )}
           </>
@@ -223,11 +251,16 @@ export function WalletSection() {
       {/* Derniers mouvements (ledger — les 5 plus récents) */}
       {wallet && wallet.transactions.length > 0 && (
         <div className="mt-3">
-          <p className="mb-1.5 text-xs font-semibold text-muted-foreground">
-            Derniers mouvements
-          </p>
+          <div className="mb-2 flex items-center justify-between gap-2">
+            <p className="text-sm font-semibold">Derniers mouvements</p>
+            <div className="flex rounded-lg bg-muted p-0.5 text-[10px] font-semibold">
+              {([["ALL", "Tous"], ["RECHARGE", "Recharges"], ["SPEND", "Solde"]] as const).map(([value, label]) => (
+                <button key={value} type="button" onClick={() => setHistoryFilter(value)} className={`rounded-md px-2 py-1 ${historyFilter === value ? "bg-card text-primary shadow-sm" : "text-muted-foreground"}`}>{label}</button>
+              ))}
+            </div>
+          </div>
           <ul className="flex flex-col gap-1.5">
-            {wallet.transactions.slice(0, 5).map(tx => {
+            {filteredTransactions.slice(0, 8).map(tx => {
               const display = movementDisplay(tx);
               return (
                 <li
@@ -277,6 +310,21 @@ export function WalletSection() {
               Médecin Chef.
             </DialogDescription>
           </DialogHeader>
+          <div className="flex items-center gap-1.5" aria-label="Étapes de recharge">
+            {["Tokens", "Opérateur", "Récapitulatif"].map((label, index) => {
+              const step = (index + 1) as 1 | 2 | 3;
+              return (
+                <div key={label} className="flex min-w-0 flex-1 items-center gap-1.5">
+                  <span className={`flex size-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${rechargeStep >= step ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}>
+                    {step}
+                  </span>
+                  <span className="truncate text-[11px] font-semibold text-muted-foreground">{label}</span>
+                  {step < 3 && <span className="h-px flex-1 bg-border" />}
+                </div>
+              );
+            })}
+          </div>
+          {rechargeStep === 1 && (
           <div
             role="radiogroup"
             aria-label="Choisir le montant de la recharge"
@@ -290,7 +338,10 @@ export function WalletSection() {
                   type="button"
                   role="radio"
                   aria-checked={selected}
-                  onClick={() => setSelectedFcfa(amount)}
+                   onClick={() => {
+                     setSelectedFcfa(amount);
+                     setRechargeStep(2);
+                   }}
                   className={`flex flex-col items-center gap-0.5 rounded-xl border p-3.5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
                     selected
                       ? "border-primary bg-primary/5 ring-1 ring-primary"
@@ -308,6 +359,8 @@ export function WalletSection() {
               );
             })}
           </div>
+          )}
+          {rechargeStep === 2 && (
           <div className="space-y-2.5">
             <p className="text-sm font-semibold">Moyen de paiement</p>
             <div
@@ -328,7 +381,10 @@ export function WalletSection() {
                     type="button"
                     role="radio"
                     aria-checked={selected}
-                    onClick={() => setSelectedPaymentMethod(value as PaymentMethod)}
+                    onClick={() => {
+                      setSelectedPaymentMethod(value as PaymentMethod);
+                      setRechargeStep(3);
+                    }}
                     className={`flex min-h-16 items-center gap-2 rounded-xl border px-3 py-2 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
                       selected
                         ? "border-primary bg-primary/5 ring-1 ring-primary"
@@ -348,6 +404,15 @@ export function WalletSection() {
               })}
             </div>
           </div>
+          )}
+          {rechargeStep === 3 && selectedFcfa !== null && selectedPaymentMethod !== null && (
+            <div className="rounded-xl bg-muted/60 p-4 text-sm">
+              <p className="mb-3 font-semibold">Récapitulatif de votre recharge</p>
+              <div className="flex justify-between"><span className="text-muted-foreground">Nombre de Tokens</span><strong>{selectedFcfa / TOKEN_VALUE_FCFA}</strong></div>
+              <div className="mt-2 flex justify-between"><span className="text-muted-foreground">Montant</span><strong>{selectedFcfa.toLocaleString("fr-FR")} FCFA</strong></div>
+              <div className="mt-2 flex justify-between"><span className="text-muted-foreground">Opérateur</span><strong>{selectedPaymentMethod.replace("_", " ")}</strong></div>
+            </div>
+          )}
           <p className="text-xs leading-relaxed text-muted-foreground">
             Le paiement en ligne automatique (débit direct et crédit immédiat)
             arrive dès le choix du prestataire Mobile Money — en attendant,
@@ -357,14 +422,19 @@ export function WalletSection() {
             <Button
               type="button"
               variant="outline"
-              onClick={() => setRechargeOpen(false)}
+              onClick={() => {
+                if (rechargeStep === 1) setRechargeOpen(false);
+                else setRechargeStep(rechargeStep === 3 ? 2 : 1);
+              }}
               disabled={submitting}
             >
-              Annuler
+              {rechargeStep === 1 ? "Annuler" : "Retour"}
             </Button>
             <Button
-              onClick={() => void handleRecharge()}
-              disabled={selectedFcfa === null || selectedPaymentMethod === null || submitting}
+              onClick={() => {
+                if (rechargeStep === 3) void handleRecharge();
+              }}
+              disabled={rechargeStep !== 3 || selectedFcfa === null || selectedPaymentMethod === null || submitting}
               className="gap-2"
             >
               {submitting ? (
@@ -373,7 +443,7 @@ export function WalletSection() {
                   Envoi…
                 </>
               ) : (
-                "Déclarer le paiement"
+                rechargeStep === 3 ? "Déclarer le paiement" : "Sélectionnez une option"
               )}
             </Button>
           </DialogFooter>

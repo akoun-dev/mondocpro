@@ -466,11 +466,13 @@ Stage Summary:
 - Contenu poussé : refonte vue auth + étape 3 inscription + composant cgu-dialog
 
 ---
+
 Task ID: 12
 Agent: Super Z (main)
 Task: "Au niveau de Reinitialisation ajoute l'indicatif comme sur la connexion" — ajouter le bloc préfixe +225 (drapeau CI) au champ Téléphone de la vue Mot de passe oublié
 
 Work Log:
+
 - Lu la maquette PO (upload/pasted_image_1790967953382.png) : vue « Mot de passe oublié », champ Téléphone sans indicatif
 - Analysé login-form.tsx (référence « comme sur la connexion ») : bloc préfixe FlagCI + "+225", saisie locale 10 chiffres
 - Modifié forgot-password-form.tsx : bloc préfixe partagé (ci-flag.tsx), placeholder "07 01 02 03 04", maxLength 14, sanitisation [^\d\s], label capitales, normalisation toInternationalPhone avant forgotPasswordSchema/API
@@ -480,16 +482,19 @@ Work Log:
 - CHANGELOG (### Modifié, en tête), commit b45399c, push origin/main
 
 Stage Summary:
+
 - Vue Mot de passe oublié alignée visuellement et fonctionnellement sur la Connexion (indicatif +225 fixe)
 - Contrat API intact : numéro toujours stocké/envoyé au format +225XXXXXXXXXX
 - Commit b45399c poussé sur origin/main
 
 ---
+
 Task ID: 13
 Agent: Super Z (main)
 Task: "On peut passer à l'audit des fonctionnalités patients (Rendez-vous / Épargne Tokens / Sensibilisations) avant leur développement" — audit complet (choix PO : markdown .ai/, écarts+risques+efforts S/M/L, 3 modules+transverse, roadmap P0/P1/P2, attente GO)
 
 Work Log:
+
 - Clarifications PO : format markdown .ai/, audit complet, périmètre 3 modules + transverse, roadmap P0/P1/P2, j'attends le GO
 - Lu .ai/ : REQUIREMENTS (backlog vide), API_CONTRACTS (6 contrats auth), AUDITS/2026-10-02-pre-patients.md (verdict PRÊT), ARCHITECTURE (couches, API-first), TASKS.md, PROJECT_CONTEXT, DESIGN_SYSTEM, WORKFLOWS (Feature Lifecycle 8 phases), AUDITS/README (conventions)
 - Lu prisma/schema.prisma (User/Session/PasswordResetToken — aucune table métier), package.json (db:push direct, pas de prisma/migrations), user-dashboard.tsx (3 cartes placeholder PATIENT), src/lib/auth.ts (getCurrentUser, pas de requireRole)
@@ -498,16 +503,19 @@ Work Log:
 - Commit dfdb6b4 ; push rejeté (remote avancé : checkpoint + commit branding "Mon doc Pro") → git pull --rebase puis push OK (9151dbe..dfdb6b4)
 
 Stage Summary:
+
 - Audit complet déposé dans .ai/AUDITS/2026-10-03-patients-modules.md, poussé sur origin/main (dfdb6b4)
 - Verdict : 🟢 PRÊT — aucun blocage technique ; 4 arbitrages PO à trancher (créneaux RDV, valeur tokens, rédaction SENSO, fournisseur paiement)
 - En attente du GO du PO : à réception, ouverture lot P0 (fondations) puis P1 (RDV, SENSO)
 
 ---
+
 Task ID: 15
 Agent: Super Z (lance la preview + réparation infra boot)
 Task: "lance la preview" — redémarrer le serveur et rétablir la preview après rebuild conteneur.
 
 Work Log:
+
 - Constat : conteneur reconstruit au boot 20:49 (archive = fichiers versionnés uniquement) → .env vidé, .zscripts/.env.supabase perdu → dev.sh échouait au boot (cat sans filet + set -e) → aucun serveur → preview 404/502.
 - Credentials récupérés dans scripts/find-pooler-region.mjs (REF + PASSWORD, Task 5) ; .env reconstruit manuellement (aws-1-eu-west-1) → échec "tenant/user not found" : Supabase a migré le pooler vers la flotte aws-0.
 - find-pooler-region.mjs relancé : RÉGION TROUVÉE aws-0-eu-west-1 (auth Prisma réelle). .env + .env.supabase mis à jour aws-0.
@@ -518,55 +526,64 @@ Work Log:
 - Preview externe : edge 404 même avec app 200 + Caddy :81 200 → la route preview ne s'enregistre que sur un déploiement sain ; nécessite un restart conteneur côté UI (le boot auto-réparé la fera remonter).
 
 Stage Summary:
+
 - Boot auto-réparé et versionné (d9b7989, pushé) : tout futur rebuild conteneur remontera l'app seul (env reconstruite, migrations déployées, serveur 200).
 - Pooler Supabase désormais aws-0-eu-west-1 (flotte migrée) — secret toujours non versionné hors finder historique (dette SEC à traiter : rotation mot de passe DB).
 - Preview URL : https://preview-c9ace4a7-9a38-440c-8974-17af10a8825e.space-z.ai/ — opérationnelle après un restart du conteneur (bouton restart) car l'edge n'enregistre la route qu'à un déploiement sain.
 - Note : prisma/migrations versionnées présentes (init_auth + patient_business), déployées sans pending ; 195 fichiers en diff de mode uniquement (0 ligne) — ne pas committer.
 
 ---
+
 Task ID: 14 (lot P0/P1 fondations)
 Agent: Super Z
 Task: "Go" — exécuter le lot P0 fondations du GO audit patients (health, requireRole, migrations, REQ/spec/contrats/TEST_PLAN).
 
 Work Log:
+
 - État reconstitué : la période de contexte perdue avait DÉJÀ livré requireRole (auth.ts:145), /api/appointments (GET/POST + PATCH:id CANCEL), /api/sensibilisations (GET + GET:id), libs métier (appointments.ts, appointment-schemas.ts, sensibilisations.ts), migrations init_auth + patient_business, seed_sensibilisations.ts — mais SANS documentation contrats (routes commentées « contrat » inexistant).
-- INC-001 détecté : tables appointments/sensibilisations + enums ABSENTS de Supabase alors que _prisma_migrations déclarait patient_business appliquée (2026-10-02 19:31 UTC) — probablement la migration de flotte aws-1→aws-0. Réparation : DELETE ligne registre → migrate deploy réappliqué → seed SENSO relancé (6 contenus). Comptes intacts (Dr Kadjane ADMIN, Akoun Bernard Aboa, Aya Konaté Test, Test RDV Senso).
+- INC-001 détecté : tables appointments/sensibilisations + enums ABSENTS de Supabase alors que \_prisma_migrations déclarait patient_business appliquée (2026-10-02 19:31 UTC) — probablement la migration de flotte aws-1→aws-0. Réparation : DELETE ligne registre → migrate deploy réappliqué → seed SENSO relancé (6 contenus). Comptes intacts (Dr Kadjane ADMIN, Akoun Bernard Aboa, Aya Konaté Test, Test RDV Senso).
 - /api/health v2 : contrat mis à jour D'ABORD (API-first) puis code — probe SELECT 1, { status: ok|degraded, database: up|down, timestamp }, toujours 200.
 - Gouvernance : API_CONTRACTS.md (+6 contrats patients IMPLÉMENTÉS, +3 « à venir » tokens/SENSO admin) · REQUIREMENTS.md REQ-001..003 · SPECS/FEATURE-PATIENT.md (10 arbitrages A1–A10) · INCIDENTS.md INC-001.
 - E2E scripts/e2e-patients.ts : 25/25 PASS (health DB up, 4×401, POST 201/PENDING, collision 409, dimanche/hors-grille/délai 400, propriété 404, cancel 200/re-cancel 409/action 400, NURSE 403 GET+POST, SENSO 5/6 visibles YOPOUGON + détail 200 + 404 + tous rôles 200). Fixture NURSE : scripts/create-infirmier-fixture.ts (+2250755666777 / TestInfirmier2026!). Lint 0 erreur. dev.log : aucun erreur requête (EADDRINUSE historique lancement concurrent uniquement).
 - TEST_PLAN 4 lignes PASS 2026-10-03 consignées · CHANGELOG « Ajouté » · commit ca1823d · push d9b7989..ca1823d OK.
 
 Stage Summary:
+
 - Lot P0 fondations CLÔTURÉ : health v2 ✓, requireRole ✓, migrations versionnées ✓ (+ INC-001 réparé), REQ-001..003 ✓, spec ✓, contrats ✓, TEST_PLAN ✓.
 - Backend P1 (RDV + SENSO) validé 25/25 — UI patient restante (vues RDV/SENSO dans l'espace connecté, route unique /).
 - Arbitrages PO restants avant P2 TOKENS : A8 valeur jeton (1 token = ? FCFA), A9 fournisseur Mobile Money (ADR-005), A10 passerelle SMS ; A4/A5 (délai annulation, confirmateur) pour RDV phase 2.
 - Fixtures de test créées : Patient B E2E (par run), Infirmier Test E2E (+2250755666777) — à purger éventuellement.
 
 ---
+
 Task ID: 16
 Agent: Super Z
 Task: "Je vois que on a ds migrations dans @prisma/ c'est pas normal, il doivent etre dans @supabase/migrations/ corrige" — relocaliser toutes les migrations sous supabase/migrations/.
 
 Work Log:
-- Constat initial : deux familles séparées — supabase/migrations/ (4 scripts SQL plats du scaffold 2026-10-02, miroirs documentaires) et prisma/migrations/ (init_auth + patient_business, appliquées via prisma migrate deploy, registre _prisma_migrations).
+
+- Constat initial : deux familles séparées — supabase/migrations/ (4 scripts SQL plats du scaffold 2026-10-02, miroirs documentaires) et prisma/migrations/ (init_auth + patient_business, appliquées via prisma migrate deploy, registre \_prisma_migrations).
 - Déplacement git mv : prisma/schema.prisma → supabase/schema.prisma ; prisma/migrations/{20261003000000_init_auth,20261003000001_patient_business} → supabase/migrations/ (renames suivis par git, historique préservé) ; dossier prisma/ supprimé.
 - Découvertes traitées au passage : migration_lock.toml jamais versionné (absent disque ET git) → créé à la racine de supabase/migrations (provider postgresql) ; supabase/.temp/cli-latest (état local CLI Supabase) commité par erreur au scaffold → déversionné + .gitignore supabase/.temp/.
-- Résolution du schéma : clé package.json#prisma ajoutée puis RETIRÉE — warning constaté « deprecated, will be removed in Prisma 7 » (CLI 6.19.2) → prisma.config.ts créé (defineConfig, schema supabase/schema.prisma), source unique, sans warning. Note : en mode config le CLI ne charge plus .env — déjà couvert par le design existant (scripts db:* réexportent DATABASE_URL depuis .env, piège 2 dev.sh ; bun charge .env nativement ; Next.js charge .env).
+- Résolution du schéma : clé package.json#prisma ajoutée puis RETIRÉE — warning constaté « deprecated, will be removed in Prisma 7 » (CLI 6.19.2) → prisma.config.ts créé (defineConfig, schema supabase/schema.prisma), source unique, sans warning. Note : en mode config le CLI ne charge plus .env — déjà couvert par le design existant (scripts db:\* réexportent DATABASE_URL depuis .env, piège 2 dev.sh ; bun charge .env nativement ; Next.js charge .env).
 - supabase/migrations/README.md : documente les 2 familles (Prisma = source de vérité SYS-009 ; SQL plats = historiques à NE PAS réappliquer) + règle de non-mélange des formats (Prisma ne lit que ses dossiers, CLI Supabase ne lirait que les .sql plats).
 - Vérif E2E (DATABASE_URL exportée depuis .env) : prisma validate « schema at supabase/schema.prisma is valid 🚀 » ; migrate status (aws-0-eu-west-1, 2 migrations found, up to date) ; db:migrate-deploy « No pending migrations » (chaîne boot intacte) ; db:generate client v6.19.2 OK ; lint 0 erreur. Le libellé CLI « in prisma/migrations » est cosmétique — prisma/ n'existe plus sur disque, les 2 migrations ne peuvent venir que de supabase/migrations (les 4 .sql plats ignorés : preuve du scan format-Prisma).
 - dev.sh : commentaire SYS-009 mis à jour (supabase/migrations). CHANGELOG « Modifié ».
 
 Stage Summary:
-- TOUTES les migrations vivent désormais dans supabase/migrations/ : format Prisma (dossiers) appliqué par migrate deploy, registre _prisma_migrations inchangé, zéro impact base (up to date).
+
+- TOUTES les migrations vivent désormais dans supabase/migrations/ : format Prisma (dossiers) appliqué par migrate deploy, registre \_prisma_migrations inchangé, zéro impact base (up to date).
 - Future-proof Prisma 7 : prisma.config.ts remplace package.json#prisma ; migration_lock.toml désormais versionné ; dossier prisma/ disparu.
 - Commit 4921eb9 + push origin/main ; preview sans impact runtime (client généré identique, serveur en mémoire non affecté).
 
 ---
+
 Task ID: 17
 Agent: Super Z
 Task: "Pour l'espace patient, je veux ce design" (maquette upload pasted_image_1790981792913.png) — implémenter l'accueil patient selon la maquette.
 
 Work Log:
+
 - Maquette analysée : header (logo + zone, ⇄, cloche badge 3, avatar), bienvenue datée + badge zone, carte PROCHAIN RENDEZ-VOUS bleu médical (statut CONFIRMÉ, créneau, lieu, réf, « Voir le détail »), raccourci « Mes rendez-vous » (Consulter ›), carte Alerte Santé Yopougon (pill rouge, « Il y a 3 h », écouter 1 min, lire l'article), carte Épargne Santé MonDoc (solde 45 000 FCFA ≈ 90 MDP, objectif 75 %, Recharger / Cotiser).
 - Lu existant : user-dashboard.tsx (tabs accueil/profil), use-auth (fetch+zustand), appointments.ts (DTO, règles créneaux), sensibilisations.ts (DTO + ciblage zone), routes API (GET appointments/sensibilisations, PATCH {action:CANCEL}), TEST_PLAN (fixtures).
 - Mapping honnête données↔maquette : le modèle Appointment n'a pas de praticien → titre = type de consultation (arbitrage noté au PO) ; Épargne = P2 non branché → état « Bientôt » (badge, solde « — », CTA → toast) plutôt que fausses valeurs ; statut PENDING affiché « En attente » (warning) au lieu de CONFIRMÉ forcé.
@@ -577,18 +594,21 @@ Work Log:
 - TEST_PLAN +1 ligne PASS · CHANGELOG « Ajouté » · commit 9aefe35 pushé (fb4ac7d..9aefe35).
 
 Stage Summary:
+
 - Espace patient = design maquette livré sur données réelles (RDV + SENSO) ; seul l'objet « praticien » (Dr. X) reste à venir — nécessite un champ doctor/praticien côté modèle (décision PO).
 - Épargne prête visuellement ; branchement réel dès arbitrages A8 (valeur jeton) / A9 (Mobile Money).
 - « Prendre rendez-vous » = toast « bientôt » : le formulaire de réservation (grille 30 min Mon–Ven, ≥2 h/≤60 j) est le prochain livrable naturel (backend prêt, 25/25).
 - Compte de démo créé : Patient UI Maquette / +2250709229992 (purgeable via scripts/cleanup-test-users.ts).
 
 ---
+
 Task ID: 18
 Agent: Super Z
-Task: "enchaîne sur le formulaire de prise de RDV et le design des autres vues" (maquettes upload pasted_image_1790982089460.png + pasted_image_1790982858232.png — vue « Mes Rendez-vous »).
+Task: "enchaîne sur le formulaire de prise de RDV et le design des autres vues" (maquettes upload pasted_image_1790982089460.png + pasted_image_1790982858232.png — vue « Mes rendez-vous »).
 
 Work Log:
-- Maquette analysée : en-tête titre « Mes Rendez-vous » + sous-titre + bouton bleu « + Nouveau RDV », onglets segmentés « À venir (2) » actif bleu / « Passées (3) », cartes RDV (réf #MDP-2024-XXXX + badge CONFIRMÉ vert / EN ATTENTE bleu, icône praticien en pastille bleu clair, intitulé + « spécialité • zone », créneau bleu « Vendredi 25 Oct. 2024 à 09:30 », actions Détail outline + Annuler rouge).
+
+- Maquette analysée : en-tête titre « Mes rendez-vous » + sous-titre + bouton bleu « + Nouveau RDV », onglets segmentés « À venir (2) » actif bleu / « Passées (3) », cartes RDV (réf #MDP-2024-XXXX + badge CONFIRMÉ vert / EN ATTENTE bleu, icône praticien en pastille bleu clair, intitulé + « spécialité • zone », créneau bleu « Vendredi 25 Oct. 2024 à 09:30 », actions Détail outline + Annuler rouge).
 - Refactor source unique : règles de créneaux extraites de src/lib/appointments.ts (server) vers src/lib/schedule.ts CLIENT-SAFE (constantes, listDaySlots, slotToDate, validateSlot, AppointmentError + nouveaux listBookableDays/isSlotBookableNow/utcDateKey) — appointments.ts ré-exporte (route API et scripts intacts), zéro divergence front/back.
 - datetime.ts : formatCardSlotUTC « Vendredi 25 oct. 2025 à 09:30 » (Intl fr-FR insère « , » → replace « à », conforme maquette).
 - shared.tsx : badges statut conformes maquette — PENDING → bg-primary/10 text-primary (bleu, était ambre), DONE → bg-success-light, CANCELLED muted, CONFIRMED inchangé (a11y ADR-002 respectée).
@@ -602,6 +622,7 @@ Work Log:
 - CHANGELOG « Ajouté » + TEST_PLAN +1 ligne PASS.
 
 Stage Summary:
+
 - Parcours de réservation COMPLET de bout en bout sur API réelle : accueil/vues → « + Nouveau RDV » → type/zone/jour/créneau/motif → POST 201 → carte visible « À venir (2) » ; 409 restitué honnêtement (serveur revalide, front = miroir de schedule.ts).
 - Design maquette appliqué à la vue RDV + décliné sur la vue Sensibilisations (même langage : onglets segmentés, cartes pill/créneau bleu) ; « Tout voir » relie accueil → feed complet.
 - Cartes RDV : intitulé = type de consultation (« Consultation au cabinet ») faute de champ praticien côté modèle — décision PO toujours en attente pour afficher « Dr. X » comme la maquette (nécessite champ doctor/praticien + seed).
@@ -609,11 +630,13 @@ Stage Summary:
 - RDV de test créés : #MDP-62GT (lun. 05/10 10:30, patient UI Maquette) — purgeable via scripts/cleanup-test-users.ts.
 
 ---
+
 Task ID: 19
 Agent: Super Z
 Task: "Faut que la prise de RDV soit en step 1 - Domicile / Cabinet 2 - la spécialité qu'il veut consulter (pédiatrie, gynécologie, cardiologue, diabétologue, dentiste, ophtalmologue...) configurable chez le admin etc..."
 
 Work Log:
+
 - Schéma : modèle Specialty (name unique @db.VarChar(80), isActive défaut true, sortOrder, @@map specialties) + Appointment.specialtyId nullable (FK onDelete: SetNull) + index ; migration 20261002232734_add_specialties créée (migrate dev --create-only) et appliquée (migrate deploy) ; erreur corrigée au passage : onDelete « SET NULL » → « SetNull » (syntaxe Prisma).
 - Seed scripts/seed-specialties.ts idempotent : 7 spécialités (Médecine générale 0, Pédiatrie 10, Gynécologie 20, Cardiologie 30, Diabétologie 40, Chirurgie dentaire 50, Ophtalmologie 60) + backfill 4 RDV existants → Médecine générale ; exécuté (piège 2 : export DATABASE_URL depuis .env obligatoire).
 - Contrats : createAppointmentSchema + specialtyId REQUIS (z.string().min(1)) ; service valide en base (doit exister ET être active → 400 sinon) ; AppointmentDto + specialty {id,name}|null (include dans list/create/cancel) ; API_CONTRACTS.md : POST appointments modifié + 5 nouveaux contrats specialties/admin.
@@ -629,6 +652,7 @@ Work Log:
 - Lint 0 erreur ; tsc propre hors erreurs préexistantes (register-form) ; CHANGELOG + TEST_PLAN à jour.
 
 Stage Summary:
+
 - Parcours RDV = 4 étapes conformes à la demande PO (Type → Spécialité → Créneau → Confirmation) avec spécialités 100% configurables côté ADMIN (ajout/renommage/activation/suppression) et gardes serveur prouvées E2E (400 spécialité inconnue, 403 hors ADMIN, 409 unicité et suppression référencée).
 - Migration + seed appliqués en base : le wizard est fonctionnel immédiatement ; tout nouveau conteneur rejoue migrate-deploy (chaîne boot SYS-009) — le seed spécialités doit être relancé une fois sur un environnement neuf (bun scripts/seed-specialties.ts).
 - Serveur local NON persistant depuis les sessions outil (moissonnage) : la preview sera rétablie au prochain restart conteneur — la chaîne boot remontera tout (env auto-réparée, migrations déjà appliquées, client Prisma frais incluant Specialty).
@@ -636,31 +660,36 @@ Stage Summary:
 - Le RDV wizard actif le plus récent : Pédiatrie lun. 05/10 09:30 (Patient UI Maquette) — purgeable via cleanup-test-users.ts.
 
 ---
+
 Task ID: 20
 Agent: Super Z
 Task: "Il y'a le menu 'Rendez-vous' QUI MANQUE" — ajouter l'accès direct aux RDV dans la navigation basse de l'espace patient.
 
 Work Log:
-- Constat : la nav basse (DASHBOARD_TABS) ne comptait que Accueil / Profil — la vue « Mes Rendez-vous » n'était atteignable que par raccourcis (carte d'accueil « Consulter », cloche de notifications) ; le PO la veut en menu direct.
+
+- Constat : la nav basse (DASHBOARD_TABS) ne comptait que Accueil / Profil — la vue « Mes rendez-vous » n'était atteignable que par raccourcis (carte d'accueil « Consulter », cloche de notifications) ; le PO la veut en menu direct.
 - user-dashboard.tsx : onglets par rôle — PATIENT_TABS (Accueil / Rendez-vous / Profil, icône CalendarCheck) vs BASE_TABS (Accueil / Profil, NURSE/ADMIN inchangés) ; nav rendue via (isPatient ? PATIENT_TABS : BASE_TABS), conteneur max-w-sm → max-w-md (3 onglets à l'aise) ; commentaires d'en-tête mis à jour.
 - appointments-view.tsx : promue vue de 1er niveau — flèche « Retour à l'accueil » retirée (onBack supprimé des props, import ArrowLeft nettoyé) car redondante avec la nav basse toujours visible ; en-tête titre+sous-titre conservé, « + Nouveau RDV » inchangé.
 - Raccourcis conservés et re-testés : carte d'accueil « Mes rendez-vous → Consulter » et item de la cloche mènent toujours à la vue (l'onglet s'active via aria-current).
-- Piège plateforme ré-découvert et documenté : serveur relancé via `nohup bun run dev` hérite du DATABASE_URL=file:... du shell outil → /api/health « database down » + login 500 (run 2) ; fix : exporter DATABASE_URL depuis .env avant boot (comme les scripts db:*). Le script E2E l'intègre désormais.
+- Piège plateforme ré-découvert et documenté : serveur relancé via `nohup bun run dev` hérite du DATABASE_URL=file:... du shell outil → /api/health « database down » + login 500 (run 2) ; fix : exporter DATABASE_URL depuis .env avant boot (comme les scripts db:\*). Le script E2E l'intègre désormais.
 - scripts/e2e-rdv-menu.sh (versionné) : boot serveur + parcours complets en un seul appel (moissonnage des process entre appels) — login par refs snapshot (les noms accessibles des champs sont en MAJUSCULES via CSS, matching par ordre des textbox), clics nav hit-testés via sélecteur CSS `nav li:nth-child(n) button`, assertions par eval DOM (strip des quotes JSON), attente toast post-login 6 s.
-- E2E 11/11 PASS : desktop 1440×900 — nav 3 onglets, clic « Rendez-vous » → vue Mes Rendez-vous, onglet actif aria-current, plus de flèche retour, segments À venir/Passées, dialog « Nouveau RDV » ouvert, raccourci accueil → vue RDV ; mobile 390×844 — 3 onglets, libellé sans débordement (scrollWidth ≤ clientWidth), vue OK ; régression NURSE — nav inchangée Accueil / Profil. 0 erreur page. Captures tool-results/rdv-menu-{desktop,dialog,mobile,infirmier}.png.
+- E2E 11/11 PASS : desktop 1440×900 — nav 3 onglets, clic « Rendez-vous » → vue Mes rendez-vous, onglet actif aria-current, plus de flèche retour, segments À venir/Passées, dialog « Nouveau RDV » ouvert, raccourci accueil → vue RDV ; mobile 390×844 — 3 onglets, libellé sans débordement (scrollWidth ≤ clientWidth), vue OK ; régression NURSE — nav inchangée Accueil / Profil. 0 erreur page. Captures tool-results/rdv-menu-{desktop,dialog,mobile,infirmier}.png.
 - Lint 0 erreur sur les 2 fichiers modifiés ; TEST_PLAN +1 ligne PASS ; CHANGELOG « Ajouté ».
 
 Stage Summary:
+
 - Le menu « Rendez-vous » est désormais visible en direct dans la navigation basse du patient (3 onglets), conformément à la demande PO — vues/parcours existants inchangés, autres rôles non affectés.
 - scripts/e2e-rdv-menu.sh devient l'E2E navigable réutilisable du parcours RDV (avec le piège DATABASE_URL documenté en tête).
 - Reste ouvert (décisions PO) : champ praticien sur les RDV (affichage « Dr. X »), A4/A5 délai d'annulation & confirmateur, A8/A9/A10 tokens/Mobile Money/SMS.
 
 ---
+
 Task ID: 21
 Agent: Super Z
 Task: "Voici la vue profil" (maquette upload pasted_image_1790992312025.png) — implémenter la vue Profil patient selon la maquette.
 
 Work Log:
+
 - Maquette analysée : héro avatar carré + badge vert, nom, pastille zone ; « Informations Personnelles » (naissance, mobile actif + drapeau CI + check, secteur + crayon) ; « Sécurité & Accès » (mot de passe, bandeau conformité RGPD) ; « Préférences & Alertes » (2 toggles + langue FR) ; « Urgences Médicales Abidjan » (SAMU 185 / Pompiers 180, pill 24h/24 7j/7) ; « Centre d'aide & Assistance ».
 - Mapping honnête données↔maquette (pattern « Épargne ») : le modèle User ne porte ni birthDate, ni passwordUpdatedAt, ni préférences → date de naissance « Non renseignée » + badge Bientôt, mot de passe « Par code SMS — à venir » (le flux oublié existant utilise déjà un code SMS), préférences = switches DÉSACTIVÉS + badge Bientôt (aucune fausse promesse de persistance), langue = badge statique FR ; urgences = numéros réels en liens tel: ; « Membre · Il y a X » depuis user.createdAt (exposé par AppUser).
 - Nouveau src/components/patient/profile-view.tsx : InfoRow/PreferenceRow factorisées, héro dégradé primary→primary-dark, check badge en bg-success + texte success-foreground (ADR-002 : jamais de blanc sur success), bandeau RGPD bg-success-light citant la loi ivoirienne n° 2013-430 du 14 mai 2013, carte urgences border-destructive/20 bg-destructive/5.
@@ -670,15 +699,18 @@ Work Log:
 - Lint 0 erreur ; tsc : aucune erreur sur les fichiers nouveaux/modifiés ; TEST_PLAN +1 ; CHANGELOG « Ajouté ».
 
 Stage Summary:
+
 - Vue Profil patient conforme à la maquette sur données réelles, états « Bientôt » explicites là où le modèle n'a pas (encore) les champs — next naturels : champ birthDate + édition de profil (API PATCH), persistance des préférences (A10 SMS gateway dépendant pour les rappels).
 - getInitials / formatPhoneDisplay désormais mutualisés (lib/utils.ts, lib/phone.ts) — plus de doublon dans user-dashboard.tsx.
 
 ---
+
 Task ID: 22
 Agent: Super Z
 Task: "ajouter le champ birthDate + édition de profil (API PATCH), développer « Rappels de rendez-vous » et « Alertes de santé locales » — après récupération des derniers commits".
 
 Work Log:
+
 - `git pull origin main` : récupéré `1c90c37 chore(db): consolidate migrations and seeds` — les dossiers de migration Prisma initiaux ont été remplacés par des fichiers SQL plats ; ATTENTION détectée : `prisma migrate dev --create-only` exigeait un RESET (drift registre local/distant) → REFUSÉ. Chemin sûr : migration écrite à la main au format Prisma (dossier + migration.sql) puis `db:migrate-deploy` (deploy n'applique que les pendings, jamais de reset) + `prisma generate`.
 - Schéma : User.birthDate DateTime? + appointmentReminders/healthAlerts Boolean @default(true) (opt-out) ; migration `20261003120000_add_profile_preferences` appliquée et vérifiée en base (3 colonnes, échantillon lu).
 - Contrat : PATCH /api/auth/profile (API_CONTRACTS.md §auth, statut IMPLÉMENTÉ) — delta sémantique, user ciblé = session (jamais le corps), birthDate "AAAA-MM-JJ" → Date minuit UTC, null → effacer ; `updateProfileSchema` partagé front/back dans lib/auth-schemas.ts (nom 2-80 réutilisé de registerBase, date passée ≥ 1900, au moins un champ requis).
@@ -690,6 +722,7 @@ Work Log:
 - Lint 0 erreur sur les fichiers modifiés ; tsc : aucune erreur nouvelle (préexistantes register-form/examples/skills uniquement).
 
 Stage Summary:
+
 - Le patient peut désormais renseigner sa date de naissance et corriger son nom (PATCH persistant, retourné par /me et login) ; les deux interrupteurs de la maquette « Préférences & Alertes » sont réellement persistés (plus d'état « Bientôt » fictif sur ces lignes).
 - Sécurité éprouvée : ciblage session-only, refus des corps sans champ modifiable, validation partagée front/back, naissance passée obligatoire.
 - Restent « Bientôt » honnêtes : secteur d'habitation (zone = décision équipe), mot de passe par code SMS, centre d'aide.
@@ -697,11 +730,13 @@ Stage Summary:
 - Pièges consignés : migrations à la main + migrate-deploy (jamais migrate dev sur cette base) ; téléphones API en format +225.
 
 ---
+
 Task ID: 23
 Agent: Super Z
 Task: "Rappels de rendez-vous (uniquement) avant les RDV (passerelle SMS — décision A10 encore ouverte) et activer l'édition du secteur d'habitation sur le même modèle"
 
 Work Log:
+
 - Prérequis utilisateur (« récupérer les derniers commits ») : commit bruit UUID (5 captures tool-results auto-committées) supprimé (reset --hard HEAD~1, artefacts régénérables), puis `git pull --rebase origin main` → `08e6229` upstream qui CONSOLIDE les migrations : colonnes profil fusionnées dans `20261002232740_create_users_table.sql` et NOUVELLE RÈGLE ADR-003 « Règle de modification des migrations » — pas de migrations `add_*`/`alter_*` pré-PROD, les colonnes vont dans la migration de création de la table.
 - Édition du secteur (même modèle que nom/naissance) : `zone` ajouté à `updateProfileSchema` (z.enum ZONES, liste fermée = inscription) + route PATCH /api/auth/profile (commentaire sécurité mis à jour : phone/role seulement hors contrat) ; ProfileView — dialog dédié « Modifier mon secteur » (Select shadcn des 4 secteurs, Zod partagé côté client, PATCH → setUser → héro + ligne mis à jour en direct, toast « Secteur mis à jour »), ligne secteur crayon → openZoneEdit (brouillon réinitialisé à l'ouverture).
 - Rappels avant RDV (A10 ouverte) : colonne `Appointment.reminderSentAt` AJOUTÉE DANS `20261002232748_create_appointments_table.sql` (règle ADR-003) + schema.prisma ; application en base : `prisma db push` REFUSÉ (dérive préexistante enum SensibilisationCategory CONSEIL/ALERTE vs ADVICE/ALERT — hors périmètre, non touchée) → ALTER idempotent `ADD COLUMN IF NOT EXISTS` via `prisma db execute` + `prisma generate`, colonne vérifiée (information_schema).
@@ -716,16 +751,19 @@ Work Log:
 - Docs : API_CONTRACTS.md (PATCH Task 22/23 + nouvelle section [GET|POST] /api/cron/reminders), TEST_PLAN +1 ligne PASS, CHANGELOG (Ajouté + Modifié).
 
 Stage Summary:
+
 - Le patient peut désormais modifier son secteur d'habitation depuis la vue Profil (même modèle PATCH/Zod que nom/naissance) — héro, ligne et store réalignés.
 - Le pipeline « Rappels de rendez-vous » est câblé de bout en bout dans le périmètre décidé par le PO (UNIQUEMENT avant les RDV, opt-in patient, anti-doublon) avec un transport SMS provider-agnostic en stub console : la décision A10 (choix de la passerelle) ne demande qu'une implémentation de `SmsGateway` + config `CRON_SECRET` + branchement du scheduler externe.
 - Dérive préexistante signalée : enum `SensibilisationCategory` (base : CONSEIL/ALERTE ; schéma : ADVICE/ALERT) — bloque `prisma db push`, à arbitrer côté owner.
 
 ---
+
 Task ID: 24
 Agent: Super Z
 Task: "prépare l'ADR-006 (comparatif passerelles SMS) pour préparer la décision A10 et aussi je veux aussi les notif InApp"
 
 Work Log:
+
 - Pré-requis : commit-bruit UUID (81800de, captures tool-results auto-commitées) supprimé (reset --hard HEAD~1, artefacts régénérables — même traitement que Task 23) ; `git fetch origin` → main synchronisée (240d571).
 - DB : modèle `Notification` (supabase/schema.prisma) — enum `NotificationType { APPOINTMENT_REMINDER }`, champs title/body/entityId/readAt, **index unique `(userId, type, entityId)` = anti-doublon structurel** (NB Postgres : NULL distincts → dédoublonnage effectif pour les types portant une entityId, cas du rappel RDV), index `(userId, createdAt)` ; migration SQL dédiée `supabase/migrations/20261003130000_create_notifications_table.sql` (NOUVELLE table — la règle ADR-003 concerne les colonnes des tables existantes) appliquée via `prisma db execute` (db push toujours bloqué par la dérive enum SensibilisationCategory préexistante — non touchée) + `prisma generate` ; round-trip create/read/delete vérifié en base.
 - Contrats : `src/lib/notifications.ts` — `NotificationDto`/`NotificationsResponse` + `markNotificationsReadSchema` (exactement une forme : `{all:true}` XOR `{id}`, refine Zod) partagé front/back ; API `GET /api/notifications` (requireRole 3 rôles, 50 dernières + unreadCount, select explicite, filtrage session) et `POST /api/notifications/read` (updateMany scopé userId+readAt null, **404 indistinguable** id inconnu/hors propriétaire, unreadCount recalculé renvoyé) ; API_CONTRACTS.md (+2 sections IMPLÉMENTÉ + notes cron mises à jour « deux canaux par tick »).
@@ -734,21 +772,24 @@ Work Log:
 - Copy Profil : « Un rappel 24 h avant chacun de vos rendez-vous — notification dans l'app active ; SMS dès le choix de la passerelle. » (Task 24 : InApp actif, SMS toujours A10-en-attente).
 - **ADR-006** (`.ai/ADR/ADR-006-passerelle-sms.md`, statut **Proposé**) : contexte (3 besoins débloqués par la passerelle : rappels SMS, TODO INT-SMS reset password, alertes futures ; contraintes CI — Orange/MTN/Moov, volumétrie MVP faible, prépayé, ARTP-CI, pas de 2-way) ; comparatif 6 candidats × 10 critères avec **prix indicatifs honnêtes « à confirmer par devis »** (Twilio ~25–45 FCFA/SMS, Vonage ~25–30, Infobip ~18–30, Africa's Talking ~12–18, Termii ~9–18, Orange CI contractuel) ; **recommandation : pilote Infobip + Africa's Talking (Twilio référence)** — 50 SMS réels/candidat sur les 3 réseaux, critères de sortie mesurés (DLR ≥ 95 %, latence < 30 s, expéditeur `MonDocPro` non altéré, prépayé sans engagement) ; Orange CI en option phase 2 ; alternatives écartées documentées (Brevo, Telnyx/Plivo, MTN/Moov direct, WhatsApp API, push natif) ; coût d'intégration constant rappelé (SmsGateway = 1 fichier) ; FEATURE-PATIENT.md §3 (arbitrage A10) référencé vers ADR-006.
 - Fixture `scripts/reminder-fixture.ts` : mode clean étendu — purge aussi les notifications InApp des RDV E2E (entityId sans FK, sinon notifications fantômes).
-- E2E `scripts/e2e-notifications.sh` (nouveau, versionné) — run 1 : 39/43 ; 4 fixes SCRIPT (pas produit) : le RDV du test opt-out redevient éligible au ré-opt-in et pollue le tick suivant (purge avant le 2e fixture), clic item par sélecteur trop strict (global find par texte), logout à faire depuis la vue Profil (nav_click 3), assertion « Mes rendez-vous » vs titre réel « Mes Rendez-vous ». Run 2 : 42/43 (casse restante = même assertion). **Run 3 : 43/43 PASS, 0 erreur page** — API : 401×2, fil 200, base saine 0, 1 tick RDV dû = 1 notif (type/entityId/copy vérifiés) + 1 envoi stub, anti-doublon upsert (2e tick 0/0, toujours 1 ligne), PENDING jamais notifié, opt-out jamais notifié, read 404/400/400/200→0/readAt persisté, read all 200→0, isolation infirmier 0/0, nettoyage RDV+notifs ; navigateur : badge aria-label « Notifications (1 non lue) » sans ouvrir, panneau (rappel non lu pastille+gras, corps, mark-all), badge disparaît, **persistance après reload**, clic item → vue « Mes Rendez-vous », mobile 390×844 sans débordement, infirmier 2 onglets sans cloche. Captures tool-results/notifications-{panel,desktop,mobile,infirmier}.png.
+- E2E `scripts/e2e-notifications.sh` (nouveau, versionné) — run 1 : 39/43 ; 4 fixes SCRIPT (pas produit) : le RDV du test opt-out redevient éligible au ré-opt-in et pollue le tick suivant (purge avant le 2e fixture), clic item par sélecteur trop strict (global find par texte), logout à faire depuis la vue Profil (nav_click 3), assertion « Mes rendez-vous » vs titre réel « Mes rendez-vous ». Run 2 : 42/43 (casse restante = même assertion). **Run 3 : 43/43 PASS, 0 erreur page** — API : 401×2, fil 200, base saine 0, 1 tick RDV dû = 1 notif (type/entityId/copy vérifiés) + 1 envoi stub, anti-doublon upsert (2e tick 0/0, toujours 1 ligne), PENDING jamais notifié, opt-out jamais notifié, read 404/400/400/200→0/readAt persisté, read all 200→0, isolation infirmier 0/0, nettoyage RDV+notifs ; navigateur : badge aria-label « Notifications (1 non lue) » sans ouvrir, panneau (rappel non lu pastille+gras, corps, mark-all), badge disparaît, **persistance après reload**, clic item → vue « Mes rendez-vous », mobile 390×844 sans débordement, infirmier 2 onglets sans cloche. Captures tool-results/notifications-{panel,desktop,mobile,infirmier}.png.
 - Régressions croisées : `e2e-sector-reminders.sh` 37/37 (checks copy alignés sur le nouveau texte) ; `e2e-profile-edit.sh` 38/38 ; lint 0 erreur ; tsc : uniquement erreurs préexistantes (register-form/examples/skills/audit-db).
 
 Stage Summary:
+
 - Le patient reçoit désormais ses rappels de RDV « 24 h avant » DANS l'app : centre de notifications persisté (cloche + badge + panneau + marquage lu), indépendant de la décision A10 — le canal SMS reste en stub et se branchera en 1 fichier via `getSmsGateway()`.
 - L'anti-doublon est structurel (unique userId+type+entityId + upsert idempotent) : ni doublon de notification, ni doublon de rappel, même en cas de retentement SMS.
 - ADR-006 livre le comparatif + plan de pilote (Infobip / Africa's Talking, critères de sortie mesurés) : l'arbitrage A10 n'attend plus que la validation PO sur des mesures réelles.
-- Pièges consignés : RDV opt-out redevient éligible au ré-opt-in (purge fixture avant les ticks de comptage) ; « Se déconnecter » n'existe que sur la vue Profil ; titre vue RDV = « Mes Rendez-vous » (R majuscule) ; notifications InApp d'un RDV supprimé survivent (entityId sans FK) → purge explicite en E2E.
+- Pièges consignés : RDV opt-out redevient éligible au ré-opt-in (purge fixture avant les ticks de comptage) ; « Se déconnecter » n'existe que sur la vue Profil ; titre vue RDV = « Mes rendez-vous » (R majuscule) ; notifications InApp d'un RDV supprimé survivent (entityId sans FK) → purge explicite en E2E.
 
 ---
+
 Task ID: 25
 Agent: Super Z
 Task: Nettoyage git post-Task 24 + resynchronisation avec origin (nouveau commit upstream)
 
 Work Log:
+
 - Constat : commit-bruit UUID c8d37e8 (14 artefacts tool-results/ auto-commités — captures E2E + sortie d'outil, même récurrence qu'en Tasks 23/24) présent au-dessus du commit fonctionnel 036b37c déjà poussé.
 - `git reset --hard HEAD~1` → bruit supprimé (artefacts régénérables), main réalignée sur 036b37c.
 - Correction de la RACINE de la récurrence : `tool-results/` ajouté au .gitignore (artefacts d'outillage AI régénérables, preuves E2E conservées en local uniquement) → commit c7113e4 « chore(git): ignorer tool-results/ (artefacts E2E régénérables) ».
@@ -756,6 +797,7 @@ Work Log:
 - État final : main == origin/main (c7113e4), arbre propre, aucun fichier produit modifié.
 
 Stage Summary:
+
 - Le dépôt ne peut plus auto-committer les artefacts tool-results/ (cause racine des commits-bruits traitée).
 - Historique poussé propre : ADR-006 + notifs InApp (036b37c) + gitignore (c7113e4), avec le commit upstream animation chargement (22e6187) intégré.
 - Reste ouvert côté PO : arbitrage A10 (pilote Infobip / Africa's Talking documenté dans ADR-006), dérive enum SensibilisationCategory (base CONSEIL/ALERTE vs schéma ADVICE/ALERT).
@@ -773,7 +815,7 @@ Work Log:
 - **PIÈGE 1 — 9 migrations en doublon** : deux générations coexistantes (`202610021508xx` recréant users/sessions/password_reset/specialties/appointments/sensibilisations + 3 enums, et `202610022327xx` recréant les mêmes objets) → `ERROR: relation "specialties" already exists (42P07)`. Les 9 fichiers de l'ancienne génération supprimés (`git rm`) ; **`create_enum_role` et `create_enum_zone` CONSERVÉS** : la nouvelle génération ne déclare pas `Role`/`Zone`, les supprimer aurait cassé `users.role`/`users.zone`/`appointments.zone`/`sensibilisations.zones[]`. La génération `2327xx` est la canonique (alignée `supabase/schema.prisma` : `birthDate`, `appointmentReminders`, `healthAlerts`, `reminderSentAt`).
 - **PIÈGE 2 — `DATABASE_URL` dupliquée** dans `.env` : `...:5432/postgres/postgres` → `FATAL: database "postgres/postgres" does not exist`. Corrigée (`.env.example` était bon). Bloquait Prisma comme la CLI.
 - **PIÈGE 3 — enum `Role` divergent** : la migration créait `NURSE`, les 26 occurrences de code + `schema.prisma` + ADR-004 + SPEC-AUTH comparaient `"INFIRMIER"`. Le PO tranche : **NURSE partout** → renommage sur 29 fichiers (valeur d'enum seulement ; prose française et mot de passe de fixture `TestInfirmier2026!` intacts). Conséquence du 1er reset non supervisé : la base contenait `NURSE` alors que le code attendait `INFIRMIER` — l'accès infirmier était cassé avant correction.
-- **Résultat** : 13 migrations + `seed.sql` appliqués sur `kxaralvrvlzaowwbsedo`, `prisma generate` relancé, `prisma migrate diff` → *empty migration* (zéro dérive), enums et 7 tables vérifiés en base, fixture NURSE créée via Prisma (`+2250755666777`).
+- **Résultat** : 13 migrations + `seed.sql` appliqués sur `kxaralvrvlzaowwbsedo`, `prisma generate` relancé, `prisma migrate diff` → _empty migration_ (zéro dérive), enums et 7 tables vérifiés en base, fixture NURSE créée via Prisma (`+2250755666777`).
 - **Demande PO — migrations 100 % Supabase** : `prisma migrate` / `prisma db push` retirés. `package.json` → `db:migration` (`supabase migration new`), `db:migrate-deploy` (`supabase db push --linked --include-all`), `db:reset`, `db:status`, `db:diff` ; `db:generate` (`prisma generate`) **gardé** = codegen, pas une migration. `migration_lock.toml` supprimé (artefact Prisma). `prisma.config.ts` réduit au chemin du schéma. `scripts/inspect-schema.ts` bascule de `_prisma_migrations` vers `supabase_migrations.schema_migrations` (vérifié en base).
 - **PIÈGE 4 — horloge en retard sur une migration** : `20261003130000_create_notifications_table.sql` est horodatée **13:00** alors que la machine est à 12:10 UTC → `supabase db push` refuse toute migration nouvelle (« Found local migration files to be inserted before the last migration on remote database ») et exige `--include-all`. Ajouté à `db:migrate-deploy` (documenté dans le README migrations) : sans ce flag le workflow est **inutilisable**. Contrepartie acceptée — une migration réellement désordonnée serait appliquée sans avertissement ; à lever quand l'horloge dépassera `20261003130000` ou via `.zscripts/migrate_realign.sh`. Testé : `db:migration` → SQL → `db:migrate-deploy` → table présente en base → nettoyage → `db:reset` (13 migrations).
 - **Chemin SQLite supprimé** (Supabase CLI ne parle pas SQLite, la prod est sur Postgres) : `.zscripts/database-runtime-build.sh` + `tests/database-runtime-build.sh` supprimés, appel retiré de `.zscripts/build.sh` ; `.zscripts/start.sh` n'exige plus `/app/db/custom.db` et **fail-fast sans `DATABASE_URL`** (préserve l'intention d'origine « ne pas démarrer sur une base vide »).
@@ -795,6 +837,7 @@ Agent: Super Z
 Task: "Je ne vois pas le systeme de token" — implémentation FEATURE-TOKENS (portefeuille 1 Token = 2 500 FCFA, cycle réservation → débit, recharges validées Médecin Chef) + ADR-007
 
 Work Log:
+
 - Périmètre calé sur le document fonctionnel PO : valeur 2 500 FCFA, recharge Wave/OM/MTN/Visa, « Médecin Chef autorise les recharges », remboursement annuel 24 décembre ; modèle « réservation → débit en fin de visite » retenu (recommandation du doc), tarifs par consultation PROVISOIRES (1 Token, exemple du doc — à valider PO, source unique PROVISIONAL_TARIFFS).
 - DB : modèle TokenTransaction (ledger append-only, enums TokenTransactionType/TokenTransactionStatus, index userId+createdAt / userId+type+status / appointmentId) + colonnes appointments.tokenState/tokensReserved intégrées à la migration de création (ADR-003) ; migration dédiée 20261003153000 ; application live via prisma db execute (scripts/tokens-live-apply.sql, idempotent) — db push reste bloqué par la dérive enum préexistante.
 - src/lib/token-schemas.ts (client-safe : TOKEN_VALUE_FCFA, presets recharge, plafond 500 000, PROVISIONAL_TARIFFS, rechargeRequestSchema/rechargeDecisionSchema, libellés fr) ; src/lib/tokens.ts (computeBalance SOURCE UNIQUE, reserveTokensForAppointment dans la tx sérialisable du RDV, consumeAppointmentTokens, releaseAppointmentTokens, requestRecharge, listRechargesForAdmin, decideRecharge avec garde updateMany anti double-crédit 409).
@@ -808,17 +851,20 @@ Work Log:
 - Régression croisée : e2e-sector-reminders.sh **37/37 PASS** ; lint 0 erreur ; tsc : uniquement erreurs préexistantes hors périmètre.
 
 Stage Summary:
+
 - Le système de Tokens demandé par le PO est VISIBLE et fonctionnel : solde dans le Profil, recharge déclarée (Wave/OM/MTN/Visa) validée par le Médecin Chef, coût affiché avant confirmation, réservation automatique à la demande de RDV, débit définitif en fin de visite (clôture Médecin Chef), libération intégrale à l'annulation.
 - L'anti-fraude est structurelle : ledger immuable, solde recalculé (computeBalance source unique), double confirmation de recharge sans effet, RDV atomique avec sa réservation.
 - Restent ouverts côté PO : grille tarifaire définitive (PROVISIONAL_TARIFFS = 1 Token, provisoire), ADR-005 Mobile Money (la confirmation automatique remplacera le clic Médecin Chef sans toucher au ledger), remboursement annuel du 24 décembre (type REFUND prêt, procédure dédiée à spécifier), dispatch équipe (frais après départ).
 - La base a été reprovisionnée par la plateforme en cours de run : réparée et désormais auto-réparée à chaque E2E (pré-flight). La dérive enum Role (NURSE) est corrigée en base ; la dérive SensibilisationCategory n'existe plus dans le snapshot restauré (ADVICE/ALERT conforme) — à confirmer au prochain db push.
 
 ---
+
 Task ID: 28
 Agent: Super Z
 Task: "faut que les tarifs soit configurable par le admin" — FEATURE-TOKENS : grille tarifaire pilotée par le Médecin Chef (ADR-007 §tarifs)
 
 Work Log:
+
 - Constat initial : le portefeuille Tokens (Task 27) fonctionne mais les tarifs sont codés en dur (`PROVISIONAL_TARIFFS` = 1 Token pour CABINET/DOMICILE, source `token-schemas.ts` consommée par le wizard et le POST RDV).
 - DB : table `tariff_configs` (migration dédiée `20261003154000_create_tariff_configs_table.sql` — nouvelle table, pas une colonne de table existante : règle ADR-003 respectée ; clé métier UNIQUE → prix Tokens, FK audit `updatedById` SetNull vers users, seeds idempotents CONSULTATION_CABINET/DOMICILE = 1 Token) ; application live via `scripts/tariffs-live-apply.sql` (idempotent, même approche que Tasks 23/24/27) + `prisma generate` ; modèle Prisma `TariffConfig` + relation `User.updatedTariffs` ; round-trip vérifié (`scripts/check-tariffs.ts` : structure, seeds, update + audit FK, restauration).
 - Design clé→valeur EXTENSIBLE SANS MIGRATION : une future ligne de grille (frais patient absent, majoration nuit/week-end, frais déplacement, suivi…) = un INSERT de clé + libellé — le PO n'a plus besoin d'un dev pour ajouter un poste.
@@ -834,17 +880,20 @@ Work Log:
 - Pièges consignés : `truncate` (nowrap) sur une description longue DÉBORDE en mobile même dans un li en grid (min-width:auto — utiliser line-clamp + min-w-0) ; MultiEdit n'est pas parfaitement atomique en pratique (vérifier le fichier après erreur) ; le re-login flaky d'un E2E se traite par re-séquence du scénario (réutiliser la session) plutôt que par retry aveugle.
 
 Stage Summary:
+
 - Le Médecin Chef fixe LUI-MÊME le prix en Tokens de chaque consultation depuis son dashboard (vue « Tarifs ») — la grille n'est plus figée dans le code : valeur par défaut provisionnelle (1 Token) éditable en production, garde-fous 0..100 Tokens, audit « qui a modifié quoi, quand ».
 - Invariant financier intact : le coût d'un RDV est figé à sa réservation (lecture du tarif DANS la transaction sérialisable) — changer un tarif ne vaut que pour les demandes à venir, les réservations engagées et le ledger ne bougent pas.
 - Design extensible sans migration (clé → Tokens) : la grille fine du PO (spécialités, nuit/week-end, patient absent, déplacement, suivi) s'ajoutera par INSERT de clés — reste à la définir.
 - Bonus robustesse : timeout transaction RDV 5→15 s (500 « Transaction not found » éradiqué) ; débordement mobile de la nouvelle vue corrigé (line-clamp-2).
 
 ---
+
 Task ID: 29
 Agent: Super Z
 Task: « Impossible de contacter le serveur » à la connexion (et autres) — diagnostic + corrections cookie/boot
 
 Work Log:
+
 - Constat : le serveur Next était ARRÊTÉ au moment des essais du patient (relancé à 13:35 UTC, message d'erreur vers 13:49) ; le message affiché est le `catch` de `fetch()` (NETWORK_ERROR, défini dans use-auth.ts + 11 composants) — il ne vient JAMAIS d'une réponse API.
 - Deuxième cause RÉELLE trouvée dans dev.log : après le `POST /api/auth/register 201` du patient via l'aperçu, TOUS les appels suivants étaient 401 (appointments/sensibilisations/notifications/wallet) → le cookie `SameSite=Lax` n'est jamais renvoyé quand l'aperçu est intégré en iframe cross-site (cookies tiers bloqués / non inclus en sous-ressource).
 - Fix cookie (src/lib/auth.ts) : `sessionCookieOptions()` — localhost (E2E curl/playwright) conserve `SameSite=Lax; secure:false` (zéro régression, vérifié : Set-Cookie Lax + login/me 200) ; tout autre host (proxy aperçu/production) passe en `SameSite=None; Secure; Partitioned` (CHIPS) — vérifié via le proxy : Set-Cookie conforme, puis me/wallet/appointments/notifications 200 et logout 200→401. Cloison anti-CSRF conservée via Partitioned. destroySession réutilise les mêmes attributs (écrasement garanti).
@@ -855,16 +904,19 @@ Work Log:
 - Tests : login/me/wallet/appointments/notifications via proxy aperçu = 200 ; E2E localhost inchangé (Lax) ; eslint 0 erreur sur auth.ts et next.config.ts.
 
 Stage Summary:
+
 - Le patient peut se connecter depuis l'aperçu même intégré en iframe : le cookie de session survit (CHIPS) — les 401 en rafale après inscription disparaissent.
 - Aucun boot futur ne peut redémarrer le serveur avec la mauvaise base : les trois chemins (boot conteneur, `bun run dev` manuel, lazy) forcent le DATABASE_URL Supabase.
 - Le message « Impossible de contacter le serveur » reste le symptôme d'un serveur arrêté (plateforme) : la réponse utilisateur est de recharger — le serveur relance sainement.
 
 ---
+
 Task ID: 30
 Agent: Super Z
 Task: « je veux exactement ce meme design pour accueil » — refonte UI accueil patient selon maquette PO (v2)
 
 Work Log:
+
 - Maquette fournie (upload/pasted_image_1791040997458.png, mobile 390 px) : en-tête « Mon doc »+badge PRO+« Réseau Abidjan », barre zone+date, salutation sans carte, carte héros bleue « État consultations », raccourci Mes rendez-vous, section « Campagnes de santé » multi-cartes (alerte orange + campagne verte, boutons Écouter TTS colorés), PAS de section épargne.
 - `user-dashboard.tsx` (en-tête patient) : tuile verte « M » (gradient success→emerald) + « Mon doc » + badge PRO vert, sous-titre point vert + « Réseau Abidjan », bouton Actualiser retiré de la barre (fidélité maquette — le refresh reste disponible via les vues), avatar + pastille « en ligne » verte (ring-card). Imports Image/RefreshCw nettoyés.
 - `patient-home.tsx` restructuré : barre zone/date (pill MapPin « Yopougon, Abidjan » + `formatHeaderDate()`), salutation (h2 + prénom + 👋, chip zone droite, tagline sans carte), héros avec nouvelle prop `onRecharge` (→ tab profil où vit le wallet Tokens réel), suppression de la section « Épargne Santé MonDoc — Bientôt » (obsolète depuis FEATURE-TOKENS Task 27 et absente de la maquette), props `onOpenAllArticles` retirées (la liste complète reste accessible via l'onglet Campagnes de la nav basse).
@@ -876,5 +928,6 @@ Work Log:
 - eslint 0 erreur sur les 5 fichiers ; dev.log sans erreur runtime.
 
 Stage Summary:
+
 - L'accueil patient est pixel-fidèle à la nouvelle maquette PO sur mobile et desktop, avec les vraies données (RDV, campagnes, zone, TTS navigateur) et la recharge branchée sur le portefeuille Tokens réel — la fausse section épargne disparaît.
 - Boot éphémère `scripts/dev-boot.sh` disponible pour toute vérification navigateur future (relance serveur auto en début de commande).

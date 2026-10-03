@@ -68,7 +68,6 @@ import {
 import { formatDateUTC, relativePublishedLabel } from "@/lib/datetime";
 import { formatPhoneDisplay } from "@/lib/phone";
 import { getInitials } from "@/lib/utils";
-import { WalletSection } from "@/components/patient/wallet-section";
 
 type Props = {
   user: AppUser;
@@ -465,11 +464,6 @@ export function ProfileView({ user, onLogout }: Props) {
           />
         </div>
       </section>
-
-      {/* Portefeuille de Tokens — FEATURE-TOKENS (ADR-007), patients seuls :
-          solde + réservations + recharges (paiement validé par le Médecin
-          Chef tant que la décision Mobile Money ADR-005 est ouverte). */}
-      {user.role === "PATIENT" && <WalletSection />}
 
       {/* Sécurité & Accès */}
       <section aria-labelledby="profil-securite">
