@@ -8,6 +8,7 @@
 // mouvements du ledger. Le paiement en ligne automatique reste « à venir »
 // tant que la décision Mobile Money (ADR-005) est ouverte — copie honnête.
 import { useCallback, useEffect, useState } from "react";
+import Image from "next/image";
 import {
   CircleAlert,
   Coins,
@@ -33,6 +34,7 @@ import {
   TOKEN_TYPE_LABELS,
   TOKEN_VALUE_FCFA,
   tokensToFcfa,
+  type PaymentMethod,
 } from "@/lib/token-schemas";
 import { relativePublishedLabel } from "@/lib/datetime";
 
@@ -61,6 +63,8 @@ export function WalletSection() {
   const [loadError, setLoadError] = useState(false);
   const [rechargeOpen, setRechargeOpen] = useState(false);
   const [selectedFcfa, setSelectedFcfa] = useState<number | null>(null);
+  const [selectedPaymentMethod, setSelectedPaymentMethod] =
+    useState<PaymentMethod | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   const loadWallet = useCallback(async () => {
@@ -79,13 +83,16 @@ export function WalletSection() {
   }, [loadWallet]);
 
   async function handleRecharge() {
-    if (selectedFcfa === null) return;
+    if (selectedFcfa === null || selectedPaymentMethod === null) return;
     setSubmitting(true);
     try {
       const res = await fetch("/api/wallet/recharges", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ amountFcfa: selectedFcfa }),
+        body: JSON.stringify({
+          amountFcfa: selectedFcfa,
+          paymentMethod: selectedPaymentMethod,
+        }),
       });
       if (res.status === 201) {
         const tokens = selectedFcfa / TOKEN_VALUE_FCFA;
@@ -95,6 +102,7 @@ export function WalletSection() {
         });
         setRechargeOpen(false);
         setSelectedFcfa(null);
+        setSelectedPaymentMethod(null);
         await loadWallet();
         return;
       }
@@ -179,8 +187,9 @@ export function WalletSection() {
               </div>
               <Button
                 onClick={() => {
-                  setSelectedFcfa(null);
-                  setRechargeOpen(true);
+                   setSelectedFcfa(null);
+                   setSelectedPaymentMethod(null);
+                   setRechargeOpen(true);
                 }}
                 className="h-10 gap-1.5 rounded-xl bg-card text-sm font-bold text-primary shadow-sm hover:bg-card/90"
               >
@@ -263,7 +272,7 @@ export function WalletSection() {
             <DialogTitle>Recharger mon portefeuille</DialogTitle>
             <DialogDescription>
               1 Token = {TOKEN_VALUE_FCFA.toLocaleString("fr-FR")} FCFA.
-              Payez via Wave, Orange Money, MTN Mobile Money ou carte Visa —
+              Choisissez votre moyen de paiement local puis indiquez le montant —
               vos Tokens sont crédités après rapprochement du paiement par le
               Médecin Chef.
             </DialogDescription>
@@ -299,6 +308,46 @@ export function WalletSection() {
               );
             })}
           </div>
+          <div className="space-y-2.5">
+            <p className="text-sm font-semibold">Moyen de paiement</p>
+            <div
+              role="radiogroup"
+              aria-label="Choisir le moyen de paiement"
+              className="grid grid-cols-2 gap-2"
+            >
+              {[
+                ["WAVE", "Wave", "/img/operator/wave-logo.png"],
+                ["ORANGE_MONEY", "Orange Money", "/img/operator/orange-money-logo.webp"],
+                ["MTN_MOMO", "MTN Mobile Money", "/img/operator/mtn-momo-logo.webp"],
+                ["MOOV_MONEY", "Moov Money", "/img/operator/moov-money-logo.webp"],
+              ].map(([value, label, logo]) => {
+                const selected = selectedPaymentMethod === value;
+                return (
+                  <button
+                    key={value}
+                    type="button"
+                    role="radio"
+                    aria-checked={selected}
+                    onClick={() => setSelectedPaymentMethod(value as PaymentMethod)}
+                    className={`flex min-h-16 items-center gap-2 rounded-xl border px-3 py-2 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                      selected
+                        ? "border-primary bg-primary/5 ring-1 ring-primary"
+                        : "hover:border-primary/40 hover:bg-muted/40"
+                    }`}
+                  >
+                    <Image
+                      src={logo}
+                      alt=""
+                      width={40}
+                      height={40}
+                      className="size-9 rounded-lg object-contain"
+                    />
+                    <span className="text-xs font-semibold">{label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
           <p className="text-xs leading-relaxed text-muted-foreground">
             Le paiement en ligne automatique (débit direct et crédit immédiat)
             arrive dès le choix du prestataire Mobile Money — en attendant,
@@ -315,7 +364,7 @@ export function WalletSection() {
             </Button>
             <Button
               onClick={() => void handleRecharge()}
-              disabled={selectedFcfa === null || submitting}
+              disabled={selectedFcfa === null || selectedPaymentMethod === null || submitting}
               className="gap-2"
             >
               {submitting ? (

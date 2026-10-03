@@ -61,6 +61,19 @@ export function HealthAlertCard({
       aria-label={isAlert ? "Alerte santé" : "Conseil santé"}
       className="rounded-2xl border bg-card p-5 shadow-sm sm:p-6"
     >
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <div>
+          <h2 className="text-base font-bold">Campagnes de santé</h2>
+          <p className="text-xs text-muted-foreground">
+            Alertes et audio-conseils {ZONE_LABELS[zone]}
+          </p>
+        </div>
+        {feed && feed.length > 0 && (
+          <span className="rounded-full bg-primary/10 px-2.5 py-1 text-[10px] font-bold text-primary">
+            {Math.min(feed.length, 2)} ACTIVE{Math.min(feed.length, 2) > 1 ? "S" : ""}
+          </span>
+        )}
+      </div>
       <div className="flex items-center justify-between gap-3">
         <span
           className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${

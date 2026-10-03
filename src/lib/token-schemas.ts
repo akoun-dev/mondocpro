@@ -98,6 +98,20 @@ export function fcfaToTokens(fcfa: number): number {
 
 // ——— Contrats API ———
 
+export const PAYMENT_METHODS = [
+  "WAVE",
+  "ORANGE_MONEY",
+  "MTN_MOMO",
+  "MOOV_MONEY",
+] as const;
+export type PaymentMethod = (typeof PAYMENT_METHODS)[number];
+export const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
+  WAVE: "Wave",
+  ORANGE_MONEY: "Orange Money",
+  MTN_MOMO: "MTN Mobile Money",
+  MOOV_MONEY: "Moov Money",
+};
+
 // POST /api/wallet/recharges — le patient déclare une recharge.
 export const rechargeRequestSchema = z.object({
   amountFcfa: z
@@ -109,6 +123,7 @@ export const rechargeRequestSchema = z.object({
       value => value % TOKEN_VALUE_FCFA === 0,
       `Le montant doit être un multiple de ${TOKEN_VALUE_FCFA.toLocaleString("fr-FR")} FCFA (1 Token)`,
     ),
+  paymentMethod: z.enum(PAYMENT_METHODS).default("WAVE"),
 });
 export type RechargeRequestInput = z.infer<typeof rechargeRequestSchema>;
 

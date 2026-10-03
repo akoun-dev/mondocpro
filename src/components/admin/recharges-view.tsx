@@ -26,6 +26,7 @@ import {
   TOKEN_VALUE_FCFA,
 } from "@/lib/token-schemas";
 import { relativePublishedLabel } from "@/lib/datetime";
+import { PAYMENT_METHOD_LABELS, type PaymentMethod } from "@/lib/token-schemas";
 
 type Props = { onBack: () => void };
 
@@ -60,6 +61,11 @@ function RechargeRow({
           <p className="text-xs text-muted-foreground">
             {recharge.tokens} Token{recharge.tokens > 1 ? "s" : ""}
           </p>
+          {recharge.providerRef && (
+            <p className="text-xs font-medium text-primary">
+              {PAYMENT_METHOD_LABELS[recharge.providerRef as PaymentMethod] ?? recharge.providerRef}
+            </p>
+          )}
         </div>
       </div>
       {onDecide && (

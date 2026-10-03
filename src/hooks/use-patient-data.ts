@@ -7,10 +7,14 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { AppointmentDto } from "@/lib/appointments";
 import type { SensibilisationDto } from "@/lib/sensibilisations";
+import type { WalletDto } from "@/lib/tokens";
 
 export type PatientData = {
   appointments: AppointmentDto[] | null;
   sensibilisations: SensibilisationDto[] | null;
+  wallet: WalletDto | null;
+  walletLoading: boolean;
+  walletError: boolean;
   loading: boolean;
   refreshing: boolean;
   error: string | null;
@@ -43,11 +47,29 @@ export function usePatientData(enabled: boolean): PatientData {
   const [sensibilisations, setSensibilisations] = useState<
     SensibilisationDto[] | null
   >(null);
+  const [wallet, setWallet] = useState<WalletDto | null>(null);
+  const [walletLoading, setWalletLoading] = useState(enabled);
+  const [walletError, setWalletError] = useState(false);
   const [loading, setLoading] = useState(enabled);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [stale, setStale] = useState(false);
   const mounted = useRef(true);
+
+  const loadWallet = useCallback(async () => {
+    setWalletLoading(true);
+    try {
+      const result = await fetchJson<WalletDto>("/api/wallet");
+      if (!mounted.current) return;
+      setWallet(result);
+      setWalletError(false);
+    } catch {
+      if (!mounted.current) return;
+      setWalletError(true);
+    } finally {
+      if (mounted.current) setWalletLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     mounted.current = true;
@@ -90,11 +112,20 @@ export function usePatientData(enabled: boolean): PatientData {
     if (enabled) void load("initial");
   }, [enabled, load]);
 
-  const refresh = useCallback(() => load("refresh"), [load]);
+  useEffect(() => {
+    if (enabled) void loadWallet();
+  }, [enabled, loadWallet]);
+
+  const refresh = useCallback(async () => {
+    await Promise.all([load("refresh"), loadWallet()]);
+  }, [load, loadWallet]);
 
   return {
     appointments,
     sensibilisations,
+    wallet,
+    walletLoading,
+    walletError,
     loading,
     refreshing,
     error,

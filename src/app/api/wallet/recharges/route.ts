@@ -44,6 +44,7 @@ export async function POST(request: Request) {
     const recharge = await requestRecharge(
       guard.user.id,
       parsed.data.amountFcfa,
+      parsed.data.paymentMethod,
     );
     return NextResponse.json({ recharge }, { status: 201 });
   } catch (e) {

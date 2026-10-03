@@ -17,7 +17,8 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { AppointmentDto } from "@/lib/appointments";
 import { ZONE_LABELS } from "@/lib/auth-schemas";
-import { appointmentRef, relativeSlotLabel } from "@/lib/datetime";
+import { appointmentRef, formatWelcomeDate, relativeSlotLabel } from "@/lib/datetime";
+import type { AppZone } from "@/stores/auth-store";
 import { APPOINTMENT_TYPE_LABELS, AppointmentStatusBadge } from "./shared";
 
 type Props = {
@@ -25,6 +26,8 @@ type Props = {
   loading: boolean;
   onOpenDetail: (appointment: AppointmentDto) => void;
   onBook: () => void;
+  firstName: string;
+  zone: AppZone;
 };
 
 // Prochain RDV actif : PENDING/CONFIRMED à venir (marge 1 min pour les RDV
@@ -51,6 +54,8 @@ export function NextAppointmentCard({
   loading,
   onOpenDetail,
   onBook,
+  firstName,
+  zone,
 }: Props) {
   if (loading && appointments === null) {
     return <Skeleton className="h-[248px] rounded-2xl" aria-hidden="true" />;
@@ -70,6 +75,18 @@ export function NextAppointmentCard({
       <div aria-hidden="true" className="pointer-events-none absolute inset-0">
         <div className="absolute -right-14 -top-14 size-40 rounded-full bg-white/10 blur-xl" />
         <div className="absolute -bottom-16 -left-8 size-44 rounded-full bg-white/[0.07] blur-xl" />
+      </div>
+
+      <div className="relative mb-5 flex items-start justify-between gap-3">
+        <div>
+          <p className="text-xl font-bold tracking-tight">Bonjour, {firstName} 👋</p>
+          <p className="mt-1 text-[11px] text-white/70" suppressHydrationWarning>
+            {formatWelcomeDate()}
+          </p>
+        </div>
+        <span className="rounded-full bg-white/15 px-2.5 py-1 text-[10px] font-semibold ring-1 ring-white/20">
+          {ZONE_LABELS[zone]}
+        </span>
       </div>
 
       {next ? (
@@ -128,8 +145,16 @@ export function NextAppointmentCard({
           </div>
         </div>
       ) : (
-        <div className="relative flex flex-col items-center gap-3 py-4 text-center">
-          <span className="flex size-12 items-center justify-center rounded-2xl bg-white/15 ring-1 ring-white/25">
+          <div className="relative flex flex-col items-center gap-3 py-2 text-center">
+            <div className="flex w-full items-center justify-between text-[11px] font-semibold text-white/75">
+              <span className="rounded-full bg-white/15 px-2.5 py-1 ring-1 ring-white/20">
+                Statut consultations
+              </span>
+              <span className="rounded-full bg-success px-2.5 py-1 text-success-foreground">
+                Dispo immédiate
+              </span>
+            </div>
+            <span className="flex size-12 items-center justify-center rounded-2xl bg-white/15 ring-1 ring-white/25">
             <CalendarX2 className="size-6" aria-hidden="true" />
           </span>
           <div>

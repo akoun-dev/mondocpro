@@ -18,6 +18,7 @@ import {
   type TariffDto,
   type TariffKey,
 } from "@/lib/token-schemas";
+import type { PaymentMethod } from "@/lib/token-schemas";
 
 export class TokenError extends Error {
   constructor(
@@ -127,6 +128,7 @@ export type WalletTransactionDto = {
   status: TokenTransaction["status"];
   tokens: number;
   amountFcfa: number | null;
+  providerRef: string | null;
   note: string | null;
   createdAt: string;
 };
@@ -153,6 +155,7 @@ function toTransactionDto(row: TokenTransaction): WalletTransactionDto {
     status: row.status,
     tokens: row.tokens,
     amountFcfa: row.amountFcfa,
+    providerRef: row.providerRef,
     note: row.note,
     createdAt: row.createdAt.toISOString(),
   };
@@ -365,6 +368,7 @@ export async function releaseAppointmentTokens(
 export async function requestRecharge(
   userId: string,
   amountFcfa: number,
+  paymentMethod: PaymentMethod = "WAVE",
 ): Promise<RechargeDto> {
   const tokens = fcfaToTokens(amountFcfa);
   if (!Number.isInteger(tokens) || tokens <= 0) {
@@ -380,6 +384,7 @@ export async function requestRecharge(
       status: "PENDING",
       tokens,
       amountFcfa,
+      providerRef: paymentMethod,
       note: "Recharge déclarée — paiement à rapprocher par le Médecin Chef",
     },
   });
