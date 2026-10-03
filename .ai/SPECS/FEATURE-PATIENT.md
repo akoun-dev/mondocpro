@@ -48,7 +48,7 @@ manuel). Ce document fixe le périmètre fonctionnel et les **arbitrages MVP** r
 | A5 | Confirmateur | Personne (statut PENDING jusqu'à phase 2) | Qui confirme : NURSE, ADMIN ou auto |
 | A6 | Fuseau | Afrique/Abidjan = UTC+0 sans heure d'été : l'heure locale **est** l'heure UTC (date+heure saisis séparés, combinés côté serveur) | — (constant) |
 | A7 | SENSO rédaction | Seed éditorial versionné | Compte(s) rédacteur(s), workflow de publication |
-| A8 | Valeur jeton | **Tranché** — 1 Token = 2 500 FCFA (doc fonctionnel PO) ; portefeuille implémenté (Task 26, **ADR-007**) — tarifs par type de consultation PROVISOIRES à valider PO | FEATURE-TOKENS (wallet, réservation/débit, recharges) |
+| A8 | Valeur jeton | **Tranché** — 1 Token = 2 500 FCFA (doc fonctionnel PO) ; portefeuille implémenté (Task 26, **ADR-007**) — grille tarifaire **configurable par le Médecin Chef** (Task 28 : table `tariff_configs` + vue « Tarifs », garde-fou 0..100 Tokens, audit) — valeurs par défaut provisionnelles à valider PO | FEATURE-TOKENS (wallet, réservation/débit, recharges) |
 | A9 | Paiement | **Non arbitré** — ADR-005 à ouvrir ; en attendant : recharge déclarée → rapprochement manuel Médecin Chef (ADR-007 §recharges, garde anti double-crédit) | Fournisseur Mobile Money (Wave/Orange/MTN) |
 | A10 | SMS | **Non arbitré** — comparatif + pilote préparés par **ADR-006** (InApp actif Task 24, SMS en stub) | Passerelle (rappels RDV, codes OTP) |
 

@@ -41,7 +41,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/hooks/use-toast";
 import type { AppointmentDto, SpecialtyDto } from "@/lib/appointments";
-import type { AppointmentTypeValue } from "@/lib/appointment-schemas";
+import {
+  APPOINTMENT_TYPES,
+  type AppointmentTypeValue,
+} from "@/lib/appointment-schemas";
 import { ZONES, ZONE_LABELS } from "@/lib/auth-schemas";
 import { formatCardSlotUTC } from "@/lib/datetime";
 import {
@@ -53,8 +56,9 @@ import {
 import type { AppZone } from "@/stores/auth-store";
 import type { WalletDto } from "@/lib/tokens";
 import {
-  PROVISIONAL_TARIFFS,
+  DEFAULT_TARIFFS,
   tokensToFcfa,
+  type TariffDto,
 } from "@/lib/token-schemas";
 
 type Props = {
@@ -120,15 +124,22 @@ export function BookAppointmentDialog({ open, onClose, onBooked, zone }: Props) 
   // afficher le coût + le solde restant AVANT confirmation (contrat
   // fonctionnel §cycle financier — vérification du solde côté écran).
   const [wallet, setWallet] = useState<WalletDto | null>(null);
+  // Grille tarifaire EN VIGUEUR (configurable par le Médecin Chef,
+  // table tariff_configs) : chargée à l'ouverture — null = en chargement.
+  // En cas d'échec réseau : fallback sur les tarifs par défaut (le serveur
+  // revalide de toute façon le tarif réel dans la transaction de réservation).
+  const [tariffs, setTariffs] = useState<Record<AppointmentTypeValue, number> | null>(null);
 
   const days = useMemo(() => listBookableDays(new Date()), [open]);
   const slots = useMemo(() => listDaySlots(), []);
 
-  // Portefeuille — rechargé à chaque ouverture (le solde peut avoir changé).
+  // Portefeuille + grille tarifaire — rechargés à chaque ouverture (le solde
+  // comme les tarifs peuvent avoir changé depuis la dernière visite).
   useEffect(() => {
     if (!open) return;
     let cancelled = false;
     setWallet(null);
+    setTariffs(null);
     fetch("/api/wallet")
       .then(async res => {
         if (!res.ok) throw new Error();
@@ -137,6 +148,25 @@ export function BookAppointmentDialog({ open, onClose, onBooked, zone }: Props) 
       })
       .catch(() => {
         // Silencieux : le serveur revalide de toute façon à la soumission.
+      });
+    fetch("/api/tariffs")
+      .then(async res => {
+        if (!res.ok) throw new Error();
+        const body = (await res.json()) as { tariffs: TariffDto[] };
+        // Détariffage : clé métier CONSULTATION_{TYPE} → coût du type.
+        const map = Object.fromEntries(
+          APPOINTMENT_TYPES.map(type => [type, DEFAULT_TARIFFS[type]]),
+        ) as Record<AppointmentTypeValue, number>;
+        for (const tariff of body.tariffs) {
+          for (const type of APPOINTMENT_TYPES) {
+            if (tariff.key === `CONSULTATION_${type}`) map[type] = tariff.tokens;
+          }
+        }
+        if (!cancelled) setTariffs(map);
+      })
+      .catch(() => {
+        // Fallback honnête : les tarifs par défaut (provisionnels ADR-007).
+        if (!cancelled) setTariffs({ ...DEFAULT_TARIFFS });
       });
     return () => {
       cancelled = true;
@@ -181,13 +211,16 @@ export function BookAppointmentDialog({ open, onClose, onBooked, zone }: Props) 
 
   const selectedSpecialty = specialties?.find(s => s.id === specialtyId) ?? null;
 
-  // FEATURE-TOKENS : coût de la consultation selon le type choisi (tarif
-  // provisionnel ADR-007 — source unique token-schemas.ts) et suffisance
-  // du solde (contrôle écran ; le serveur revalide dans la transaction).
-  const costTokens = PROVISIONAL_TARIFFS[type];
-  const costFcfa = tokensToFcfa(costTokens);
+  // FEATURE-TOKENS : coût de la consultation selon le type choisi, lu dans la
+  // grille tarifaire EN VIGUEUR (configurable par le Médecin Chef) chargée à
+  // l'ouverture — null pendant le chargement (affiché « — », comme le solde).
+  // La suffisance du solde est un contrôle écran : le serveur revalide le
+  // tarif réel dans la transaction de réservation.
+  const costTokens = tariffs ? tariffs[type] : null;
+  const costFcfa = costTokens !== null ? tokensToFcfa(costTokens) : null;
   const balanceTokens = wallet?.balanceTokens ?? null;
-  const hasBalance = balanceTokens === null || balanceTokens >= costTokens;
+  const hasBalance =
+    costTokens === null || balanceTokens === null || balanceTokens >= costTokens;
 
   // Peut-on avancer à l'étape suivante depuis l'étape courante ?
   const canContinue =
@@ -618,11 +651,15 @@ export function BookAppointmentDialog({ open, onClose, onBooked, zone }: Props) 
                     </span>
                   </li>
                   {/* FEATURE-TOKENS (ADR-007) — coût + solde restant affichés
-                      AVANT confirmation (contrat fonctionnel §cycle). */}
+                      AVANT confirmation (contrat fonctionnel §cycle). Coût
+                      issu de la grille tarifaire EN VIGUEUR (configurable
+                      Médecin Chef) — « — » pendant le chargement. */}
                   <li className="flex items-center justify-between gap-3">
                     <span className="text-muted-foreground">Coût</span>
                     <span className="font-semibold">
-                      {costTokens} Token{costTokens > 1 ? "s" : ""} · {costFcfa.toLocaleString("fr-FR")} FCFA
+                      {costTokens === null
+                        ? "—"
+                        : `${costTokens} Token${costTokens > 1 ? "s" : ""} · ${costFcfa?.toLocaleString("fr-FR")} FCFA`}
                     </span>
                   </li>
                   <li className="flex items-center justify-between gap-3">
@@ -630,7 +667,7 @@ export function BookAppointmentDialog({ open, onClose, onBooked, zone }: Props) 
                     <span
                       className={`font-semibold ${balanceTokens !== null && !hasBalance ? "text-destructive" : ""}`}
                     >
-                      {balanceTokens === null
+                      {balanceTokens === null || costTokens === null
                         ? "—"
                         : `${balanceTokens - costTokens} Token${balanceTokens - costTokens > 1 ? "s" : ""}`}
                     </span>
@@ -640,7 +677,7 @@ export function BookAppointmentDialog({ open, onClose, onBooked, zone }: Props) 
             </div>
           )}
           {/* Étape 4 · Solde insuffisant — blocage explicite AVANT envoi */}
-          {step === 3 && !hasBalance && (
+          {step === 3 && !hasBalance && costTokens !== null && (
             <p
               role="alert"
               className="rounded-xl border border-destructive/30 bg-destructive/5 p-3 text-xs font-medium text-destructive"
@@ -696,7 +733,7 @@ export function BookAppointmentDialog({ open, onClose, onBooked, zone }: Props) 
               </Button>
             )}
           </div>
-          {step === 3 && (
+          {step === 3 && costTokens !== null && (
             <p className="text-center text-xs text-muted-foreground">
               {costTokens} Token{costTokens > 1 ? "s" : ""} seront réservés sur
               votre portefeuille et débités définitivement après la visite —

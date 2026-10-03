@@ -46,6 +46,7 @@ model User {
   appointments        Appointment[]
   notifications       Notification[]
   tokenTransactions   TokenTransaction[]
+  updatedTariffs      TariffConfig[]
 
   @@map("users")
 }
@@ -267,4 +268,26 @@ model Notification {
   @@unique([userId, type, entityId])
   @@index([userId, createdAt])
   @@map("notifications")
+}
+
+// ——— FEATURE-TOKENS (ADR-007) — Grille tarifaire configurable par l'ADMIN ———
+// Une ligne par poste tarifaire (clé métier → prix en Tokens). Le Médecin
+// Chef édite les prix depuis son dashboard ; le coût d'un RDV est FIGÉ à la
+// création (appointments.tokensReserved) : modifier un tarif ne vaut que
+// pour les demandes à venir. Design extensible — une future ligne (frais
+// patient absent, majoration nuit/week-end…) = un INSERT, sans migration.
+// Clés v1 : CONSULTATION_CABINET · CONSULTATION_DOMICILE (libellés FR et
+// garde-fous 0..100 Tokens : src/lib/token-schemas.ts, source unique).
+model TariffConfig {
+  id          String   @id @default(cuid())
+  key         String   @unique @db.VarChar(60)
+  tokens      Int
+  // Dernier ADMIN ayant modifié ce tarif (audit) — SetNull : la ligne
+  // survit à une suppression éventuelle du compte.
+  updatedById String?
+  updatedBy   User?    @relation(fields: [updatedById], references: [id], onDelete: SetNull)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("tariff_configs")
 }

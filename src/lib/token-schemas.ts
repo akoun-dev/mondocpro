@@ -14,16 +14,77 @@ export const RECHARGE_PRESETS_FCFA = [2500, 5000, 10000, 25000] as const;
 // Plafond anti-fraude MVP d'une recharge déclarée (200 Tokens).
 export const RECHARGE_MAX_FCFA = 500_000;
 
-// ——— Tarifs PROVISONNELS (ADR-007 §tarifs — décision PO ouverte) ———
-// Le document de présentation fixe la valeur du Token mais PAS la grille
-// tarifaire (« À définir — à valider par le porteur du projet »). En attendant
-// cet arbitrage, l'exemple du document (consultation à domicile = 1 Token)
-// est retenu comme tarif de travail pour les DEUX types de consultation.
-// → Toute évolution se fait ICI (source unique front/back).
-export const PROVISIONAL_TARIFFS: Record<AppointmentTypeValue, number> = {
+// ——— Grille tarifaire (FEATURE-TOKENS, ADR-007) — CONFIGURABLE PAR L'ADMIN ———
+// Depuis la demande PO 2026-10-03, les tarifs ne sont plus codés en dur :
+// ils vivent en base (table tariff_configs, une ligne par poste) et sont
+// édités par le Médecin Chef depuis son dashboard (vue « Tarifs »).
+// Cette constante ne sert PLUS que de :
+//   1. source des seeds initiaux (migration + live-apply + ensureTariffConfigs),
+//   2. FALLBACK de lecture si une ligne manque en base (auto-réparation).
+// Coût d'un RDV = tarif lu en base au moment de la demande, FIGÉ ensuite dans
+// appointments.tokensReserved : changer un tarif ne vaut que pour les
+// demandes à venir, jamais pour les réservations engagées.
+export const DEFAULT_TARIFFS: Record<AppointmentTypeValue, number> = {
   CABINET: 1,
   DOMICILE: 1,
 };
+
+// Clés métier de la grille v1 (une clé = une ligne tariff_configs). Une
+// évolution (frais patient absent, majoration nuit/week-end…) = un INSERT
+// de clé en base, SANS migration — le design est déjà prévu pour.
+export const TARIFF_KEYS = [
+  "CONSULTATION_CABINET",
+  "CONSULTATION_DOMICILE",
+] as const;
+export type TariffKey = (typeof TARIFF_KEYS)[number];
+
+// Clé métier d'un poste tarifaire de consultation.
+export function tariffKeyForType(type: AppointmentTypeValue): TariffKey {
+  return `CONSULTATION_${type}` as TariffKey;
+}
+
+// Libellés FR affichés au Médecin Chef (vue Tarifs) et dérivables des
+// réponses API — source unique ici (client-safe).
+export const TARIFF_LABELS: Record<TariffKey, string> = {
+  CONSULTATION_CABINET: "Consultation au cabinet",
+  CONSULTATION_DOMICILE: "Consultation à domicile",
+};
+
+// Descriptions d'aide à la décision (vue Tarifs).
+export const TARIFF_DESCRIPTIONS: Record<TariffKey, string> = {
+  CONSULTATION_CABINET:
+    "Consultation au centre de santé de la zone — appliqué à toutes les spécialités",
+  CONSULTATION_DOMICILE:
+    "Un soignant se déplace au domicile du patient",
+};
+
+// Garde-fou anti-erreur de saisie : un tarif v1 reste dans 0..100 Tokens
+// (0 = consultation gratuite, choix explicite de l'ADMIN ; 100 = 250 000 FCFA).
+export const TARIFF_MAX_TOKENS = 100;
+
+// DTO d'une ligne de la grille (GET /api/tariffs, GET /api/admin/tariffs,
+// PATCH /api/admin/tariffs/:key).
+export type TariffDto = {
+  key: TariffKey;
+  label: string;
+  description: string;
+  tokens: number;
+  updatedAt: string;
+  updatedByName: string | null;
+};
+
+// PATCH /api/admin/tariffs/:key — nouveau prix en Tokens d'un poste.
+export const tariffUpdateSchema = z.object({
+  tokens: z
+    .number({ message: "Prix invalide" })
+    .int("Le prix doit être un nombre entier de Tokens")
+    .min(0, "Le prix ne peut pas être négatif")
+    .max(
+      TARIFF_MAX_TOKENS,
+      `Le prix ne peut pas dépasser ${TARIFF_MAX_TOKENS} Tokens`,
+    ),
+});
+export type TariffUpdateInput = z.infer<typeof tariffUpdateSchema>;
 
 export function tokensToFcfa(tokens: number): number {
   return tokens * TOKEN_VALUE_FCFA;

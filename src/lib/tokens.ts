@@ -6,11 +6,17 @@
 // updateMany — une double confirmation reste sans effet).
 import { db } from "@/lib/db";
 import { Prisma, type TokenTransaction } from "@prisma/client";
+import type { AppointmentTypeValue } from "@/lib/appointment-schemas";
 import {
-  PROVISIONAL_TARIFFS,
+  DEFAULT_TARIFFS,
+  TARIFF_DESCRIPTIONS,
+  TARIFF_LABELS,
   TOKEN_VALUE_FCFA,
   fcfaToTokens,
+  tariffKeyForType,
   tokensToFcfa,
+  type TariffDto,
+  type TariffKey,
 } from "@/lib/token-schemas";
 
 export class TokenError extends Error {
@@ -30,10 +36,87 @@ export class TokenError extends Error {
 // computeBalance pour la formule exacte, source unique.
 const BALANCE_CREDITING_TYPES = ["RECHARGE", "REFUND"] as const;
 
-// Coût en Tokens d'un RDV selon le type de consultation (tarif provisionnel —
-// ADR-007 §tarifs, décision PO ouverte). Source unique : token-schemas.ts.
-export function appointmentCostTokens(type: keyof typeof PROVISIONAL_TARIFFS): number {
-  return PROVISIONAL_TARIFFS[type];
+// ——— Grille tarifaire configurable par l'ADMIN (demande PO 2026-10-03) ———
+
+// Tarif en vigueur pour un type de consultation : ligne lue en base
+// (table tariff_configs, éditée par le Médecin Chef), FALLBACK sur le
+// défaut provisionnel si la ligne manque (auto-réparation — ex: base
+// reprovisionnée avant re-run du pré-flight).
+// À appeler avec le client de transaction pour figer le tarif dans le même
+// snapshot sérialisable que la réservation du RDV.
+export async function getAppointmentCostTokens(
+  type: AppointmentTypeValue,
+  client: BalanceClient = db,
+): Promise<number> {
+  const row = await client.tariffConfig.findUnique({
+    where: { key: tariffKeyForType(type) },
+    select: { tokens: true },
+  });
+  return row?.tokens ?? DEFAULT_TARIFFS[type];
+}
+
+function toTariffDto(
+  row: { key: string; tokens: number; updatedAt: Date; updatedBy: { fullName: string } | null },
+): TariffDto {
+  return {
+    key: row.key as TariffKey,
+    label: TARIFF_LABELS[row.key as TariffKey] ?? row.key,
+    description: TARIFF_DESCRIPTIONS[row.key as TariffKey] ?? "",
+    tokens: row.tokens,
+    updatedAt: row.updatedAt.toISOString(),
+    updatedByName: row.updatedBy?.fullName ?? null,
+  };
+}
+
+// GET /api/admin/tariffs — grille complète pour le Médecin Chef. Les clés
+// attendues par l'application mais absentes en base sont RE-CRÉÉES au tarif
+// par défaut (auto-réparation idempotente après reprovision).
+export async function listTariffsForAdmin(): Promise<TariffDto[]> {
+  const rows = await db.tariffConfig.findMany({
+    where: { key: { in: [...Object.keys(TARIFF_LABELS)] } },
+    include: { updatedBy: { select: { fullName: true } } },
+  });
+
+  const missing = (Object.keys(TARIFF_LABELS) as TariffKey[]).filter(
+    key => !rows.some(row => row.key === key),
+  );
+  if (missing.length > 0) {
+    const typeByKey: Record<string, AppointmentTypeValue> = {
+      CONSULTATION_CABINET: "CABINET",
+      CONSULTATION_DOMICILE: "DOMICILE",
+    };
+    for (const key of missing) {
+      const created = await db.tariffConfig.upsert({
+        where: { key },
+        update: {},
+        create: { key, tokens: DEFAULT_TARIFFS[typeByKey[key]] },
+        include: { updatedBy: { select: { fullName: true } } },
+      });
+      rows.push(created);
+    }
+  }
+
+  return rows
+    .sort((a, b) => a.key.localeCompare(b.key))
+    .map(toTariffDto);
+}
+
+// PATCH /api/admin/tariffs/:key — le Médecin Chef fixe le prix en Tokens
+// d'un poste tarifaire. La modification est auditable (updatedById) et ne
+// vaut que pour les DEMANDES À VENIR (le coût d'un RDV est figé à sa
+// réservation dans appointments.tokensReserved — invariant ledger).
+export async function updateTariff(
+  adminId: string,
+  key: TariffKey,
+  tokens: number,
+): Promise<TariffDto> {
+  const updated = await db.tariffConfig.upsert({
+    where: { key },
+    update: { tokens, updatedById: adminId },
+    create: { key, tokens, updatedById: adminId },
+    include: { updatedBy: { select: { fullName: true } } },
+  });
+  return toTariffDto(updated);
 }
 
 // ——— DTO ———

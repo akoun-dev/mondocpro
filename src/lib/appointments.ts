@@ -13,8 +13,8 @@ import {
 } from "@/lib/schedule";
 import {
   TokenError,
-  appointmentCostTokens,
   consumeAppointmentTokens,
+  getAppointmentCostTokens,
   releaseAppointmentTokens,
   reserveTokensForAppointment,
 } from "@/lib/tokens";
@@ -162,9 +162,11 @@ export async function createAppointmentForPatient(
         }
 
         // FEATURE-TOKENS (ADR-007) : le RDV naît AVEC sa réservation de
-        // Tokens (tokenState=RESERVED). Le coût suit le tarif provisionnel
-        // du type de consultation — source unique token-schemas.ts.
-        const costTokens = appointmentCostTokens(input.type);
+        // Tokens (tokenState=RESERVED). Le coût suit le tarif EN VIGUEUR
+        // (table tariff_configs, édité par le Médecin Chef) lu DANS la même
+        // transaction — le prix figuré est celui réservé, même si l'ADMIN
+        // modifie la grille entre-temps.
+        const costTokens = await getAppointmentCostTokens(input.type, tx);
         const created = await tx.appointment.create({
           data: {
             patientId,
@@ -186,7 +188,16 @@ export async function createAppointmentForPatient(
 
         return created;
       },
-      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+      {
+        isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+        // Latence Supabase pooler (~0,2–0,4 s/requête) : la transaction de
+        // création enchaîne 9 requêtes (quota, collision, tarif, RDV, solde
+        // via 6 agrégats, écriture ledger) — le défaut Prisma (5 s) est
+        // parfois dépassé (« Transaction not found » → 500). 15 s = marge
+        // saine sans dégrader l'UX (réponse reste de l'ordre de 1–3 s).
+        timeout: 15_000,
+        maxWait: 10_000,
+      },
     );
     return toAppointmentDto(created);
   } catch (error) {

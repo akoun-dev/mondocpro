@@ -39,7 +39,7 @@ Validation: schéma zod de référence (src/lib/<domaine>.ts)
 - Request: `{ "type": "CABINET" | "DOMICILE", "specialtyId": string, "zone": Zone, "date": string("YYYY-MM-DD"), "time": string("HH:MM"), "reason"?: string(≤500) }` — date/heure saisis séparément (Afrique/Abidjan = UTC+0 : l'heure locale est l'heure UTC)
 - Response: 201 `{ "appointment": { ...idem GET, tokenState: "RESERVED" } }` — le RDV naît AVEC sa réservation de Tokens (même transaction sérialisable)
 - Errors: 400 `{ error, details }` (zod, règle créneau : grille 30 min, lundi–vendredi 08:00–16:30, ≥ 2 h à l'avance, ≤ 60 jours, ou spécialité inexistante/inactive) · **402 `{ error }` solde insuffisant** (message patient prêt à afficher : coût + recharge depuis le profil) · 401 · 403 · 409 `{ error }` RDV actif déjà réservé sur ce créneau par le patient · 500
-- Notes: arbitrages MVP (spec FEATURE-PATIENT §arbitrages) modifiables sans migration — constantes `src/lib/schedule.ts` (client-safe partagé avec le formulaire) ; `specialtyId` validé en base (doit référencer une spécialité ACTIVE du catalogue ADMIN) ; **coût** = `PROVISIONAL_TARIFFS[type]` (tarif provisionnel ADR-007 — 1 Token, à valider PO), source unique `src/lib/token-schemas.ts` ; solde vérifié DANS la transaction (réservation `RESERVATION` écrite au ledger) — solde insuffisant ⇒ rollback complet.
+- Notes: arbitrages MVP (spec FEATURE-PATIENT §arbitrages) modifiables sans migration — constantes `src/lib/schedule.ts` (client-safe partagé avec le formulaire) ; `specialtyId` validé en base (doit référencer une spécialité ACTIVE du catalogue ADMIN) ; **coût** = grille tarifaire **EN VIGUEUR lue en base** (`tariff_configs`, éditable par le Médecin Chef — `GET/PATCH /api/admin/tariffs/:key`, défaut provisionnel 1 Token ADR-007), figée ensuite dans `tokensReserved` : un changement de tarif ne vaut que pour les demandes à venir ; solde vérifié DANS la transaction (réservation `RESERVATION` écrite au ledger) — solde insuffisant ⇒ rollback complet.
 
 ### [PATCH] /api/appointments/:id — Annuler (patient) / clôturer (Médecin Chef) un rendez-vous
 - Feature: FEATURE-RDV + FEATURE-TOKENS | Owner: Backend | Statut: **IMPLÉMENTÉ** (lot P0/P1 2026-10-03 ; actions étendues + sort des Tokens — Task 26/ADR-007)
@@ -166,6 +166,26 @@ Validation: schéma zod de référence (src/lib/<domaine>.ts)
 - Request: `{ "decision": "CONFIRM" | "REJECT", "note"?: string(≤300) }` — note par défaut : « Paiement rapproché par le Médecin Chef » / « Paiement non rapproché »
 - Response: 200 `{ "recharge": { ...status: "CONFIRMED" | "REJECTED" } }` — CONFIRM crédite les Tokens (statut comptabilisé) ; REJECT ne crédite jamais
 - Errors: 400 `{ error, details }` · 401 · 403 · 404 `{ error }` recharge inexistante ou hors type RECHARGE · 409 `{ error }` déjà traitée (garde anti double-crédit : transition conditionnelle `PENDING → CONFIRMED/REJECTED` via `updateMany` — une double confirmation, même concurrente, ne crédite JAMAIS deux fois) · 500
+
+### [GET] /api/tariffs — Grille tarifaire en vigueur (wizard patient)
+- Feature: FEATURE-TOKENS (ADR-007 — tarifs configurables, Task 28) | Owner: Backend | Statut: **IMPLÉMENTÉ** (Task 28, 2026-10-03)
+- Request: — (cookie de session, rôle PATIENT)
+- Response: 200 `{ "tariffs": [{ "key": "CONSULTATION_CABINET" | "CONSULTATION_DOMICILE", "label": string, "description": string, "tokens": number, "updatedAt": string, "updatedByName": string | null }] }` — le wizard consomme `tokens` pour afficher le coût exact avant confirmation
+- Errors: 401 `{ error }` non authentifié · 403 `{ error }` rôle hors PATIENT · 500
+- Notes: la grille vit en base (`tariff_configs`, une ligne par poste — extensible sans migration) ; valeurs par défaut provisionnelles 1 Token (ADR-007) ; les clés manquantes en base sont ré-tablées au défaut (auto-réparation idempotente) ; le serveur revalide le tarif réel DANS la transaction de réservation.
+
+### [GET] /api/admin/tariffs — Grille tarifaire complète (Médecin Chef)
+- Feature: FEATURE-TOKENS (ADR-007 — Task 28) | Owner: Backend | Statut: **IMPLÉMENTÉ** (Task 28, 2026-10-03)
+- Request: — (cookie de session, rôle ADMIN)
+- Response: 200 `{ "tariffs": [{ "key", "label", "description", "tokens", "updatedAt", "updatedByName" }] }` — tous les postes, audit de dernière modification inclus
+- Errors: 401 `{ error }` · 403 `{ error }` rôle hors ADMIN · 500
+
+### [PATCH] /api/admin/tariffs/:key — Fixer le prix en Tokens d'un poste (Médecin Chef)
+- Feature: FEATURE-TOKENS (ADR-007 — Task 28) | Owner: Backend | Statut: **IMPLÉMENTÉ** (Task 28, 2026-10-03)
+- Request: `{ "tokens": number }` — entier 0..100 (`TARIFF_MAX_TOKENS` ; 0 = consultation gratuite, choix explicite ADMIN)
+- Response: 200 `{ "tariff": { "key", "label", "description", "tokens", "updatedAt", "updatedByName" } }` — modification auditable (`updatedById`)
+- Errors: 400 `{ error, details }` (zod : entier hors 0..100) · 401 · 403 · **404 `{ error }` clé inconnue** (liste fermée `TARIFF_KEYS`) · 500
+- Notes: la modification vaut pour les **DEMANDES À VENIR** — le coût d'un RDV est figé à sa réservation (`appointments.tokensReserved`, lu dans la même transaction sérialisable) ; les réservations déjà engagées ne sont JAMAIS impactées (invariant financier du ledger).
 
 ### [POST] /api/auth/forgot-password — Mot de passe oublié (étape 1)
 - Feature: FEATURE-AUTH (SYS-010 / US-AUTH-5) | Owner: Backend | Statut: **VALIDÉ** (maj PO 2026-10)

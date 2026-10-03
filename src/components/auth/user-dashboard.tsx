@@ -27,6 +27,7 @@ import {
     Phone,
     RefreshCw,
     Stethoscope,
+    Tags,
     UserRound,
     UsersRound,
     Wallet,
@@ -73,6 +74,7 @@ import { BookAppointmentDialog } from "@/components/patient/book-appointment-dia
 import { SensibilisationDialog } from "@/components/patient/sensibilisation-dialog"
 import { SpecialtiesView } from "@/components/admin/specialties-view"
 import { RechargesView } from "@/components/admin/recharges-view"
+import { TariffsView } from "@/components/admin/tariffs-view"
 
 const ROLE_LABELS: Record<AppRole, string> = {
     PATIENT: "Patient",
@@ -177,7 +179,7 @@ const ROLE_SPACE: Record<
 // « senso » (entrée « Tout voir ») ; admin « specialties » (entrée « Gérer
 // les spécialités ») et « recharges » (FEATURE-TOKENS — rapprochement des
 // paiements patients, Médecin Chef seul).
-type DashboardTab = "accueil" | "rdv" | "senso" | "specialties" | "recharges" | "profil"
+type DashboardTab = "accueil" | "rdv" | "senso" | "specialties" | "recharges" | "tarifs" | "profil"
 
 const PATIENT_TABS: { id: DashboardTab; label: string; icon: LucideIcon }[] = [
     { id: "accueil", label: "Accueil", icon: Home },
@@ -738,6 +740,33 @@ export function UserDashboard() {
                                 </button>
                             )}
 
+                            {/* Raccourci ADMIN — grille tarifaire des consultations
+                                (FEATURE-TOKENS : tarifs configurables, demande PO
+                                2026-10-03 — le Médecin Chef fixe le prix en Tokens) */}
+                            {user.role === "ADMIN" && (
+                                <button
+                                    type="button"
+                                    onClick={() => setTab("tarifs")}
+                                    className="mb-6 flex w-full items-center gap-3 rounded-2xl border bg-card p-4 text-left shadow-sm transition-colors hover:border-primary/40 hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:p-5"
+                                >
+                                    <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                                        <Tags className="size-5" aria-hidden="true" />
+                                    </span>
+                                    <span className="min-w-0 flex-1">
+                                        <span className="block text-sm font-bold">
+                                            Tarifs des consultations
+                                        </span>
+                                        <span className="block text-xs text-muted-foreground">
+                                            Fixer le prix en Tokens de chaque consultation
+                                        </span>
+                                    </span>
+                                    <span className="flex shrink-0 items-center gap-0.5 text-sm font-semibold text-primary">
+                                        Ouvrir
+                                        <ChevronRight className="size-4" aria-hidden="true" />
+                                    </span>
+                                </button>
+                            )}
+
                             {/* Espace par rôle — cartes fonctionnalités avec badges « à venir » */}
                             <Card className="rounded-2xl">
                                 <CardHeader>
@@ -855,6 +884,19 @@ export function UserDashboard() {
                             aria-label="Recharges de Tokens"
                         >
                             <RechargesView onBack={() => setTab("accueil")} />
+                        </motion.section>
+                    )}
+
+                    {tab === "tarifs" && user.role === "ADMIN" && (
+                        <motion.section
+                            key="tarifs"
+                            variants={tabVariants}
+                            initial="enter"
+                            animate="center"
+                            exit="exit"
+                            aria-label="Tarifs des consultations"
+                        >
+                            <TariffsView onBack={() => setTab("accueil")} />
                         </motion.section>
                     )}
 
