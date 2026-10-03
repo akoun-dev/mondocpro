@@ -1,16 +1,19 @@
 "use client";
 
-// Accueil patient — hero consultations, rendez-vous, raccourci et campagnes santé.
-// Données partagées (usePatientData, monté dans UserDashboard) ; la réservation
-// (BookAppointmentDialog) est portée par UserDashboard.
+// Accueil patient — maquette PO 2026-10 v2 : barre zone/date, salutation,
+// carte héros « État consultations », raccourci « Mes rendez-vous » et
+// campagnes de santé. Données partagées (usePatientData, monté dans
+// UserDashboard) ; la réservation (BookAppointmentDialog) et la recharge
+// (wallet réel du profil, FEATURE-TOKENS) sont portées par UserDashboard.
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { CalendarCheck, ChevronRight } from "lucide-react";
+import { CalendarCheck, ChevronRight, MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
 import type { PatientData } from "@/hooks/use-patient-data";
 import type { AppointmentDto } from "@/lib/appointments";
+import { ZONE_LABELS } from "@/lib/auth-schemas";
 import type { AppUser } from "@/stores/auth-store";
+import { formatHeaderDate } from "@/lib/datetime";
 import type { SensibilisationDto } from "@/lib/sensibilisations";
 import { NextAppointmentCard } from "./next-appointment-card";
 import { HealthAlertCard } from "./health-alert-card";
@@ -21,9 +24,12 @@ type Props = {
   data: PatientData;
   onOpenAppointments: () => void;
   onOpenArticle: (item: SensibilisationDto) => void;
-  onOpenAllArticles: () => void;
   onBook: () => void;
+  onRecharge: () => void;
 };
+
+const WELCOME_TAGLINE =
+  "Bienvenue sur notre portail de télémédecine et consultations de proximité à Abidjan.";
 
 // Transition d'entrée commune aux cartes (DESIGN_SYSTEM §4 : 220 ms, sobre).
 const cardEntrance = (delay = 0) => ({
@@ -37,8 +43,8 @@ export function PatientHome({
   data,
   onOpenAppointments,
   onOpenArticle,
-  onOpenAllArticles,
   onBook,
+  onRecharge,
 }: Props) {
   const [detail, setDetail] = useState<AppointmentDto | null>(null);
   const firstName = user.fullName.trim().split(/\s+/)[0] ?? "";
@@ -74,13 +80,50 @@ export function PatientHome({
         </div>
       ) : (
         <>
+          {/* Barre zone + date — maquette : pill commune à gauche, date UTC+0 à droite */}
+          <motion.section
+            {...cardEntrance()}
+            aria-label="Localisation et date"
+            className="flex items-center justify-between gap-3"
+          >
+            <span className="inline-flex min-w-0 items-center gap-1.5 rounded-full bg-muted/70 px-3 py-1.5 text-xs font-medium text-foreground">
+              <MapPin className="size-3.5 shrink-0 text-primary" aria-hidden="true" />
+              <span className="truncate">
+                {ZONE_LABELS[user.zone]}, Abidjan
+              </span>
+            </span>
+            <span
+              className="shrink-0 text-xs text-muted-foreground"
+              suppressHydrationWarning
+            >
+              {formatHeaderDate()}
+            </span>
+          </motion.section>
+
+          {/* Salutation — maquette : titre + chip zone à droite, tagline, sans carte */}
+          <motion.section
+            {...cardEntrance(0.02)}
+            aria-label="Bienvenue"
+          >
+            <div className="flex items-start justify-between gap-3">
+              <h2 className="text-xl font-bold tracking-tight sm:text-2xl">
+                Bonjour, {firstName} 👋
+              </h2>
+              <span className="inline-flex shrink-0 items-center rounded-full bg-muted/70 px-3 py-1.5 text-xs font-semibold text-foreground">
+                {ZONE_LABELS[user.zone]}
+              </span>
+            </div>
+            <p className="mt-1.5 max-w-md text-sm leading-relaxed text-muted-foreground">
+              {WELCOME_TAGLINE}
+            </p>
+          </motion.section>
+
           <NextAppointmentCard
             appointments={data.appointments}
             loading={data.loading}
             onOpenDetail={setDetail}
             onBook={onBook}
-            firstName={firstName}
-            zone={user.zone}
+            onRecharge={onRecharge}
           />
 
           {/* Raccourci « Mes rendez-vous » — maquette : carte-lien avec « Consulter » */}
@@ -98,7 +141,7 @@ export function PatientHome({
                   Mes rendez-vous
                 </span>
                 <span className="block text-xs text-muted-foreground">
-                  Historique des consultations et suivi
+                  Historique des consultations et ordonnances
                 </span>
               </span>
               <span className="flex shrink-0 items-center gap-0.5 text-sm font-semibold text-primary">
@@ -110,12 +153,9 @@ export function PatientHome({
 
           <HealthAlertCard
             feed={data.sensibilisations}
-            zone={user.zone}
             loading={data.loading}
             onOpenArticle={onOpenArticle}
-            onOpenAll={onOpenAllArticles}
           />
-
         </>
       )}
 

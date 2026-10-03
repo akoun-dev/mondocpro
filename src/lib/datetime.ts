@@ -21,6 +21,18 @@ export function formatWelcomeDate(now: Date = new Date()): string {
   return `${capitalize(formatted)} • UTC+0`;
 }
 
+// « Samedi 3 oct • UTC+0 » — date compacte de la barre d'en-tête (maquette PO
+// 2026-10 v2) : mois abrégé sans point, sans année.
+export function formatHeaderDate(now: Date = new Date()): string {
+  const formatted = new Intl.DateTimeFormat(FR, {
+    weekday: "long",
+    day: "numeric",
+    month: "short",
+    timeZone: "UTC",
+  }).format(now);
+  return `${capitalize(formatted.replace(/\./g, ""))} • UTC+0`;
+}
+
 // « 09:30 »
 export function formatTimeUTC(iso: string): string {
   const date = new Date(iso);

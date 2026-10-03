@@ -1,24 +1,24 @@
 "use client";
 
-// Carte « Prochain rendez-vous » — maquette PO 2026-10 : carte dégradé médical
-// (ADR-002), statut en pastille, créneau relatif, lieu, référence courte et
-// accès au détail. État vide : invitation à prendre rendez-vous.
+// Carte héros « État consultations » — maquette PO 2026-10 v2 : dégradé
+// médical (ADR-002), pastilles d'état, invitation à réserver et accès direct
+// à la recharge de Tokens (FEATURE-TOKENS, wallet réel du profil).
 import { motion } from "framer-motion";
 import {
+  ArrowRight,
   Building2,
   CalendarDays,
   CalendarX2,
-  ChevronRight,
   Clock,
   Home,
   Stethoscope,
+  Wallet,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { AppointmentDto } from "@/lib/appointments";
 import { ZONE_LABELS } from "@/lib/auth-schemas";
-import { appointmentRef, formatWelcomeDate, relativeSlotLabel } from "@/lib/datetime";
-import type { AppZone } from "@/stores/auth-store";
+import { relativeSlotLabel } from "@/lib/datetime";
 import { APPOINTMENT_TYPE_LABELS, AppointmentStatusBadge } from "./shared";
 
 type Props = {
@@ -26,8 +26,7 @@ type Props = {
   loading: boolean;
   onOpenDetail: (appointment: AppointmentDto) => void;
   onBook: () => void;
-  firstName: string;
-  zone: AppZone;
+  onRecharge: () => void;
 };
 
 // Prochain RDV actif : PENDING/CONFIRMED à venir (marge 1 min pour les RDV
@@ -54,8 +53,7 @@ export function NextAppointmentCard({
   loading,
   onOpenDetail,
   onBook,
-  firstName,
-  zone,
+  onRecharge,
 }: Props) {
   if (loading && appointments === null) {
     return <Skeleton className="h-[248px] rounded-2xl" aria-hidden="true" />;
@@ -68,7 +66,7 @@ export function NextAppointmentCard({
       initial={{ opacity: 0, y: 14 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.22, ease: "easeOut" }}
-      aria-label="Prochain rendez-vous"
+      aria-label="État des consultations"
       className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary to-primary-dark p-5 text-primary-foreground shadow-lg shadow-primary/20 sm:p-6"
     >
       {/* Halo décoratif — motif verre dépoli de la charte (DESIGN_SYSTEM §2) */}
@@ -77,102 +75,94 @@ export function NextAppointmentCard({
         <div className="absolute -bottom-16 -left-8 size-44 rounded-full bg-white/[0.07] blur-xl" />
       </div>
 
-      <div className="relative mb-5 flex items-start justify-between gap-3">
-        <div>
-          <p className="text-xl font-bold tracking-tight">Bonjour, {firstName} 👋</p>
-          <p className="mt-1 text-[11px] text-white/70" suppressHydrationWarning>
-            {formatWelcomeDate()}
-          </p>
-        </div>
-        <span className="rounded-full bg-white/15 px-2.5 py-1 text-[10px] font-semibold ring-1 ring-white/20">
-          {ZONE_LABELS[zone]}
-        </span>
-      </div>
-
-      {next ? (
-        <div className="relative">
-          <div className="flex items-center justify-between gap-3">
-            <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-white/80">
-              <CalendarDays className="size-3.5" aria-hidden="true" />
-              Prochain rendez-vous
-            </p>
-            <AppointmentStatusBadge status={next.status} />
-          </div>
-
-          <div className="mt-4 flex items-center gap-3">
-            <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-white/15 ring-1 ring-white/25">
-              <Stethoscope className="size-5" aria-hidden="true" />
-            </span>
-            <div className="min-w-0">
-              <p className="truncate text-lg font-bold leading-tight">
-                {APPOINTMENT_TYPE_LABELS[next.type]}
-              </p>
-              <p className="text-sm text-white/80">
-                {next.specialty?.name ?? "Médecine générale"}
-              </p>
-            </div>
-          </div>
-
-          <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-sm text-white/90">
-            <span className="flex items-center gap-1.5">
-              <Clock className="size-4" aria-hidden="true" />
-              {relativeSlotLabel(next.scheduledAt)}
-            </span>
-            <span className="flex items-center gap-1.5">
-              {next.type === "CABINET" ? (
-                <Building2 className="size-4" aria-hidden="true" />
-              ) : (
-                <Home className="size-4" aria-hidden="true" />
-              )}
-              {next.type === "CABINET"
-                ? `Cabinet ${ZONE_LABELS[next.zone]}`
-                : `Domicile · ${ZONE_LABELS[next.zone]}`}
-            </span>
-          </div>
-
-          <div className="mt-4 flex items-center justify-between gap-3 border-t border-white/20 pt-3.5">
-            <p className="text-xs text-white/70">
-              Réf : {appointmentRef(next.id)}
-            </p>
-            <Button
-              size="sm"
-              onClick={() => onOpenDetail(next)}
-              className="h-9 gap-1 rounded-lg bg-white px-3.5 text-xs font-semibold text-primary hover:bg-white/90 focus-visible:ring-white"
-            >
-              Voir le détail
-              <ChevronRight className="size-4" aria-hidden="true" />
-            </Button>
-          </div>
-        </div>
-      ) : (
-          <div className="relative flex flex-col items-center gap-3 py-2 text-center">
-            <div className="flex w-full items-center justify-between text-[11px] font-semibold text-white/75">
-              <span className="rounded-full bg-white/15 px-2.5 py-1 ring-1 ring-white/20">
-                Statut consultations
-              </span>
-              <span className="rounded-full bg-success px-2.5 py-1 text-success-foreground">
-                Dispo immédiate
-              </span>
-            </div>
-            <span className="flex size-12 items-center justify-center rounded-2xl bg-white/15 ring-1 ring-white/25">
-            <CalendarX2 className="size-6" aria-hidden="true" />
+      <div className="relative">
+        {/* Pastilles d'état — maquette : « État consultations » + statut */}
+        <div className="flex items-center justify-between gap-3">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-1.5 text-xs font-semibold ring-1 ring-white/25">
+            <CalendarDays className="size-3.5" aria-hidden="true" />
+            État consultations
           </span>
-          <div>
-            <p className="text-lg font-bold">Aucun rendez-vous à venir</p>
-            <p className="mt-1 text-sm text-white/80">
-              Consultation au cabinet ou à domicile, du lundi au vendredi.
+          {next ? (
+            <AppointmentStatusBadge status={next.status} />
+          ) : (
+            <span className="inline-flex shrink-0 items-center rounded-full bg-primary-dark/60 px-3 py-1.5 text-xs font-semibold ring-1 ring-white/20">
+              Dispo immédiate
+            </span>
+          )}
+        </div>
+
+        {next ? (
+          <div className="mt-4">
+            <div className="flex items-center gap-3">
+              <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-white/15 ring-1 ring-white/25">
+                <Stethoscope className="size-5" aria-hidden="true" />
+              </span>
+              <div className="min-w-0">
+                <p className="truncate text-lg font-bold leading-tight">
+                  {APPOINTMENT_TYPE_LABELS[next.type]}
+                </p>
+                <p className="text-sm text-white/80">
+                  {next.specialty?.name ?? "Médecine générale"}
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-sm text-white/90">
+              <span className="flex items-center gap-1.5">
+                <Clock className="size-4" aria-hidden="true" />
+                {relativeSlotLabel(next.scheduledAt)}
+              </span>
+              <span className="flex items-center gap-1.5">
+                {next.type === "CABINET" ? (
+                  <Building2 className="size-4" aria-hidden="true" />
+                ) : (
+                  <Home className="size-4" aria-hidden="true" />
+                )}
+                {next.type === "CABINET"
+                  ? `Cabinet ${ZONE_LABELS[next.zone]}`
+                  : `Domicile · ${ZONE_LABELS[next.zone]}`}
+              </span>
+            </div>
+          </div>
+        ) : (
+          <div className="mt-4">
+            <p className="text-xl font-bold leading-tight">
+              Aucun rendez-vous à venir
+            </p>
+            <p className="mt-1.5 text-sm leading-relaxed text-white/80">
+              Consultation au cabinet ou à domicile à Yopougon &amp; Songon, du
+              lundi au vendredi.
             </p>
           </div>
+        )}
+
+        {/* Actions — maquette : bouton blanc principal + verre « Recharger » */}
+        <div className="mt-5 flex items-stretch gap-2">
           <Button
-            size="sm"
-            onClick={onBook}
-            className="h-10 gap-1.5 rounded-xl bg-white px-4 text-sm font-semibold text-primary hover:bg-white/90 focus-visible:ring-white"
+            onClick={next ? () => onOpenDetail(next) : onBook}
+            className="h-11 min-w-0 flex-1 justify-between gap-1.5 rounded-xl bg-white px-3 text-[13px] font-semibold text-primary shadow-sm hover:bg-white/90 focus-visible:ring-white sm:text-sm"
           >
-            <CalendarDays className="size-4" aria-hidden="true" />
-            Prendre rendez-vous
+            <span className="flex min-w-0 items-center gap-1.5">
+              {next ? (
+                <Stethoscope className="size-4 shrink-0" aria-hidden="true" />
+              ) : (
+                <CalendarDays className="size-4 shrink-0" aria-hidden="true" />
+              )}
+              <span className="truncate">
+                {next ? "Voir le détail" : "Prendre rendez-vous"}
+              </span>
+            </span>
+            <ArrowRight className="size-4 shrink-0" aria-hidden="true" />
+          </Button>
+          <Button
+            onClick={onRecharge}
+            className="h-11 shrink-0 gap-1.5 rounded-xl bg-white/15 px-3 text-[13px] font-semibold text-white ring-1 ring-white/25 backdrop-blur-sm hover:bg-white/25 focus-visible:ring-white sm:text-sm"
+          >
+            <Wallet className="size-4" aria-hidden="true" />
+            Recharger
           </Button>
         </div>
-      )}
+      </div>
     </motion.section>
   );
 }

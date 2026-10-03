@@ -6,7 +6,6 @@
 // rôles : Accueil / Profil), vues animées sobres framer-motion
 // (DESIGN_SYSTEM §4). Accueil patient dédié (src/components/patient/) branché sur les
 // API contractées ; rôles NURSE/ADMIN inchangés (cartes « à venir »).
-import Image from "next/image"
 import { useCallback, useEffect, useState } from "react"
 import { AnimatePresence, motion } from "framer-motion"
 import {
@@ -25,7 +24,6 @@ import {
     MapPinned,
     Megaphone,
     Phone,
-    RefreshCw,
     Stethoscope,
     Tags,
     UserRound,
@@ -373,41 +371,38 @@ export function UserDashboard() {
             <header className="sticky top-0 z-20 border-b bg-card/80 backdrop-blur-md">
                 <div className="mx-auto flex w-full max-w-3xl items-center justify-between gap-3 px-4 py-3">
                     <div className="flex items-center gap-2.5">
-                        <Image
-                            src="/img/Mon doc Pro.jpeg"
-                            alt="Mon doc Pro"
-                            width={40}
-                            height={40}
-                            className="size-10 rounded-xl object-cover ring-1 ring-primary/30"
-                        />
+                        {/* Maquette PO 2026-10 v2 : tuile verte « M » + « Mon doc »
+                            + badge PRO, sous-titre « Réseau Abidjan » */}
+                        <span
+                            aria-hidden="true"
+                            className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-success to-emerald-600 text-lg font-black text-white shadow-sm"
+                        >
+                            M
+                        </span>
                         <div className="flex flex-col leading-tight">
-                            <span className="text-base font-bold tracking-tight text-primary sm:text-lg">
-                                Mon doc Pro
+                            <span className="flex items-center gap-1.5">
+                                <span className="text-base font-bold tracking-tight text-foreground sm:text-lg">
+                                    Mon doc
+                                </span>
+                                {isPatient && (
+                                    <span className="rounded-md bg-success/15 px-1.5 py-0.5 text-[10px] font-bold tracking-wide text-success-foreground">
+                                        PRO
+                                    </span>
+                                )}
                             </span>
                             {isPatient && (
                                 <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                                    <MapPin
-                                        className="size-3"
+                                    <span
                                         aria-hidden="true"
+                                        className="size-1.5 rounded-full bg-success"
                                     />
-                                    {ZONE_LABELS[user.zone]}, Abidjan
+                                    Réseau Abidjan
                                 </span>
                             )}
                         </div>
                     </div>
                     {isPatient ? (
                         <div className="flex items-center gap-1 sm:gap-1.5">
-                            <button
-                                type="button"
-                                onClick={() => void patientData.refresh()}
-                                aria-label="Actualiser mes données"
-                                className="flex size-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                            >
-                                <RefreshCw
-                                    className={`size-4.5 ${patientData.refreshing ? "animate-spin" : ""}`}
-                                    aria-hidden="true"
-                                />
-                            </button>
                             <Popover
                                 open={notifOpen}
                                 onOpenChange={open => {
@@ -585,13 +580,18 @@ export function UserDashboard() {
                                 type="button"
                                 onClick={() => setTab("profil")}
                                 aria-label="Ouvrir mon profil"
-                                className="rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                className="relative rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                             >
                                 <Avatar className="size-10 ring-2 ring-primary/20">
                                     <AvatarFallback className="bg-primary text-sm font-semibold text-primary-foreground">
                                         {getInitials(user.fullName)}
                                     </AvatarFallback>
                                 </Avatar>
+                                {/* Pastille « en ligne » — maquette PO v2 */}
+                                <span
+                                    aria-hidden="true"
+                                    className="absolute bottom-0 right-0 size-2.5 rounded-full bg-success ring-2 ring-card"
+                                />
                             </button>
                         </div>
                     ) : (
@@ -636,8 +636,8 @@ export function UserDashboard() {
                                     data={patientData}
                                     onOpenAppointments={() => setTab("rdv")}
                                     onOpenArticle={setOpenArticle}
-                                    onOpenAllArticles={() => setTab("senso")}
                                     onBook={() => setBookingOpen(true)}
+                                    onRecharge={() => setTab("profil")}
                                 />
                             ) : (
                             <>

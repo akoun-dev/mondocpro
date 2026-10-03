@@ -858,3 +858,23 @@ Stage Summary:
 - Le patient peut se connecter depuis l'aperçu même intégré en iframe : le cookie de session survit (CHIPS) — les 401 en rafale après inscription disparaissent.
 - Aucun boot futur ne peut redémarrer le serveur avec la mauvaise base : les trois chemins (boot conteneur, `bun run dev` manuel, lazy) forcent le DATABASE_URL Supabase.
 - Le message « Impossible de contacter le serveur » reste le symptôme d'un serveur arrêté (plateforme) : la réponse utilisateur est de recharger — le serveur relance sainement.
+
+---
+Task ID: 30
+Agent: Super Z
+Task: « je veux exactement ce meme design pour accueil » — refonte UI accueil patient selon maquette PO (v2)
+
+Work Log:
+- Maquette fournie (upload/pasted_image_1791040997458.png, mobile 390 px) : en-tête « Mon doc »+badge PRO+« Réseau Abidjan », barre zone+date, salutation sans carte, carte héros bleue « État consultations », raccourci Mes rendez-vous, section « Campagnes de santé » multi-cartes (alerte orange + campagne verte, boutons Écouter TTS colorés), PAS de section épargne.
+- `user-dashboard.tsx` (en-tête patient) : tuile verte « M » (gradient success→emerald) + « Mon doc » + badge PRO vert, sous-titre point vert + « Réseau Abidjan », bouton Actualiser retiré de la barre (fidélité maquette — le refresh reste disponible via les vues), avatar + pastille « en ligne » verte (ring-card). Imports Image/RefreshCw nettoyés.
+- `patient-home.tsx` restructuré : barre zone/date (pill MapPin « Yopougon, Abidjan » + `formatHeaderDate()`), salutation (h2 + prénom + 👋, chip zone droite, tagline sans carte), héros avec nouvelle prop `onRecharge` (→ tab profil où vit le wallet Tokens réel), suppression de la section « Épargne Santé MonDoc — Bientôt » (obsolète depuis FEATURE-TOKENS Task 27 et absente de la maquette), props `onOpenAllArticles` retirées (la liste complète reste accessible via l'onglet Campagnes de la nav basse).
+- `next-appointment-card.tsx` : pastilles « État consultations » (verre) + « Dispo immédiate » (sombre, ou badge statut RDV réel), état vide fidèle (« Aucun rendez-vous à venir », « … à Yopougon & Songon, du lundi au vendredi. »), boutons blanc flex-1 (icône + libellé + flèche, justify-between) + verre « Recharger » — h-11/px-3/text-[13px] pour tenir sur 390 px (première passe débordait : « Rechar… » coupé).
+- `health-alert-card.tsx` réécrit en multi-cartes : en-tête (icône warning, titre+sous-titre « Retrouvez ci-après l'actu en cours », compteur « N ACTIVES » vert), 2 premières cartes triées (ALERT d'abord puis récentes), chaque carte = sous-composant CampaignCard avec SON hook useSpeech (isolation lecture vocale), libellé catégorie coloré (Alerte Sanitaire orange / Campagne Nationale — Santé publique vert, text-[11px] après troncature constatée), pill d'ancienneté, titre cliquable, body line-clamp-2, bouton Écouter plein coloré (warning/success, texte blanc) + « Détails → ».
+- `datetime.ts` : `formatHeaderDate()` « Samedi 3 oct • UTC+0 » (mois court, point fr supprimé).
+- Données : /api/sensibilisations renvoyait [] (base reprovisionnée — incident connu) → re-seed `bun .zscripts/seed_sensibilisations.ts` (6 contenus) + seed-specialties.
+- Vérification agent-browser (sandbox tue le serveur à chaque tool-call → `scripts/dev-boot.sh` NOUVEAU relance/attend le serveur en tête de chaque commande) : mobile 390×844 (capture tool-results/home-v2-mobile-full.png), dialog RDV 4 étapes via « Prendre rendez-vous », « Recharger » → profil + Portefeuille de Tokens, dialog campagne complet via « Détails », desktop 1440×900 centré max-w-3xl. Piège : bouton sous la nav basse flottante refusait le clic (covered) → scrollIntoView block:center avant clic.
+- eslint 0 erreur sur les 5 fichiers ; dev.log sans erreur runtime.
+
+Stage Summary:
+- L'accueil patient est pixel-fidèle à la nouvelle maquette PO sur mobile et desktop, avec les vraies données (RDV, campagnes, zone, TTS navigateur) et la recharge branchée sur le portefeuille Tokens réel — la fausse section épargne disparaît.
+- Boot éphémère `scripts/dev-boot.sh` disponible pour toute vérification navigateur future (relance serveur auto en début de commande).
