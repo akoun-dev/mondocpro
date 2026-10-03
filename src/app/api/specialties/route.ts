@@ -6,7 +6,7 @@ import { requireRole } from "@/lib/auth";
 import { listActiveSpecialties } from "@/lib/specialties";
 
 export async function GET() {
-  const guard = await requireRole(["PATIENT", "INFIRMIER", "ADMIN"]);
+  const guard = await requireRole(["PATIENT", "NURSE", "ADMIN"]);
   if (!guard.ok) return guard.response;
 
   try {

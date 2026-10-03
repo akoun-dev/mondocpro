@@ -2,7 +2,7 @@
 // L'auth est un état d'app global (zustand), pas du server-state cacheable.
 import { create } from "zustand";
 
-export type AppRole = "PATIENT" | "INFIRMIER" | "ADMIN";
+export type AppRole = "PATIENT" | "NURSE" | "ADMIN";
 export type AppZone = "YOPOUGON" | "SONGON" | "PK22" | "NDOTRE";
 
 export type AppUser = {

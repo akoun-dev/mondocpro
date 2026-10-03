@@ -1,6 +1,6 @@
 // POST /api/auth/register — FEATURE-AUTH (contrat API_CONTRACTS.md)
 // Inscription Patient uniquement — le rôle PATIENT est forcé côté serveur
-// (décision PO 2026-10 : pas de choix de rôle à l'inscription, INFIRMIER/ADMIN
+// (décision PO 2026-10 : pas de choix de rôle à l'inscription, NURSE/ADMIN
 // créés par l'administration). ADMIN refusé (seed uniquement — ADR-004 §5).
 import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";

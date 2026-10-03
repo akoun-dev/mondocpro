@@ -9,7 +9,7 @@
 #   2. Navigateur patient desktop — dialog Modifier (nom + naissance), toggles
 #      optimistes, PERSISTANCE après reload, état fixture restauré.
 #   3. Mobile 390×844 — rendu + zéro débordement.
-#   4. Régression INFIRMIER — nav 2 onglets + profil simple inchangés.
+#   4. Régression NURSE — nav 2 onglets + profil simple inchangés.
 # Pièges plateforme intégrés : DATABASE_URL exportée avant boot (sinon login
 # 500), serveur + parcours en un seul appel (process moissonnés entre appels),
 # login par refs snapshot, evals avec strip des quotes, clics par sélecteurs.
@@ -109,7 +109,7 @@ check "API — /me : téléphone inchangé" "yes" "$(grep -q '0709229992' /tmp/a
 check "API — /me : birthDate persistée" "yes" "$(grep -q '1995-06-15' /tmp/api-me.json && echo yes || echo no)"
 curl -s -o /tmp/api-r6.json -w "%{http_code}" -b $JAR -X PATCH $BASE/auth/profile -H "Content-Type: application/json" -d '{"birthDate":null}' > /tmp/api-r6.code
 check "API — birthDate null → effacer (200)" "200" "$(cat /tmp/api-r6.code)"
-# Multi-rôles : un INFIRMIER édite aussi son profil (le sien uniquement).
+# Multi-rôles : un NURSE édite aussi son profil (le sien uniquement).
 rm -f $JAR
 CODE=$(curl -s -o /dev/null -w "%{http_code}" -c $JAR -X POST $BASE/auth/login -H "Content-Type: application/json" -d '{"phone":"+2250755666777","password":"TestInfirmier2026!"}')
 CODE=$(curl -s -o /tmp/api-r7.json -w "%{http_code}" -b $JAR -X PATCH $BASE/auth/profile -H "Content-Type: application/json" -d '{"healthAlerts":false}')
@@ -182,7 +182,7 @@ check "Mobile — dialog d'édition utilisable" "Patient UI Maquette" "$($AB eva
 $AB eval "document.querySelector('[role=\"dialog\"] button[aria-label=\"Close\"]')?.click(); 'ok'" >/dev/null 2>&1; sleep 1
 $AB screenshot $SHOT/profile-edit-mobile.png >/dev/null
 
-# ── 4. Régression INFIRMIER ──────────────────────────────────────────────────
+# ── 4. Régression NURSE ──────────────────────────────────────────────────
 $AB set viewport 1440 900 >/dev/null; sleep 1
 $AB eval "Array.from(document.querySelectorAll('button')).find(b=>b.textContent.includes('Se déconnecter'))?.click(); 'ok'" >/dev/null; sleep 4
 echo "== login infirmier: $(login "0755666777" "TestInfirmier2026!")"

@@ -22,7 +22,7 @@ manuel). Ce document fixe le périmètre fonctionnel et les **arbitrages MVP** r
   zone, date+heure, motif optionnel ≤ 500 car.), annulation d'un RDV actif.
 - Statuts : `PENDING` (défaut) → `CONFIRMED` (équipe, phase 2) → `DONE` ; `CANCELLED`
   (patient au MVP) avec horodatage `cancelledAt`.
-- Hors périmètre MVP : confirmation équipe (INFIRMIER/ADMIN), reprogrammation, rappels SMS.
+- Hors périmètre MVP : confirmation équipe (NURSE/ADMIN), reprogrammation, rappels SMS.
 
 ### FEATURE-SENSO — Sensibilisations (REQ-002)
 - Fil consultable par tout utilisateur authentifié (50 derniers, tri décroissant) ;
@@ -45,7 +45,7 @@ manuel). Ce document fixe le périmètre fonctionnel et les **arbitrages MVP** r
 | A2 | Délai de réservation | ≥ 2 h à l'avance, ≤ 60 jours | Utgence du jour, file d'attente |
 | A3 | Collision | 1 seul RDV actif par patient **et par créneau** (409) | Capacité par créneau (anti-surbooking global — risque R5 audit) |
 | A4 | Annulation | Patient propriétaire, RDV PENDING/CONFIRMED, **sans délai limite** | Délai limite + motif obligatoire |
-| A5 | Confirmateur | Personne (statut PENDING jusqu'à phase 2) | Qui confirme : INFIRMIER, ADMIN ou auto |
+| A5 | Confirmateur | Personne (statut PENDING jusqu'à phase 2) | Qui confirme : NURSE, ADMIN ou auto |
 | A6 | Fuseau | Afrique/Abidjan = UTC+0 sans heure d'été : l'heure locale **est** l'heure UTC (date+heure saisis séparés, combinés côté serveur) | — (constant) |
 | A7 | SENSO rédaction | Seed éditorial versionné | Compte(s) rédacteur(s), workflow de publication |
 | A8 | Valeur jeton | **Non arbitré** — bloque FEATURE-TOKENS | 1 token = ? FCFA (PO) |
@@ -67,4 +67,4 @@ sensibilisations (GET, GET :id), statut **IMPLÉMENTÉ** ; tokens et admin SENSO
 ## 6. Suite (après lot P1)
 
 UI patient (vues RDV + SENSO dans l'espace connecté, route unique `/` — SYS-001),
-puis P2 TOKENS-1 dès arbitrages A8/A9 tranchés. Board de dispatch INFIRMIER : P3.
+puis P2 TOKENS-1 dès arbitrages A8/A9 tranchés. Board de dispatch NURSE : P3.

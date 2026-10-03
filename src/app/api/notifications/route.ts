@@ -12,7 +12,7 @@ import type { NotificationDto } from "@/lib/notifications";
 const LIST_TAKE = 50;
 
 export async function GET() {
-    const guard = await requireRole(["PATIENT", "INFIRMIER", "ADMIN"]);
+    const guard = await requireRole(["PATIENT", "NURSE", "ADMIN"]);
     if (!guard.ok) return guard.response;
 
     try {

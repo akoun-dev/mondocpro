@@ -2,7 +2,7 @@
 // Usage : bun scripts/e2e-patients.ts  (serveur dev requis sur :3000)
 // Jar A = PATIENT (cookie fichier .zscripts/test-cookies.txt)
 // Jar B = PATIENT temporaire (inscription API) — test propriété 404
-// Jar C = INFIRMIER (fixture Prisma) — test 403
+// Jar C = NURSE (fixture Prisma) — test 403
 const BASE = "http://localhost:3000";
 const results: { name: string; pass: boolean; info?: string }[] = [];
 
@@ -118,14 +118,14 @@ check("PATCH re-cancel → 409", cancel2.status === 409, `got ${cancel2.status}`
 const badAction = await call(`/api/appointments/${apptId}`, { method: "PATCH", cookie: jarA, body: { action: "RESCHEDULE" } });
 check("PATCH action inconnue → 400", badAction.status === 400, `got ${badAction.status}`);
 
-// 9. 403 INFIRMIER sur RDV + 200 sur SENSO (tous rôles)
+// 9. 403 NURSE sur RDV + 200 sur SENSO (tous rôles)
 const loginC = await call("/api/auth/login", { method: "POST", body: { phone: "+2250755666777", password: "TestInfirmier2026!" } });
 const cookieC = loginC.setCookie?.split(";")[0];
-check("login INFIRMIER → 200 + cookie", loginC.status === 200 && !!cookieC, `got ${loginC.status}`);
+check("login NURSE → 200 + cookie", loginC.status === 200 && !!cookieC, `got ${loginC.status}`);
 const r403a = await call("/api/appointments", { cookie: cookieC });
-check("GET appointments INFIRMIER → 403", r403a.status === 403, `got ${r403a.status}`);
+check("GET appointments NURSE → 403", r403a.status === 403, `got ${r403a.status}`);
 const r403b = await call("/api/appointments", { method: "POST", cookie: cookieC, body: { type: "CABINET", specialtyId: SPECIALTY_ID, zone: "YOPOUGON", ...slot } });
-check("POST appointments INFIRMIER → 403", r403b.status === 403, `got ${r403b.status}`);
+check("POST appointments NURSE → 403", r403b.status === 403, `got ${r403b.status}`);
 
 // 9bis. Spécialités — 401 sans session (le GET est dans les 401 initiaux ? non,
 // ajouté ici) + garde admin pour la gestion complète.
@@ -150,7 +150,7 @@ check("GET sensibilisation :id → 200", detail.status === 200 && detail.json?.s
 const unknow = await call("/api/sensibilisations/inexistant-id-xyz", { cookie: jarA });
 check("GET sensibilisation inconnue → 404", unknow.status === 404, `got ${unknow.status}`);
 const sensoInf = await call("/api/sensibilisations", { cookie: cookieC });
-check("GET sensibilisations INFIRMIER → 200 (tous rôles)", sensoInf.status === 200, `got ${sensoInf.status}`);
+check("GET sensibilisations NURSE → 200 (tous rôles)", sensoInf.status === 200, `got ${sensoInf.status}`);
 
 // ——— Bilan ———
 const failed = results.filter((r) => !r.pass);

@@ -138,7 +138,7 @@ export function useAuth() {
     async (data: RegisterPayload): Promise<AuthResult> => {
       try {
         // Rôle PATIENT imposé : l'inscription publique ne crée que des patients
-        // (INFIRMIER/ADMIN = administration). Le serveur le reforce de toute façon.
+        // (NURSE/ADMIN = administration). Le serveur le reforce de toute façon.
         const res = await postJson("/api/auth/register", { ...data, role: "PATIENT" as const });
         if (res.ok) {
           const body = (await res.json()) as { user: AppUser };

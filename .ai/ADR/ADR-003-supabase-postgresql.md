@@ -30,12 +30,17 @@ Diagnostics réseau réalisés (preuves) :
    `DATABASE_URL`, `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`,
    `NEXT_PUBLIC_SUPABASE_ANON_KEY` (legacy, compat), `SUPABASE_SERVICE_ROLE_KEY` (serveur
    uniquement, jamais préfixé `NEXT_PUBLIC_`).
-4. **Scripts `db:*` blindés** : le sandbox exporte `DATABASE_URL=file:…` (héritage scaffold) qui
-   prime sur `.env` → les scripts package.json réexportent la valeur du `.env` avant d'invoquer
-   Prisma (évite la régression P1012).
-5. **Stratégie de schéma** : `prisma db push` pour l'amorçage (MVP) ; `prisma migrate` (migrations
-   versionnées + shadow database) à activer dès la première feature métier — les migrations
-   historisées sont obligatoires avant la PROD.
+4. **Scripts `db:*` sur la CLI Supabase** : le sandbox exporte `DATABASE_URL=file:…`
+   (héritage scaffold, chemin supprimé) qui prime sur `.env` → les scripts
+   package.json et `.zscripts/dev.sh` réexportent la valeur du `.env` avant tout
+   appel CLI (évite la régression P1012).
+5. **Stratégie de schéma — Supabase CLI uniquement** : les migrations vivent dans
+   `supabase/migrations/` (un fichier SQL horodaté par changement logique) et
+   s'appliquent via `supabase db push --linked`. `prisma migrate` et
+   `prisma db push` sont **interdits** : Prisma reste l'ORM (client, requêtes,
+   `prisma generate`) et le schéma `supabase/schema.prisma` sert au codegen, pas
+   à la création de tables. Le registre d'historique est
+   `supabase_migrations.schema_migrations` (plus `_prisma_migrations`).
 6. `@supabase/supabase-js` **non installé à ce stade** (YAGNI) : Prisma couvre l'accès SQL.
     Sera ajouté par un ADR dédié si auth/realtime/storage Supabase sont demandés.
 

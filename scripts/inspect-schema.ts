@@ -9,10 +9,10 @@ const tables = await prisma.$queryRawUnsafe<{ table_name: string }[]>(
 );
 console.log("TABLES PUBLIC:", tables.map((t) => t.table_name));
 
-const migrations = await prisma.$queryRawUnsafe<
-  { migration_name: string; finished_at: Date | null; rolled_back_at: Date | null }[]
->(`SELECT migration_name, finished_at, rolled_back_at FROM _prisma_migrations ORDER BY started_at`);
-console.log("_PRISMA_MIGRATIONS:", JSON.stringify(migrations, null, 1));
+const migrations = await prisma.$queryRawUnsafe<{ version: string; name: string | null }[]>(
+  `SELECT version, name FROM supabase_migrations.schema_migrations ORDER BY version`,
+);
+console.log("SCHEMA_MIGRATIONS:", JSON.stringify(migrations, null, 1));
 
 const enums = await prisma.$queryRawUnsafe<{ enum_name: string }[]>(
   `SELECT t.typname AS enum_name FROM pg_type t

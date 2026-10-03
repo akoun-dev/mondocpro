@@ -11,7 +11,7 @@ export async function GET(
 ) {
   const guard = await requireRole([
     "PATIENT",
-    "INFIRMIER",
+    "NURSE",
     "ADMIN",
   ]);
   if (!guard.ok) return guard.response;

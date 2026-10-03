@@ -142,8 +142,9 @@ PROJECT_DIR="$NEXTJS_PROJECT_DIR" BUILD_DIR="$BUILD_DIR" \
 
 # 有 Preview 数据库时复制现有数据；没有时直接在部署产物中初始化空库。
 # 模板源码不携带 db/custom.db，不能依赖 dev.sh 必须在 Deploy 前成功运行过。
-PROJECT_DIR="$NEXTJS_PROJECT_DIR" BUILD_DIR="$BUILD_DIR" \
-    bash "$SCRIPT_DIR/database-runtime-build.sh"
+# ℹ️ Supabase CLI ne parle pas SQLite : le chemin db/custom.db du scaffold a été
+#    supprimé (ADR-003 — Postgres Supabase est la seule base, schéma appliqué par
+#    `bun run db:migrate-deploy` au boot via .zscripts/dev.sh).
 
 # 复制 Caddyfile（如果存在）
 if [ -f "Caddyfile" ]; then

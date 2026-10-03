@@ -2,7 +2,7 @@
 # E2E — Vue « Profil » patient selon maquette PO 2026-10-03 (pastedImage 1790992312025)
 # Héro avatar+zone, Informations Personnelles, Sécurité & Accès (RGPD 2013-430),
 # Préférences & Alertes (switches désactivés + « Bientôt »), Urgences (SAMU 185 /
-# Pompiers 180), Centre d'aide. Rôles INFIRMIER/ADMIN : profil simple inchangé.
+# Pompiers 180), Centre d'aide. Rôles NURSE/ADMIN : profil simple inchangé.
 set -u
 cd /home/z/my-project
 AB="agent-browser"
@@ -80,7 +80,7 @@ check "Mobile — vue profil rendue" "yes" "$(body_has 'Informations Personnelle
 check "Mobile — aucun débordement horizontal" "ok" "$($AB eval "document.documentElement.scrollWidth<=392?'ok':'overflow:'+document.documentElement.scrollWidth" 2>/dev/null | tail -1 | tr -d '"')"
 $AB screenshot $SHOT/profile-mobile.png >/dev/null
 
-# ── 3. Régression INFIRMIER (profil simple inchangé) ────────────────────────
+# ── 3. Régression NURSE (profil simple inchangé) ────────────────────────
 $AB set viewport 1440 900 >/dev/null
 nav_click 3 >/dev/null; sleep 2   # Profil (3e onglet — session PATIENT active)
 $AB eval "Array.from(document.querySelectorAll('button')).find(b=>b.textContent.includes('Se déconnecter'))?.click(); 'ok'" >/dev/null; sleep 4

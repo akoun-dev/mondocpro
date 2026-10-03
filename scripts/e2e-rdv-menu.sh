@@ -93,7 +93,7 @@ check "Mobile — vue RDV affichée" "yes" "$(body_has 'Mes Rendez-vous')"
 check "Mobile — libellé sans débordement" "ok" "$($AB eval "var b=Array.from(document.querySelectorAll('nav button')).find(x=>x.textContent.trim()==='Rendez-vous'); b ? (b.scrollWidth<=b.clientWidth+2 ? 'ok' : 'overflow') : 'absent'" 2>/dev/null | tail -1 | tr -d '"')"
 $AB screenshot $SHOT/rdv-menu-mobile.png >/dev/null
 
-# ── 3. Régression INFIRMIER (nav inchangée : 2 onglets) ─────────────────────
+# ── 3. Régression NURSE (nav inchangée : 2 onglets) ─────────────────────
 $AB set viewport 1440 900 >/dev/null
 nav_click 3 >/dev/null; sleep 2   # Profil (patient)
 $AB find role button click --name "Se déconnecter" >/dev/null; sleep 4

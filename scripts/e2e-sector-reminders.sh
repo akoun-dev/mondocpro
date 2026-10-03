@@ -12,7 +12,7 @@
 #      copy rappels « notification dans l'app active ; SMS dès le choix de
 #      la passerelle » (Task 24), restauration via API.
 #   3. Mobile 390×844 — rendu + zéro débordement + dialog utilisable.
-#   4. Régression INFIRMIER — nav 2 onglets inchangée.
+#   4. Régression NURSE — nav 2 onglets inchangée.
 # Pièges plateforme intégrés : DATABASE_URL exportée avant boot (sinon login
 # 500), CRON_SECRET exporté avant boot (sinon scheduler 503), serveur + parcours
 # en un seul appel, login par refs snapshot, evals strip des quotes.
@@ -197,7 +197,7 @@ check "Mobile — select rendu" "yes" "$($AB eval "document.getElementById('prof
 $AB screenshot $SHOT/sector-reminders-mobile.png >/dev/null
 $AB eval "document.querySelector('[role=\"dialog\"] button[aria-label=\"Close\"]')?.click(); 'ok'" >/dev/null 2>&1; sleep 1
 
-# ── 4. Régression INFIRMIER ──────────────────────────────────────────────────
+# ── 4. Régression NURSE ──────────────────────────────────────────────────
 $AB set viewport 1440 900 >/dev/null; sleep 1
 $AB eval "Array.from(document.querySelectorAll('button')).find(b=>b.textContent.includes('Se déconnecter'))?.click(); 'ok'" >/dev/null; sleep 4
 echo "== login infirmier: $(login "0755666777" "TestInfirmier2026!")"

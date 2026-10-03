@@ -13,7 +13,7 @@ datasource db {
 // Rôles applicatifs — miroir des acteurs du cahier des charges
 enum Role {
   PATIENT
-  INFIRMIER
+  NURSE
   ADMIN
 }
 

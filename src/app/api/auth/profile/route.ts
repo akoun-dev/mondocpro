@@ -16,7 +16,7 @@ import { requireRole, toPublicUser } from "@/lib/auth";
 import { updateProfileSchema, ZONES } from "@/lib/auth-schemas";
 
 export async function PATCH(request: Request) {
-    const guard = await requireRole(["PATIENT", "INFIRMIER", "ADMIN"]);
+    const guard = await requireRole(["PATIENT", "NURSE", "ADMIN"]);
     if (!guard.ok) return guard.response;
 
     let body: unknown;

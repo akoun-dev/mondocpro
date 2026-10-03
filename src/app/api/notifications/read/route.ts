@@ -11,7 +11,7 @@ import { requireRole } from "@/lib/auth";
 import { markNotificationsReadSchema } from "@/lib/notifications";
 
 export async function POST(request: Request) {
-    const guard = await requireRole(["PATIENT", "INFIRMIER", "ADMIN"]);
+    const guard = await requireRole(["PATIENT", "NURSE", "ADMIN"]);
     if (!guard.ok) return guard.response;
 
     let body: unknown;

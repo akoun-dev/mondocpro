@@ -3,7 +3,7 @@
 // (décision PO 2026-10 : pas de choix de rôle à l'inscription).
 import { z } from "zod";
 
-export const ROLES = ["PATIENT", "INFIRMIER"] as const; // ADMIN = seed uniquement (ADR-004 §5)
+export const ROLES = ["PATIENT", "NURSE"] as const; // ADMIN = seed uniquement (ADR-004 §5)
 export const ZONES = ["YOPOUGON", "SONGON", "PK22", "NDOTRE"] as const;
 
 export const ZONE_LABELS: Record<(typeof ZONES)[number], string> = {

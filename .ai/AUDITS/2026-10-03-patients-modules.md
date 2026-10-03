@@ -23,7 +23,7 @@ contrats API sont validés (règle API-first) — le lot de fondations est chiff
 | Auth complète | ✅ 6 routes API (`register, login, me, logout, forgot-password, reset-password`) conformes aux contrats | `src/app/api/auth/**`, `API_CONTRACTS.md` |
 | Modèles Prisma | ✅ `User`, `Session`, `PasswordResetToken` — **aucune table métier** | `prisma/schema.prisma` (69 lignes) |
 | Espace Patient UI | ✅ 3 cartes placeholder « Bientôt disponible » : Rendez-vous, Épargne santé, Sensibilisations | `src/components/auth/user-dashboard.tsx` (ROLE_SPACE.PATIENT) |
-| Composants INFIRMIER/ADMIN | ⏳ placeholders vides (0 ligne) — hors périmètre de ce lot | `src/components/admin|nurses|users/page.tsx` |
+| Composants NURSE/ADMIN | ⏳ placeholders vides (0 ligne) — hors périmètre de ce lot | `src/components/admin|nurses|users/page.tsx` |
 | Lint / qualité | ✅ `bun run lint` 0 erreur ; 0 TODO/FIXME hors `TODO INT-SMS` documenté | lint du jour, pré-audit §2 |
 | BDD réelle | ✅ users (2) / sessions / password_reset_tokens — tables métier absentes | pré-audit §3 (lecture Supabase) |
 

@@ -5,7 +5,7 @@
 // navigation basse flottante (patient : Accueil / Rendez-vous / Profil — autres
 // rôles : Accueil / Profil), vues animées sobres framer-motion
 // (DESIGN_SYSTEM §4). Accueil patient dédié (src/components/patient/) branché sur les
-// API contractées ; rôles INFIRMIER/ADMIN inchangés (cartes « à venir »).
+// API contractées ; rôles NURSE/ADMIN inchangés (cartes « à venir »).
 import Image from "next/image"
 import { useCallback, useEffect, useState } from "react"
 import { AnimatePresence, motion } from "framer-motion"
@@ -75,13 +75,13 @@ import { SpecialtiesView } from "@/components/admin/specialties-view"
 
 const ROLE_LABELS: Record<AppRole, string> = {
     PATIENT: "Patient",
-    INFIRMIER: "Infirmier",
+    NURSE: "Infirmier",
     ADMIN: "Médecin Chef",
 }
 
 const ROLE_SPACE_ICON: Record<AppRole, LucideIcon> = {
     PATIENT: HeartPulse,
-    INFIRMIER: Stethoscope,
+    NURSE: Stethoscope,
     ADMIN: UsersRound,
 }
 
@@ -89,7 +89,7 @@ const ROLE_SPACE_ICON: Record<AppRole, LucideIcon> = {
 // les foregrounds foncés des tokens sont utilisés tels quels.
 const ROLE_BADGE_CLASSES: Record<AppRole, string> = {
     PATIENT: "bg-primary text-primary-foreground",
-    INFIRMIER: "bg-success text-success-foreground",
+    NURSE: "bg-success text-success-foreground",
     ADMIN: "bg-warning text-warning-foreground",
 }
 
@@ -126,7 +126,7 @@ const ROLE_SPACE: Record<
             },
         ],
     },
-    INFIRMIER: {
+    NURSE: {
         title: "Espace Infirmier",
         description: "Missions et géolocalisation — à venir",
         features: [

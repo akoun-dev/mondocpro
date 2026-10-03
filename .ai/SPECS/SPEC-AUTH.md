@@ -20,7 +20,7 @@ multirôle robuste et traçable (contrainte médicale : traçabilité des action
 | Acteur métier                | Rôle applicatif | Identifiant | Particularités                                            |
 | ---------------------------- | --------------- | ----------- | --------------------------------------------------------- |
 | Patient                      | `PATIENT`       | Téléphone   | Zone de résidence obligatoire (livraison/domicile)        |
-| Infirmier / Assistant mobile | `INFIRMIER`     | Téléphone   | Zone de rattachement obligatoire (dispatch)               |
+| Infirmier / Assistant mobile | `NURSE`     | Téléphone   | Zone de rattachement obligatoire (dispatch)               |
 | Médecin Chef (Dr Kadjane)    | `ADMIN`         | Téléphone   | **Compte unique** — créé par seed, pas d'auto-inscription |
 
 > Décision : l'identifiant est le **numéro de téléphone** (réalité terrain Côte
@@ -49,7 +49,7 @@ zone et mon rôle, **afin de** accéder aux services Mon doc Pro.
 **En tant qu'utilisateur**, **je veux** me connecter avec téléphone + mot de passe.
 
 - [ ] 2 champs + bouton ; message d'erreur générique 401 (jamais d'indice sur l'existence du compte)
-- [ ] Succès → dashboard selon rôle (PATIENT → espace patient, INFIRMIER → espace infirmier, ADMIN → console admin)
+- [ ] Succès → dashboard selon rôle (PATIENT → espace patient, NURSE → espace infirmier, ADMIN → console admin)
 - [ ] Session persistante 30 jours (cookie httpOnly) — reload garde l'utilisateur connecté
 
 ### US-AUTH-3 — Session / Guard de route

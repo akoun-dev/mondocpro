@@ -99,7 +99,7 @@ Validation: schéma zod de référence (src/lib/<domaine>.ts)
 - Request: `{ "fullName": string(2..80), "phone": string(regex ^\+?[0-9]{8,15}$), "password": string(8..72), "confirmPassword": string, "zone": "YOPOUGON"|"SONGON"|"PK22"|"NDOTRE" }`
 - Response: 201 `{ "user": { "id": string, "fullName": string, "phone": string, "role": string, "zone": string, "birthDate": string|null, "appointmentReminders": boolean, "healthAlerts": boolean, "createdAt": string } }` — cookie de session posé
 - Errors: 400 `{ error, details }` (zod) · 409 `{ error }` numéro déjà inscrit · 500
-- Notes: **rôle `PATIENT` forcé côté serveur** (décision PO 2026-10 : pas de choix de rôle à l'inscription ; toute valeur `role` cliente est ignorée) ; `INFIRMIER`/`ADMIN` créés par l'administration ; `confirmPassword` validé = `password` ; jamais de retour de `passwordHash`.
+- Notes: **rôle `PATIENT` forcé côté serveur** (décision PO 2026-10 : pas de choix de rôle à l'inscription ; toute valeur `role` cliente est ignorée) ; `NURSE`/`ADMIN` créés par l'administration ; `confirmPassword` validé = `password` ; jamais de retour de `passwordHash`.
 
 ### [POST] /api/auth/login — Connexion
 - Feature: FEATURE-AUTH (SYS-010) | Owner: Backend | Statut: **VALIDÉ** (ADR-004, maj PO 2026-10)

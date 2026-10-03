@@ -48,11 +48,16 @@ demandes successives de l'utilisateur, traitées via le Feature Lifecycle (`WORK
 - Route utilisateur visible : `/` uniquement (tout nouveau module s'intègre dans la page principale).
 - Dev server : `bun run dev` (port 3000, log `dev.log`) — jamais `bun run build` en dev.
 - ⚠️ **Boot plateforme** : `/start.sh` écrase `.env` (`DATABASE_URL=file:…`) à chaque cold start → flux custom `.zscripts/dev.sh` (restaure l'env Supabase depuis `.zscripts/.env.supabase`, non versionné) puis démarre le serveur ; OPS-T02.
-- ⚠️ Le shell sandbox exporte `DATABASE_URL=file:…` (héritage scaffold) qui PRIME sur `.env` :
-  les scripts `db:push/db:migrate/db:reset` réexportent la valeur du `.env` (cf. ADR-003 §4) ;
+- ⚠️ Le shell sandbox exporte `DATABASE_URL=file:…` (héritage scaffold, chemin supprimé) qui PRIME sur `.env` :
+  les scripts `db:*` et `.zscripts/dev.sh` réexportent la valeur du `.env` (cf. ADR-003 §4) ;
   le serveur dev doit être redémarré après changement de `.env` (Next ne réécrase pas l'env existant).
 - Connexion Supabase : uniquement via pooler Supavisor (host direct IPv6-only, sandbox sans IPv6).
-- **Configuration locale (machine du PO)** : copier `.env.example` (versionné, OPS-T03) → `cp .env.example .env`, remplir les placeholders Supabase (Dashboard → Settings → General/API/Database), puis `bun install && bun run db:push && bun run dev`. `.env` reste ignoré par git (`.env*`, exception `!.env.example`).
+- **Migrations = Supabase CLI uniquement** (ADR-003 §5) : `bun run db:migration <nom>` pour créer le
+  fichier SQL, `bun run db:migrate-deploy` pour l'appliquer, `bun run db:status` / `db:diff` pour
+  l'état et la dérive, `bun run db:reset` pour tout réinitialiser. `prisma migrate` et
+  `prisma db push` sont interdits — `bun run db:generate` (`prisma generate`) reste requis après
+  chaque évolution du schéma pour regénérer le client.
+- **Configuration locale (machine du PO)** : copier `.env.example` (versionné, OPS-T03) → `cp .env.example .env`, remplir les placeholders Supabase (Dashboard → Settings → General/API/Database), puis `npx supabase link --project-ref <PROJECT_REF>` et `bun install && bun run db:migrate-deploy && bun run dev`. `.env` reste ignoré par git (`.env*`, exception `!.env.example`).
 - API routes (pas de server actions pour la consommation client), appels par chemins relatifs.
 
 ## 5. Parties prenantes (équipe virtuelle)
