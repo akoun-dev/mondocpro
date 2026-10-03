@@ -838,3 +838,23 @@ Stage Summary:
 - Invariant financier intact : le coût d'un RDV est figé à sa réservation (lecture du tarif DANS la transaction sérialisable) — changer un tarif ne vaut que pour les demandes à venir, les réservations engagées et le ledger ne bougent pas.
 - Design extensible sans migration (clé → Tokens) : la grille fine du PO (spécialités, nuit/week-end, patient absent, déplacement, suivi) s'ajoutera par INSERT de clés — reste à la définir.
 - Bonus robustesse : timeout transaction RDV 5→15 s (500 « Transaction not found » éradiqué) ; débordement mobile de la nouvelle vue corrigé (line-clamp-2).
+
+---
+Task ID: 29
+Agent: Super Z
+Task: « Impossible de contacter le serveur » à la connexion (et autres) — diagnostic + corrections cookie/boot
+
+Work Log:
+- Constat : le serveur Next était ARRÊTÉ au moment des essais du patient (relancé à 13:35 UTC, message d'erreur vers 13:49) ; le message affiché est le `catch` de `fetch()` (NETWORK_ERROR, défini dans use-auth.ts + 11 composants) — il ne vient JAMAIS d'une réponse API.
+- Deuxième cause RÉELLE trouvée dans dev.log : après le `POST /api/auth/register 201` du patient via l'aperçu, TOUS les appels suivants étaient 401 (appointments/sensibilisations/notifications/wallet) → le cookie `SameSite=Lax` n'est jamais renvoyé quand l'aperçu est intégré en iframe cross-site (cookies tiers bloqués / non inclus en sous-ressource).
+- Fix cookie (src/lib/auth.ts) : `sessionCookieOptions()` — localhost (E2E curl/playwright) conserve `SameSite=Lax; secure:false` (zéro régression, vérifié : Set-Cookie Lax + login/me 200) ; tout autre host (proxy aperçu/production) passe en `SameSite=None; Secure; Partitioned` (CHIPS) — vérifié via le proxy : Set-Cookie conforme, puis me/wallet/appointments/notifications 200 et logout 200→401. Cloison anti-CSRF conservée via Partitioned. destroySession réutilise les mêmes attributs (écrasement garanti).
+- next.config.ts : `allowedDevOrigins: ["*.space-z.ai"]` — supprime l'avertissement cross-origin Next 16 sur les ressources `/_next/*`.
+- Cause racine profonde RÉAFFIRMÉE et traitée durablement : `/start.sh` plateforme écrase `.env` avec `DATABASE_URL=file:.../custom.db` à chaque boot conteneur et l'export shell prime sur dotenv. Trois protections coexistent désormais : (1) `.zscripts/dev.sh` (boot custom plateforme, restauré à l'identique HEAD — restauration .env depuis .zscripts/.env.supabase + auto-réparation SYS-010 + db push --linked) ; (2) NOUVEAU `scripts/dev-with-env.sh` branché sur `"dev": "bash scripts/dev-with-env.sh"` (package.json) — tout `bun run dev` manuel/lazy force DATABASE_URL depuis .env ; (3) `.zscripts/.env.supabase` (backup non versionné chmod 600, déjà en place).
+- Piège évité : ma première version de .zscripts/dev.sh a ÉCRASÉ celle (meilleure) de la session précédente — détecté via `git diff` avant commit (statut M inattendu), restaurée par `git checkout HEAD -- .zscripts/dev.sh`, copie redondante .env.supabase racine supprimée. Leçon : avant d'écrire un fichier existant, `git log/diff` + lecture complète.
+- Serveur : plusieurs relances en setsid sont mortes en fin de tool-call (sandbox ne survit que process du boot plateforme) ; les vérifications ont été rejouées dans une commande unique démarrage+tests. À la fin de la Task, le serveur est relancé sain ; en cas d'arrêt ultérieur, tout chemin de boot (lazy `bun run dev` ou boot conteneur via .zscripts/dev.sh) est immunisé.
+- Tests : login/me/wallet/appointments/notifications via proxy aperçu = 200 ; E2E localhost inchangé (Lax) ; eslint 0 erreur sur auth.ts et next.config.ts.
+
+Stage Summary:
+- Le patient peut se connecter depuis l'aperçu même intégré en iframe : le cookie de session survit (CHIPS) — les 401 en rafale après inscription disparaissent.
+- Aucun boot futur ne peut redémarrer le serveur avec la mauvaise base : les trois chemins (boot conteneur, `bun run dev` manuel, lazy) forcent le DATABASE_URL Supabase.
+- Le message « Impossible de contacter le serveur » reste le symptôme d'un serveur arrêté (plateforme) : la réponse utilisateur est de recharger — le serveur relance sainement.

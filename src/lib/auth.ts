@@ -1,7 +1,7 @@
 // Service d'authentification — FEATURE-AUTH (ADR-004)
 // Côté serveur uniquement (bcrypt, sessions, cookies) — jamais importé côté client.
 import { createHash, randomBytes, randomInt } from "node:crypto"
-import { cookies } from "next/headers"
+import { cookies, headers } from "next/headers"
 import { NextResponse } from "next/server"
 import bcrypt from "bcryptjs"
 import { db } from "@/lib/db"
@@ -77,6 +77,27 @@ export function generateResetCode(): string {
 
 export const PASSWORD_RESET_TTL_MINUTES = 15
 
+// Options du cookie de session selon le contexte de service :
+// - localhost (http://localhost:3000, E2E curl/playwright) : SameSite=Lax,
+//   comportement historique — inchangé.
+// - proxy de prévisualisation / production (HTTPS, potentiellement affiché en
+//   iframe cross-site) : SameSite=None + Secure + Partitioned (CHIPS). Un cookie
+//   Lax n'est JAMAIS renvoyé par un navigateur depuis un iframe tiers, ce qui
+//   produisait des 401 systématiques après connexion dans l'aperçu intégré.
+//   Partitioned restaure en prime une cloison anti-CSRF (les requêtes cross-site
+//   ne voient pas la partition du site hôte).
+async function sessionCookieOptions(): Promise<{
+    sameSite: "lax" | "none"
+    secure: boolean
+    partitioned?: boolean
+}> {
+    const host = (await headers()).get("host") ?? ""
+    const isLocal = host.startsWith("localhost") || host.startsWith("127.0.0.1")
+    return isLocal
+        ? { sameSite: "lax", secure: false }
+        : { sameSite: "none", secure: true, partitioned: true }
+}
+
 // Après un reset de mot de passe, toutes les sessions existantes sont révoquées :
 // un attaquant ayant volé une session ne la conserve pas après reprise de contrôle.
 export async function invalidateUserSessions(userId: string): Promise<void> {
@@ -98,9 +119,8 @@ export async function createSession(
     const store = await cookies()
     store.set(SESSION_COOKIE, token, {
         httpOnly: true,
-        sameSite: "lax",
-        secure: process.env.NODE_ENV === "production",
         path: "/",
+        ...(await sessionCookieOptions()),
         // « Se souvenir de moi » décoché : cookie de session (expire à la fermeture
         // du navigateur) au lieu d'un cookie persistant 30 jours.
         ...(remember ? { expires: expiresAt } : {}),
@@ -139,9 +159,10 @@ export async function destroySession(): Promise<void> {
     }
     store.set(SESSION_COOKIE, "", {
         httpOnly: true,
-        sameSite: "lax",
-        secure: process.env.NODE_ENV === "production",
         path: "/",
+        // Mêmes attributs que la pose : le navigateur n'écrase le cookie que si
+        // nom + domaine + chemin + partition correspondent.
+        ...(await sessionCookieOptions()),
         maxAge: 0,
     })
 }
