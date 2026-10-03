@@ -697,11 +697,11 @@ export function RegisterForm({
 
                     {step === 3 && (
                         <>
-                            {/* Récapitulatif patient (maquette étape 3) */}
+                            {/* Récapitulatif (maquette étape 3) */}
                             <div className="flex flex-col gap-3 rounded-xl border border-primary/20 bg-primary/5 p-4">
                                 <div className="flex items-center justify-between gap-2">
                                     <p className="text-xs font-bold uppercase tracking-wide text-primary">
-                                        Récapitulatif patient
+                                        Récapitulatif
                                     </p>
                                     <button
                                         type="button"
