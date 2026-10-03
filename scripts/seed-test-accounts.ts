@@ -13,7 +13,7 @@ const ACCOUNTS: {
   phone: string;
   fullName: string;
   password: string;
-  role: "PATIENT" | "INFIRMIER" | "ADMIN";
+  role: "PATIENT" | "NURSE" | "ADMIN";
   zone: "YOPOUGON" | "SONGON" | "PK22" | "NDOTRE";
 }[] = [
   {
@@ -27,7 +27,7 @@ const ACCOUNTS: {
     phone: "+2250755666777",
     fullName: "Infirmier Maquette UI",
     password: "TestInfirmier2026!",
-    role: "INFIRMIER",
+    role: "NURSE",
     zone: "YOPOUGON",
   },
   {

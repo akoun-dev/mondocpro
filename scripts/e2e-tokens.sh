@@ -87,7 +87,7 @@ rm -f /tmp/dev-e2e.log
 # deux runs (Task 26 : reprovision Supabase ayant perdu DDL + données) :
 # DDL Tokens idempotent + seed spécialités + seed comptes de test.
 node_modules/.bin/prisma db execute --file scripts/tokens-live-apply.sql --schema supabase/schema.prisma > /dev/null 2>&1 || true
-printf 'ALTER TYPE "Role" RENAME VALUE '\''NURSE'\'' TO '\''INFIRMIER'\'';' | node_modules/.bin/prisma db execute --schema supabase/schema.prisma --stdin > /dev/null 2>&1 || true
+printf 'ALTER TYPE "Role" RENAME VALUE '''INFIRMIER''' TO '''NURSE''';' | node_modules/.bin/prisma db execute --schema supabase/schema.prisma --stdin > /dev/null 2>&1 || true
 bun scripts/seed-specialties.ts > /dev/null 2>&1 || true
 bun scripts/seed-test-accounts.ts > /dev/null 2>&1 || true
 nohup bun run dev > /tmp/dev-e2e.log 2>&1 &
