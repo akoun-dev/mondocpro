@@ -59,3 +59,7 @@ db/
 
 # état local CLI Supabase (non versionné)
 supabase/.temp/
+
+# artefacts d'outillage AI (captures E2E, sorties d'outils — régénérables,
+# preuves E2E conservées en local uniquement ; cf. worklog Tasks 23-24)
+tool-results/
