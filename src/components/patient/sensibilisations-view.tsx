@@ -208,6 +208,12 @@ export function SensibilisationsView({
         ))}
       </div>
 
+      {feed !== null && error && (
+        <div role="status" className="rounded-xl border border-warning/30 bg-warning/10 px-4 py-3 text-xs">
+          Les données affichées peuvent être obsolètes. Réessayez depuis le bouton d’actualisation.
+        </div>
+      )}
+
       {loading && feed === null ? (
         <ul className="grid gap-3" aria-busy="true" aria-label="Chargement des sensibilisations">
           {[0, 1, 2].map(index => (

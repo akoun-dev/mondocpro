@@ -14,6 +14,8 @@ export type PatientData = {
   loading: boolean;
   refreshing: boolean;
   error: string | null;
+  /** Vrai lorsqu'un rafraîchissement a échoué après un chargement réussi. */
+  stale: boolean;
   refresh: () => Promise<void>;
 };
 
@@ -44,6 +46,7 @@ export function usePatientData(enabled: boolean): PatientData {
   const [loading, setLoading] = useState(enabled);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [stale, setStale] = useState(false);
   const mounted = useRef(true);
 
   useEffect(() => {
@@ -70,9 +73,11 @@ export function usePatientData(enabled: boolean): PatientData {
       if (!mounted.current) return;
       setAppointments(appointmentsRes.appointments);
       setSensibilisations(sensibilisationsRes.sensibilisations);
+      setStale(false);
     } catch (e) {
       if (!mounted.current) return;
       setError(e instanceof Error ? e.message : LOAD_ERROR);
+      setStale(mode === "refresh");
     } finally {
       if (mounted.current) {
         setLoading(false);
@@ -93,6 +98,7 @@ export function usePatientData(enabled: boolean): PatientData {
     loading,
     refreshing,
     error,
+    stale,
     refresh,
   };
 }

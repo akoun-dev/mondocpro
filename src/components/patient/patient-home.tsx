@@ -70,6 +70,22 @@ export function PatientHome({
 
   return (
     <div className="flex flex-col gap-5">
+      {data.stale && (
+        <div
+          role="status"
+          className="flex items-center justify-between gap-3 rounded-xl border border-warning/30 bg-warning/10 px-4 py-3 text-xs text-foreground"
+        >
+          <span>Les données affichées peuvent être obsolètes.</span>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => void data.refresh()}
+            className="h-8 shrink-0 rounded-lg text-xs"
+          >
+            Réessayer
+          </Button>
+        </div>
+      )}
       {data.error && data.appointments === null ? (
         <div className="rounded-2xl border bg-card p-6 text-center shadow-sm">
           <p className="text-sm font-medium">{data.error}</p>

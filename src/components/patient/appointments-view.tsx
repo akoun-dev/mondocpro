@@ -176,6 +176,12 @@ export function AppointmentsView({ data, onBook }: Props) {
         {tabButton("past", "Passées", history.length)}
       </div>
 
+      {data.stale && (
+        <div role="status" className="rounded-xl border border-warning/30 bg-warning/10 px-4 py-3 text-xs">
+          Les données affichées peuvent être obsolètes. Réessayez depuis le bouton d’actualisation.
+        </div>
+      )}
+
       {data.loading && data.appointments === null ? (
         <ul className="grid gap-3" aria-busy="true" aria-label="Chargement des rendez-vous">
           {[0, 1, 2].map(index => (

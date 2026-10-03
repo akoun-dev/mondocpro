@@ -4,7 +4,7 @@
 // réservation, source unique front/back. Un seul RDV actif (PENDING/CONFIRMED)
 // par patient sur un créneau donné.
 import { db } from "@/lib/db";
-import type { Appointment, AppointmentStatus } from "@prisma/client";
+import { Prisma, type Appointment, type AppointmentStatus } from "@prisma/client";
 import type { CreateAppointmentInput } from "@/lib/appointment-schemas";
 import {
   AppointmentError,
@@ -65,16 +65,39 @@ export function toAppointmentDto(
 }
 
 const ACTIVE_STATUSES: AppointmentStatus[] = ["PENDING", "CONFIRMED"];
+const MAX_ACTIVE_APPOINTMENTS = 10;
 
 export async function listAppointmentsForPatient(
   patientId: string,
 ): Promise<AppointmentDto[]> {
-  const rows = await db.appointment.findMany({
-    where: { patientId },
-    orderBy: [{ scheduledAt: "desc" }],
-    take: 100,
-    include: { specialty: { select: { id: true, name: true } } },
-  });
+  const now = new Date();
+  const include = { specialty: { select: { id: true, name: true } } } as const;
+  // Les rendez-vous actifs ne sont pas bornés : le prochain ne doit jamais
+  // être masqué par un historique volumineux. L'historique reste limité à 100.
+  const [upcoming, history] = await Promise.all([
+    db.appointment.findMany({
+      where: {
+        patientId,
+        status: { in: ACTIVE_STATUSES },
+        scheduledAt: { gte: new Date(now.getTime() - 60_000) },
+      },
+      orderBy: [{ scheduledAt: "asc" }],
+      include,
+    }),
+    db.appointment.findMany({
+      where: {
+        patientId,
+        OR: [
+          { status: { notIn: ACTIVE_STATUSES } },
+          { scheduledAt: { lt: new Date(now.getTime() - 60_000) } },
+        ],
+      },
+      orderBy: [{ scheduledAt: "desc" }],
+      take: 100,
+      include,
+    }),
+  ]);
+  const rows = [...upcoming, ...history];
   return rows.map(toAppointmentDto);
 }
 
@@ -98,33 +121,61 @@ export async function createAppointmentForPatient(
   }
 
   // Collision : le patient a déjà un RDV actif sur ce créneau exact.
-  const clash = await db.appointment.findFirst({
-    where: {
-      patientId,
-      scheduledAt,
-      status: { in: ACTIVE_STATUSES },
-    },
-    select: { id: true },
-  });
-  if (clash) {
-    throw new AppointmentError(
-      "Vous avez déjà un rendez-vous sur ce créneau — annulez-le d'abord ou choisissez un autre horaire",
-      409,
-    );
-  }
+  try {
+    const created = await db.$transaction(
+      async tx => {
+        const activeCount = await tx.appointment.count({
+          where: { patientId, status: { in: ACTIVE_STATUSES } },
+        });
+        if (activeCount >= MAX_ACTIVE_APPOINTMENTS) {
+          throw new AppointmentError(
+            `Vous ne pouvez pas avoir plus de ${MAX_ACTIVE_APPOINTMENTS} rendez-vous actifs`,
+            409,
+          );
+        }
 
-  const created = await db.appointment.create({
-    data: {
-      patientId,
-      specialtyId: specialty.id,
-      type: input.type,
-      zone: input.zone,
-      scheduledAt,
-      reason: input.reason || null,
-    },
-    include: { specialty: { select: { id: true, name: true } } },
-  });
-  return toAppointmentDto(created);
+        const clash = await tx.appointment.findFirst({
+          where: {
+            patientId,
+            scheduledAt,
+            status: { in: ACTIVE_STATUSES },
+          },
+          select: { id: true },
+        });
+        if (clash) {
+          throw new AppointmentError(
+            "Vous avez déjà un rendez-vous sur ce créneau — annulez-le d'abord ou choisissez un autre horaire",
+            409,
+          );
+        }
+
+        return tx.appointment.create({
+          data: {
+            patientId,
+            specialtyId: specialty.id,
+            type: input.type,
+            zone: input.zone,
+            scheduledAt,
+            reason: input.reason || null,
+          },
+          include: { specialty: { select: { id: true, name: true } } },
+        });
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+    );
+    return toAppointmentDto(created);
+  } catch (error) {
+    if (error instanceof AppointmentError) throw error;
+    // Deux créations concurrentes peuvent faire échouer la transaction
+    // sérialisable : restituer une collision métier plutôt qu'un 500.
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2034") {
+      throw new AppointmentError(
+        "Ce créneau vient d'être réservé — choisissez un autre horaire",
+        409,
+      );
+    }
+    throw error;
+  }
 }
 
 export async function cancelAppointmentForPatient(
