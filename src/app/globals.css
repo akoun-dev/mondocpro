@@ -148,3 +148,26 @@
     @apply bg-background text-foreground;
   }
 }
+
+@keyframes heartbeat-line {
+  from {
+    stroke-dasharray: 0 180;
+    stroke-dashoffset: 0;
+  }
+
+  to {
+    stroke-dasharray: 180 0;
+    stroke-dashoffset: -180;
+  }
+}
+
+.heartbeat-line {
+  stroke-dasharray: 180 0;
+  animation: heartbeat-line 1.8s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .heartbeat-line {
+    animation: none;
+  }
+}
