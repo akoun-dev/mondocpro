@@ -125,7 +125,21 @@ Validation: schéma zod de référence (src/lib/<domaine>.ts)
 - Request: — · header `Authorization: Bearer ${CRON_SECRET}` (obligatoire) ; à brancher sur un planificateur externe (Vercel Cron / cron système)
 - Response: 200 `{ ok: true, gateway: string, due: number, sent: number, failed: number, results: [{ appointmentId, ok, error? }] }` — résumé du tick
 - Errors: 401 `{ error }` secret absent/faux (comparaison à temps constant) · 503 `{ error }` **CRON_SECRET non configuré** = scheduler non déployé (passerelle SMS : décision A10 en attente) · 500
-- Notes: périmètre PO — rappels **UNIQUEMENT AVANT les RDV**, fenêtre **24 h** (`REMINDER_LEAD_HOURS`, src/lib/reminders.ts) ; sélection : `status = CONFIRMED` ∧ `scheduledAt ∈ [maintenant, +24 h]` ∧ `reminderSentAt IS NULL` ∧ patient `appointmentReminders = true` ; **anti-doublon** : envoi réussi ⇒ `Appointment.reminderSentAt` marqué (un RDV rappelé n'est jamais repris ; échec ⇒ non marqué ⇒ retenté au tick suivant) ; batch plafonné à 100/tick ; transport **provider-agnostic** (`SmsGateway`) avec stub console — brancher le fournisseur choisi à A10 = 1 seule fonction (`getSmsGateway`) ; message SMS fr-FR ≤ 160 c. (heure locale Afrique/Abidjan = UTC+0).
+- Notes: périmètre PO — rappels **UNIQUEMENT AVANT les RDV**, fenêtre **24 h** (`REMINDER_LEAD_HOURS`, src/lib/reminders.ts) ; sélection : `status = CONFIRMED` ∧ `scheduledAt ∈ [maintenant, +24 h]` ∧ `reminderSentAt IS NULL` ∧ patient `appointmentReminders = true` ; **anti-doublon** : envoi réussi ⇒ `Appointment.reminderSentAt` marqué (un RDV rappelé n'est jamais repris ; échec ⇒ non marqué ⇒ retenté au tick suivant) ; batch plafonné à 100/tick ; **deux canaux par tick (Task 24)** : notification InApp créée d'abord (upsert idempotent via unique `userId+type+entityId` — jamais de doublon même en cas de retentement SMS) puis SMS via la passerelle **provider-agnostic** (`SmsGateway`) en stub console — brancher le fournisseur choisi à A10 (ADR-006) = 1 seule fonction (`getSmsGateway`) ; message SMS fr-FR ≤ 160 c. (heure locale Afrique/Abidjan = UTC+0).
+
+### [GET] /api/notifications — Fil InApp de l'utilisateur (FEATURE-RDV, Task 24)
+- Feature: FEATURE-RDV (canal InApp des rappels) | Owner: Backend | Statut: **IMPLÉMENTÉ** (Task 24, 2026-10-03)
+- Request: — (cookie de session, tous rôles) — l'utilisateur ne voit JAMAIS que ses propres notifications
+- Response: 200 `{ "notifications": [{ "id": string, "type": "APPOINTMENT_REMINDER", "title": string, "body": string, "entityId": string|null, "readAt": string|null, "createdAt": string }], "unreadCount": number }` — 50 plus récentes, tri décroissant `createdAt` ; `unreadCount` = badge de la cloche
+- Errors: 401 `{ error }` non authentifié · 500
+- Notes: première source câblée = rappel « 24 h avant RDV » créé par le scheduler (type `APPOINTMENT_REMINDER`, `entityId` = appointmentId) ; l'enum DB `NotificationType` est l'autorité — les futurs types (alertes de santé locales, changements de statut RDV) l'étendent en miroir de `src/lib/notifications.ts` ; anti-doublon structurel via index unique `(userId, type, entityId)` (NB Postgres : NULL distincts — dédoublonnage effectif pour les types portant une `entityId`).
+
+### [POST] /api/notifications/read — Marquer des notifications comme lues (Task 24)
+- Feature: FEATURE-RDV (canal InApp des rappels) | Owner: Backend | Statut: **IMPLÉMENTÉ** (Task 24, 2026-10-03)
+- Request: exactement une des deux formes — `{ "all": true }` (toutes les non-lues de la session) **ou** `{ "id": string }` (une seule) ; schéma Zod partagé front/back (`markNotificationsReadSchema`, src/lib/notifications.ts)
+- Response: 200 `{ "ok": true, "unreadCount": number }` — vérité serveur pour réaligner le badge
+- Errors: 400 `{ error, details }` (JSON invalide, les deux formes ou aucune) · 401 `{ error }` non authentifié · 404 `{ error }` `id` inexistant **ou** appartenant à un autre utilisateur (indistinguables — pas de fuite d'existence) · 500
+- Notes: le user ciblé = session (jamais le corps) ; `updateMany` scopé `userId + readAt IS NULL` — idempotent ; le front patient applique en optimiste puis réaligne sur le `unreadCount` renvoyé.
 
 ### [POST] /api/auth/forgot-password — Mot de passe oublié (étape 1)
 - Feature: FEATURE-AUTH (SYS-010 / US-AUTH-5) | Owner: Backend | Statut: **VALIDÉ** (maj PO 2026-10)

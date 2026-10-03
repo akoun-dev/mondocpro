@@ -90,9 +90,37 @@ export type RemindersSummary = {
   results: ReminderDispatch[];
 };
 
-// Un tick du scheduler : sélection → envoi (gateway) → marquage reminderSentAt.
-// Un envoi en échec N'EST PAS marqué → retenté naturellement au tick suivant ;
-// la boucle est séquentielle pour ne pas saturer la passerelle (MVP).
+// Copie InApp du rappel (Task 24) — pas de contrainte 160 c. (canal in-app),
+// même contenu que le SMS sans le préfixe « Mon doc Pro : » redondant dans
+// l'app. Le titre porte l'intention, le corps porte le créneau.
+export function buildReminderNotification(appointment: {
+  type: "CABINET" | "DOMICILE";
+  scheduledAt: Date;
+}): { title: string; body: string } {
+  const typeLabel = appointment.type === "DOMICILE" ? "à domicile" : "au cabinet";
+  const slot = new Intl.DateTimeFormat("fr-FR", {
+    timeZone: "Africa/Abidjan",
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(appointment.scheduledAt);
+  return {
+    title: "Rappel de rendez-vous",
+    body: `Votre RDV ${typeLabel} est prévu le ${slot}. Merci d'arriver à l'heure.`,
+  };
+}
+
+// Un tick du scheduler : sélection → notification InApp → envoi (gateway) →
+// marquage reminderSentAt.
+// Ordre volontaire : la notification InApp est créée AVANT l'envoi SMS —
+// le canal in-app (interne, jamais en panne) ne doit pas dépendre du succès
+// de la passerelle (A10 ouverte). L'upsert est idempotent via l'index unique
+// (userId, type, entityId) : si le SMS échoue et que le RDV est repris au
+// tick suivant, aucune notification dupliquée n'est créée. Un envoi en échec
+// N'EST PAS marqué → retenté naturellement au tick suivant ; la boucle est
+// séquentielle pour ne pas saturer la passerelle (MVP).
 export async function processDueReminders(
   now: Date = new Date(),
 ): Promise<RemindersSummary> {
@@ -101,6 +129,27 @@ export async function processDueReminders(
   const results: ReminderDispatch[] = [];
   for (const appointment of due) {
     try {
+      // 1. Canal InApp — actif dès aujourd'hui (Task 24), anti-doublon via
+      // @@unique(userId, type, entityId) ; update {} = no-op si déjà créée.
+      const notification = buildReminderNotification(appointment);
+      await db.notification.upsert({
+        where: {
+          userId_type_entityId: {
+            userId: appointment.patientId,
+            type: "APPOINTMENT_REMINDER",
+            entityId: appointment.id,
+          },
+        },
+        create: {
+          userId: appointment.patientId,
+          type: "APPOINTMENT_REMINDER",
+          title: notification.title,
+          body: notification.body,
+          entityId: appointment.id,
+        },
+        update: {},
+      });
+      // 2. Canal SMS — stub console tant que la décision A10 est ouverte.
       await gateway.send({
         to: appointment.patient.phone,
         body: buildReminderMessage(appointment),

@@ -50,7 +50,7 @@ manuel). Ce document fixe le périmètre fonctionnel et les **arbitrages MVP** r
 | A7 | SENSO rédaction | Seed éditorial versionné | Compte(s) rédacteur(s), workflow de publication |
 | A8 | Valeur jeton | **Non arbitré** — bloque FEATURE-TOKENS | 1 token = ? FCFA (PO) |
 | A9 | Paiement | **Non arbitré** — ADR-005 à ouvrir | Fournisseur Mobile Money (Wave/Orange/MTN) |
-| A10 | SMS | **Non arbitré** — TODO INT-SMS | Passerelle (rappels RDV, codes OTP) |
+| A10 | SMS | **Non arbitré** — comparatif + pilote préparés par **ADR-006** (InApp actif Task 24, SMS en stub) | Passerelle (rappels RDV, codes OTP) |
 
 ## 4. Contrats API
 

@@ -44,6 +44,7 @@ model User {
   sessions            Session[]
   passwordResetTokens PasswordResetToken[]
   appointments        Appointment[]
+  notifications       Notification[]
 
   @@map("users")
 }
@@ -157,4 +158,37 @@ model Sensibilisation {
 
   @@index([publishedAt])
   @@map("sensibilisations")
+}
+
+// ——— FEATURE-RDV / Task 24 — Notifications InApp ———
+// Centre de notifications in-app du patient : le canal qui fonctionne dès
+// aujourd'hui (vs SMS en attente de la décision A10, ADR-006). Premier type
+// câblé : rappel « 24 h avant RDV » créé par le scheduler (src/lib/reminders.ts).
+// Future extension naturelle : alertes de santé locales (healthAlerts),
+// confirmation/annulation de RDV — l'enum NotificationType est fait pour ça.
+enum NotificationType {
+  APPOINTMENT_REMINDER
+}
+
+model Notification {
+  id     String           @id @default(cuid())
+  userId String
+  user   User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type   NotificationType
+  title  String           @db.VarChar(120)
+  body   String           @db.VarChar(500)
+  // Entité source optionnelle (ex: appointmentId) — sert d'anti-doublon
+  // structurel via @@unique (un même RDV ne produit jamais 2 rappels InApp,
+  // même si le canal SMS échoue et est retenté) et de contexte de navigation.
+  entityId String?
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  // Anti-doublon : (user, type, entité source) unique. NB Postgres : les NULL
+  // sont distincts dans un index unique → la déduplication ne vaut que pour
+  // les types portant une entityId (cas du rappel RDV).
+  @@unique([userId, type, entityId])
+  @@index([userId, createdAt])
+  @@map("notifications")
 }

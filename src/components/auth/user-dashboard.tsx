@@ -7,7 +7,7 @@
 // (DESIGN_SYSTEM §4). Accueil patient dédié (src/components/patient/) branché sur les
 // API contractées ; rôles INFIRMIER/ADMIN inchangés (cartes « à venir »).
 import Image from "next/image"
-import { useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { AnimatePresence, motion } from "framer-motion"
 import {
     Activity,
@@ -61,6 +61,10 @@ import type { AppRole, AppUser } from "@/stores/auth-store"
 import type { PatientData } from "@/hooks/use-patient-data"
 import type { SensibilisationDto } from "@/lib/sensibilisations"
 import type { AppointmentDto } from "@/lib/appointments"
+import type {
+    NotificationDto,
+    NotificationsResponse,
+} from "@/lib/notifications"
 import { PatientHome } from "@/components/patient/patient-home"
 import { AppointmentsView } from "@/components/patient/appointments-view"
 import { SensibilisationsView } from "@/components/patient/sensibilisations-view"
@@ -230,20 +234,39 @@ export function UserDashboard() {
     const isPatient = user?.role === "PATIENT"
     const patientData: PatientData = usePatientData(isPatient)
 
+    // ——— Notifications InApp (Task 24) — rappels de RDV persistés ———
+    // Fetch au montage (badge visible sans ouvrir le panneau), toutes les
+    // 60 s et à chaque ouverture du panneau. Silencieux en cas d'échec : la
+    // cloche ne doit jamais casser le reste du dashboard.
+    const [notifications, setNotifications] = useState<NotificationDto[]>([])
+    const [unreadCount, setUnreadCount] = useState(0)
+
+    const refreshNotifications = useCallback(async () => {
+        try {
+            const res = await fetch("/api/notifications")
+            if (!res.ok) return
+            const data = (await res.json()) as NotificationsResponse
+            setNotifications(data.notifications)
+            setUnreadCount(data.unreadCount)
+        } catch {
+            // ignoré volontairement — badge non critique
+        }
+    }, [])
+
+    useEffect(() => {
+        if (!isPatient) return
+        void refreshNotifications()
+        const interval = setInterval(() => void refreshNotifications(), 60_000)
+        return () => clearInterval(interval)
+    }, [isPatient, refreshNotifications])
+
     if (!user) return null
 
     const space = ROLE_SPACE[user.role]
     const SpaceIcon = ROLE_SPACE_ICON[user.role]
 
-    // Notifications patient : nouveautés des 7 derniers jours (badge cap 9+).
-    const notificationCount = isPatient
-        ? (patientData.sensibilisations ?? []).filter(
-              item =>
-                  Date.now() - new Date(item.publishedAt).getTime() <
-                  7 * 24 * 60 * 60 * 1000,
-          ).length
-        : 0
-    // Prochain RDV actif — rappel en tête des notifications.
+    // Prochain RDV actif — « à la une » du panneau notifications (dérivé,
+    // non persisté ; les vraies notifications persistées sont Task 24).
     const nextPatientAppointment: AppointmentDto | null = isPatient
         ? (patientData.appointments ?? [])
               .filter(
@@ -264,6 +287,57 @@ export function UserDashboard() {
             title: "Déconnecté",
             description: "À bientôt sur Mon doc Pro !",
         })
+    }
+
+    // Marquer TOUT comme lu (POST { all: true }) — badge aligné sur la vérité
+    // serveur, liste mise à jour localement (readAt renseigné en optimiste).
+    async function markAllNotificationsRead() {
+        try {
+            const res = await fetch("/api/notifications/read", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ all: true }),
+            })
+            if (!res.ok) throw new Error("read-all failed")
+            const data = (await res.json()) as { unreadCount: number }
+            setUnreadCount(data.unreadCount)
+            setNotifications(prev =>
+                prev.map(n => ({
+                    ...n,
+                    readAt: n.readAt ?? new Date().toISOString(),
+                })),
+            )
+        } catch {
+            toast({
+                title: "Impossible de mettre à jour les notifications",
+                description: "Vérifiez votre connexion puis réessayez.",
+                variant: "destructive",
+            })
+        }
+    }
+
+    // Marquer UNE notification comme lue (POST { id }) — fire-and-forget :
+    // la navigation vers « Mes rendez-vous » ne doit pas attendre l'API ; le
+    // badge est réaligné sur la vérité serveur dès que la réponse arrive.
+    function markOneNotificationRead(id: string) {
+        setNotifications(prev =>
+            prev.map(n =>
+                n.id === id ? { ...n, readAt: n.readAt ?? new Date().toISOString() } : n,
+            ),
+        )
+        setUnreadCount(count => Math.max(0, count - 1))
+        void fetch("/api/notifications/read", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ id }),
+        })
+            .then(res => (res.ok ? res.json() : null))
+            .then((data: { unreadCount: number } | null) => {
+                if (data && typeof data.unreadCount === "number") {
+                    setUnreadCount(data.unreadCount)
+                }
+            })
+            .catch(() => undefined)
     }
 
     const profileFields: { icon: LucideIcon; label: string; value: string }[] =
@@ -324,14 +398,17 @@ export function UserDashboard() {
                             </button>
                             <Popover
                                 open={notifOpen}
-                                onOpenChange={setNotifOpen}
+                                onOpenChange={open => {
+                                    setNotifOpen(open)
+                                    if (open) void refreshNotifications()
+                                }}
                             >
                                 <PopoverTrigger asChild>
                                     <button
                                         type="button"
                                         aria-label={
-                                            notificationCount > 0
-                                                ? `Notifications (${notificationCount} nouveautés)`
+                                            unreadCount > 0
+                                                ? `Notifications (${unreadCount} non lue${unreadCount > 1 ? "s" : ""})`
                                                 : "Notifications"
                                         }
                                         className="relative flex size-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
@@ -340,14 +417,14 @@ export function UserDashboard() {
                                             className="size-4.5"
                                             aria-hidden="true"
                                         />
-                                        {notificationCount > 0 && (
+                                        {unreadCount > 0 && (
                                             <span
                                                 aria-hidden="true"
                                                 className="absolute right-0.5 top-0.5 flex size-4 items-center justify-center rounded-full bg-destructive text-[10px] font-bold leading-none text-destructive-foreground"
                                             >
-                                                {notificationCount > 9
+                                                {unreadCount > 9
                                                     ? "9+"
-                                                    : notificationCount}
+                                                    : unreadCount}
                                             </span>
                                         )}
                                     </button>
@@ -356,10 +433,71 @@ export function UserDashboard() {
                                     align="end"
                                     className="w-80 rounded-xl p-0"
                                 >
-                                    <p className="border-b px-4 py-3 text-sm font-semibold">
-                                        Notifications
-                                    </p>
+                                    <div className="flex items-center justify-between border-b px-4 py-3">
+                                        <p className="text-sm font-semibold">
+                                            Notifications
+                                        </p>
+                                        {unreadCount > 0 && (
+                                            <button
+                                                type="button"
+                                                onClick={() =>
+                                                    void markAllNotificationsRead()
+                                                }
+                                                className="text-xs font-medium text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                            >
+                                                Tout marquer comme lu
+                                            </button>
+                                        )}
+                                    </div>
                                     <ul className="max-h-80 overflow-y-auto">
+                                        {/* Rappels de RDV — notifications InApp
+                                            persistées (Task 24) : pastille + titre
+                                            gras tant que non lues, horodatage
+                                            relatif, clic → « Mes rendez-vous ». */}
+                                        {notifications.map(n => (
+                                            <li key={n.id}>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        setNotifOpen(false)
+                                                        if (!n.readAt) {
+                                                            markOneNotificationRead(n.id)
+                                                        }
+                                                        setTab("rdv")
+                                                    }}
+                                                    className="flex w-full items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/60"
+                                                >
+                                                    <span className="relative mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                                                        <BellRing
+                                                            className="size-4"
+                                                            aria-hidden="true"
+                                                        />
+                                                        {!n.readAt && (
+                                                            <span
+                                                                aria-hidden="true"
+                                                                className="absolute -right-0.5 -top-0.5 size-2.5 rounded-full bg-primary ring-2 ring-background"
+                                                            />
+                                                        )}
+                                                    </span>
+                                                    <span className="min-w-0 flex-1">
+                                                        <span
+                                                            className={`block truncate text-sm ${n.readAt ? "font-medium text-muted-foreground" : "font-semibold"}`}
+                                                        >
+                                                            {n.title}
+                                                        </span>
+                                                        <span className="block line-clamp-2 text-xs text-muted-foreground">
+                                                            {n.body}
+                                                        </span>
+                                                        <span
+                                                            className="text-xs text-muted-foreground"
+                                                            suppressHydrationWarning
+                                                        >
+                                                            {relativePublishedLabel(n.createdAt)}
+                                                        </span>
+                                                    </span>
+                                                </button>
+                                            </li>
+                                        ))}
                                         {nextPatientAppointment && (
                                             <li>
                                                 <button
@@ -420,7 +558,8 @@ export function UserDashboard() {
                                                     </button>
                                                 </li>
                                             ))}
-                                        {!nextPatientAppointment &&
+                                        {notifications.length === 0 &&
+                                            !nextPatientAppointment &&
                                             (patientData.sensibilisations ?? [])
                                                 .length === 0 && (
                                                 <li className="px-4 py-6 text-center text-sm text-muted-foreground">

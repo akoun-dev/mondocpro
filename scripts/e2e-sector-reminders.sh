@@ -9,7 +9,8 @@
 #      PENDING jamais rappelé, patient opt-out jamais rappelé, nettoyage.
 #   2. Navigateur patient desktop — dialog « Modifier mon secteur » (Select 4
 #      options), PATCH via UI, héro + ligne mis à jour, PERSISTANCE après reload,
-#      copy rappels « envoi bientôt actif », restauration via API.
+#      copy rappels « notification dans l'app active ; SMS dès le choix de
+#      la passerelle » (Task 24), restauration via API.
 #   3. Mobile 390×844 — rendu + zéro débordement + dialog utilisable.
 #   4. Régression INFIRMIER — nav 2 onglets inchangée.
 # Pièges plateforme intégrés : DATABASE_URL exportée avant boot (sinon login
@@ -156,8 +157,8 @@ $AB eval "localStorage.clear(); sessionStorage.clear(); 'ok'" >/dev/null
 echo "== login patient: $(login "0709229992" "TestPatient2026!")"
 nav_click 3 >/dev/null; sleep 2   # Profil (3e onglet patient)
 
-check "Profil — copy rappels = SMS avant RDV" "yes" "$(body_has 'Un SMS de rappel 24 h avant chacun de vos rendez-vous')"
-check "Profil — mention envoi bientôt actif (A10)" "yes" "$(body_has 'envoi bientôt actif')"
+check "Profil — copy rappels = avant RDV (InApp + SMS)" "yes" "$(body_has 'Un rappel 24 h avant chacun de vos rendez-vous')"
+check "Profil — mention SMS dès le choix de la passerelle (A10)" "yes" "$(body_has 'SMS dès le choix de la passerelle')"
 check "Profil — secteur affiché (zone origine)" "yes" "$(body_has "$ZONE_ORIG_CHECK")"
 
 sector_click

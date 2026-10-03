@@ -22,10 +22,23 @@ async function main() {
   if (!patient) throw new Error(`Patient fixture introuvable (${PHONE_SUFFIX})`);
 
   if (mode === "clean") {
+    // Task 24 : les rappels créent aussi une notification InApp (entityId =
+    // appointmentId, pas de FK) — purgée explicitement avec les RDV de test
+    // pour ne pas laisser de notifications « fantômes » dans la base.
+    const e2eAppointments = await db.appointment.findMany({
+      where: { patientId: patient.id, reason: { startsWith: REASON_PREFIX } },
+      select: { id: true },
+    });
+    const ids = e2eAppointments.map((a) => a.id);
+    const notifDeleted = ids.length
+      ? await db.notification.deleteMany({ where: { entityId: { in: ids } } })
+      : { count: 0 };
     const deleted = await db.appointment.deleteMany({
       where: { patientId: patient.id, reason: { startsWith: REASON_PREFIX } },
     });
-    console.log(`cleaned=${deleted.count}`);
+    console.log(
+      `cleaned=${deleted.count} notifications=${notifDeleted.count}`,
+    );
     return;
   }
 

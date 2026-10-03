@@ -12,9 +12,11 @@
 // optimiste + revert en cas d'échec).
 // Task 23 : le secteur d'habitation devient éditable « sur le même modèle »
 // (dialog dédié → PATCH zone → store) ; les rappels RDV sont précisés PO :
-// UNIQUEMENT avant les RDV, canal SMS — passerelle en attente de la décision
-// A10 (envoi bientôt actif, préférence déjà effective). Restent en état
-// « Bientôt » honnête : mot de passe (code SMS), centre d'aide.
+// UNIQUEMENT avant les RDV. Restent en état « Bientôt » honnête : mot de
+// passe (code SMS), centre d'aide.
+// Task 24 : les rappels RDV arrivent aussi EN APP (centre de notifications,
+// cloche du header) dès aujourd'hui ; le canal SMS reste en attente de la
+// décision A10 (ADR-006 : comparatif des passerelles).
 import { useState } from "react";
 import {
   Ambulance,
@@ -515,7 +517,7 @@ export function ProfileView({ user, onLogout }: Props) {
           <PreferenceRow
             icon={BellRing}
             title="Rappels de rendez-vous"
-            description="Un SMS de rappel 24 h avant chacun de vos rendez-vous — envoi bientôt actif."
+            description="Un rappel 24 h avant chacun de vos rendez-vous — notification dans l'app active ; SMS dès le choix de la passerelle."
             switchLabel="Rappels de rendez-vous"
             checked={user.appointmentReminders}
             disabled={prefSaving !== null}
