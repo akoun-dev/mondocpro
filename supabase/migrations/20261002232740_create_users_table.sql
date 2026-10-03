@@ -11,6 +11,9 @@ CREATE TABLE "users" (
     "passwordHash" TEXT NOT NULL,
     "role" "Role" NOT NULL DEFAULT 'PATIENT',
     "zone" "Zone" NOT NULL,
+    "birthDate" TIMESTAMP(3),
+    "appointmentReminders" BOOLEAN NOT NULL DEFAULT true,
+    "healthAlerts" BOOLEAN NOT NULL DEFAULT true,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 

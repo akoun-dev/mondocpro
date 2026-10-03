@@ -37,7 +37,14 @@ Diagnostics réseau réalisés (preuves) :
    versionnées + shadow database) à activer dès la première feature métier — les migrations
    historisées sont obligatoires avant la PROD.
 6. `@supabase/supabase-js` **non installé à ce stade** (YAGNI) : Prisma couvre l'accès SQL.
-   Sera ajouté par un ADR dédié si auth/realtime/storage Supabase sont demandés.
+    Sera ajouté par un ADR dédié si auth/realtime/storage Supabase sont demandés.
+
+### Règle de modification des migrations
+
+Lorsqu'une table n'est pas encore créée dans les migrations source, ses nouvelles colonnes
+doivent être ajoutées directement dans la migration de création de cette table. Ne pas créer
+de migration séparée nommée `add_*`, `alter_*` ou équivalente pour ces colonnes. Toute évolution
+d'une table déjà appliquée reste une migration versionnée distincte.
 
 ## Alternatives considérées
 
