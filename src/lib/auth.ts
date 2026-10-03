@@ -15,12 +15,17 @@ const SESSION_SHORT_TTL_DAYS = 1
 const BCRYPT_ROUNDS = 10
 
 // Profil exposé au client — JAMAIS de passwordHash ni de session interne.
+// FEATURE-PROFIL (Task 22) : birthDate + préférences de notification éditables
+// via PATCH /api/auth/profile (birthDate = Date minuit UTC, sérialisée ISO).
 export type PublicUser = {
     id: string
     fullName: string
     phone: string
     role: Role
     zone: Zone
+    birthDate: Date | null
+    appointmentReminders: boolean
+    healthAlerts: boolean
     createdAt: Date
 }
 
@@ -30,6 +35,9 @@ export function toPublicUser(user: {
     phone: string
     role: Role
     zone: Zone
+    birthDate: Date | null
+    appointmentReminders: boolean
+    healthAlerts: boolean
     createdAt: Date
 }): PublicUser {
     return {
@@ -38,6 +46,9 @@ export function toPublicUser(user: {
         phone: user.phone,
         role: user.role,
         zone: user.zone,
+        birthDate: user.birthDate,
+        appointmentReminders: user.appointmentReminders,
+        healthAlerts: user.healthAlerts,
         createdAt: user.createdAt,
     }
 }

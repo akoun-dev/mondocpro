@@ -6,21 +6,24 @@
 // ivoirienne 2013-430), « Préférences & Alertes » (rappels RDV, alertes locales,
 // langue), « Urgences Médicales Abidjan » (SAMU 185 / Pompiers 180, liens tel:)
 // et « Centre d'aide & Assistance ».
-// Honnêteté données↔maquette (pattern « Épargne ») : le modèle User ne porte
-// ni date de naissance, ni date de modification du mot de passe, ni préférences —
-// ces lignes affichent un état « Bientôt » explicite plutôt que des valeurs
-// inventées ; les interrupteurs sont désactivés (aucune persistance côté API).
+// Task 22 : le nom et la date de naissance sont ÉDITABLES (dialog → PATCH
+// /api/auth/profile, mise à jour du store auth) et les préférences « Rappels
+// de rendez-vous » / « Alertes de santé locales » sont PERSISTÉES (maj
+// optimiste + revert en cas d'échec). Restent en état « Bientôt » honnête :
+// secteur d'habitation, mot de passe (code SMS), centre d'aide — aucun flux
+// correspondant côté modèle/API à ce stade.
+import { useState } from "react";
 import {
   Ambulance,
   BellRing,
   Cake,
   ChevronRight,
   CircleCheck,
-  Clock,
   ExternalLink,
   Flame,
   Globe,
   LifeBuoy,
+  Loader2,
   LockKeyhole,
   MapPin,
   Megaphone,
@@ -30,11 +33,25 @@ import {
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { FlagCI } from "@/components/auth/ci-flag";
 import { toast } from "@/hooks/use-toast";
-import type { AppUser } from "@/stores/auth-store";
-import { ZONE_LABELS } from "@/lib/auth-schemas";
+import { useAuthStore, type AppUser } from "@/stores/auth-store";
+import {
+  updateProfileSchema,
+  zodIssuesToFieldErrors,
+  ZONE_LABELS,
+} from "@/lib/auth-schemas";
 import { formatDateUTC, relativePublishedLabel } from "@/lib/datetime";
 import { formatPhoneDisplay } from "@/lib/phone";
 import { getInitials } from "@/lib/utils";
@@ -108,17 +125,25 @@ function InfoRow({
   );
 }
 
-// Ligne de préférence : interrupteur désactivé (pas de persistance API) + badge « Bientôt ».
+// Ligne de préférence : interrupteur fonctionnel — la valeur vient du user
+// (store auth) et le basculement est persisté via PATCH /api/auth/profile
+// (maj optimiste côté ProfileView, revert + toast si l'appel échoue).
 function PreferenceRow({
   icon: Icon,
   title,
   description,
   switchLabel,
+  checked,
+  disabled,
+  onCheckedChange,
 }: {
   icon: typeof BellRing;
   title: string;
   description: string;
   switchLabel: string;
+  checked: boolean;
+  disabled: boolean;
+  onCheckedChange: (checked: boolean) => void;
 }) {
   return (
     <div className="flex items-center gap-3 rounded-xl bg-muted/60 p-4">
@@ -126,32 +151,147 @@ function PreferenceRow({
         <Icon className="size-4.5" aria-hidden="true" />
       </span>
       <span className="min-w-0 flex-1">
-        <span className="flex flex-wrap items-center gap-1.5">
-          <span className="text-sm font-semibold">{title}</span>
-          <Badge
-            variant="secondary"
-            className="gap-1 px-1.5 py-0 text-[10px]"
-            aria-label={`${title} : bientôt disponible`}
-          >
-            <Clock className="size-3" aria-hidden="true" />
-            Bientôt
-          </Badge>
-        </span>
+        <span className="block text-sm font-semibold">{title}</span>
         <span className="mt-0.5 block text-xs leading-snug text-muted-foreground">
           {description}
         </span>
       </span>
       <Switch
-        checked
-        disabled
-        aria-label={`${switchLabel} (bientôt disponible)`}
+        checked={checked}
+        disabled={disabled}
+        onCheckedChange={onCheckedChange}
+        aria-label={switchLabel}
       />
     </div>
   );
 }
 
 export function ProfileView({ user, onLogout }: Props) {
+  const setUser = useAuthStore((s) => s.setUser);
+
+  // — Édition des informations (nom + date de naissance) — dialog dédié.
+  const [editOpen, setEditOpen] = useState(false);
+  const [fullName, setFullName] = useState(user.fullName);
+  const [birthDate, setBirthDate] = useState(user.birthDate?.slice(0, 10) ?? "");
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [saving, setSaving] = useState(false);
+
+  // — Préférences (rappels RDV / alertes locales) — maj optimiste persistée.
+  const [prefSaving, setPrefSaving] = useState<
+    "appointmentReminders" | "healthAlerts" | null
+  >(null);
+
   const memberSince = `Membre · ${relativePublishedLabel(user.createdAt)}`;
+
+  function openEdit() {
+    // Réinitialise le brouillon depuis l'état courant à chaque ouverture
+    // (annulation = aucune trace, erreurs effacées).
+    setFullName(user.fullName);
+    setBirthDate(user.birthDate?.slice(0, 10) ?? "");
+    setFieldErrors({});
+    setEditOpen(true);
+  }
+
+  async function handleSave(event: React.FormEvent) {
+    event.preventDefault();
+    // Même schéma Zod que le serveur (source unique des règles) : nom 2-80,
+    // naissance AAAA-MM-JJ passée — vide = effacer la valeur.
+    const parsed = updateProfileSchema.safeParse({
+      fullName: fullName.trim(),
+      birthDate: birthDate === "" ? null : birthDate,
+    });
+    if (!parsed.success) {
+      setFieldErrors(zodIssuesToFieldErrors(parsed.error));
+      return;
+    }
+    setFieldErrors({});
+    setSaving(true);
+    try {
+      const res = await fetch("/api/auth/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(parsed.data),
+      });
+      if (res.ok) {
+        const data = (await res.json()) as { user: AppUser };
+        setUser(data.user); // héro + lignes se re-rendent avec les nouvelles valeurs
+        toast({
+          title: "Profil mis à jour",
+          description: "Vos informations ont bien été enregistrées.",
+        });
+        setEditOpen(false);
+        return;
+      }
+      const body = (await res.json().catch(() => ({}))) as {
+        error?: string;
+        details?: Array<{ field: string; message: string }>;
+      };
+      const errors: Record<string, string> = {};
+      for (const detail of body.details ?? []) {
+        if (
+          detail?.field &&
+          detail?.message &&
+          !(detail.field in errors)
+        ) {
+          errors[detail.field] = detail.message;
+        }
+      }
+      setFieldErrors(errors);
+      toast({
+        variant: "destructive",
+        title: "Modification impossible",
+        description:
+          body.error ?? "Veuillez corriger les champs signalés puis réessayez.",
+      });
+    } catch {
+      toast({
+        variant: "destructive",
+        title: "Modification impossible",
+        description:
+          "Impossible de contacter le serveur. Vérifiez votre connexion internet puis réessayez.",
+      });
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function updatePreference(
+    key: "appointmentReminders" | "healthAlerts",
+    value: boolean,
+  ) {
+    const previous = user[key];
+    const label =
+      key === "appointmentReminders"
+        ? "Rappels de rendez-vous"
+        : "Alertes de santé locales";
+    setPrefSaving(key);
+    setUser({ ...user, [key]: value }); // retour immédiat (interrupteur)
+    try {
+      const res = await fetch("/api/auth/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ [key]: value }),
+      });
+      if (!res.ok) throw new Error(`PATCH ${key} → ${res.status}`);
+      const data = (await res.json()) as { user: AppUser };
+      setUser(data.user); // réaligne sur la vérité serveur
+      toast({
+        title: value ? `${label} activés` : `${label} désactivés`,
+        description: value
+          ? "Vous recevrez les notifications correspondantes."
+          : "Vous ne recevrez plus ces notifications.",
+      });
+    } catch {
+      setUser({ ...user, [key]: previous }); // revert visuel
+      toast({
+        variant: "destructive",
+        title: "Modification impossible",
+        description: "La préférence n'a pas pu être enregistrée — réessayez.",
+      });
+    } finally {
+      setPrefSaving(null);
+    }
+  }
 
   return (
     <div className="flex flex-col gap-6">
@@ -173,14 +313,18 @@ export function ProfileView({ user, onLogout }: Props) {
         </div>
         <div>
           <h2 className="text-lg font-bold tracking-tight">{user.fullName}</h2>
-          <p className="mt-1 flex items-center justify-center gap-1 text-xs text-muted-foreground">
+          {/* Zone + ancienneté : l'ancienneté dépend de l'horloge du device
+              (relatif) → suppressHydrationWarning comme ailleurs dans l'app. */}
+          <p className="mt-1 flex flex-wrap items-center justify-center gap-1 text-xs text-muted-foreground">
             <MapPin className="size-3" aria-hidden="true" />
             {ZONE_LABELS[user.zone]}
+            <span aria-hidden="true">·</span>
+            <span suppressHydrationWarning>{memberSince}</span>
           </p>
         </div>
       </div>
 
-      {/* Informations Personnelles */}
+      {/* Informations Personnelles — nom + naissance éditables (dialog) */}
       <section aria-labelledby="profil-infos">
         <div className="mb-2.5 flex items-center justify-between gap-2">
           <h3
@@ -189,29 +333,32 @@ export function ProfileView({ user, onLogout }: Props) {
           >
             Informations Personnelles
           </h3>
-          <span
-            className="text-[11px] text-muted-foreground"
-            suppressHydrationWarning
+          <button
+            type="button"
+            onClick={openEdit}
+            aria-label="Modifier mes informations personnelles"
+            className="flex shrink-0 items-center gap-1 rounded-full px-2 py-1 text-xs font-semibold text-primary transition-colors hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
-            {memberSince}
-          </span>
+            <Pencil className="size-3.5" aria-hidden="true" />
+            Modifier
+          </button>
         </div>
         <div className="flex flex-col gap-2.5">
           <InfoRow
             icon={Cake}
             label="Date de naissance"
-            value="Non renseignée"
-            valueMuted
-            accessory={
-              <Badge
-                variant="secondary"
-                className="shrink-0 gap-1"
-                aria-label="Date de naissance : bientôt disponible"
-              >
-                <Clock className="size-3" aria-hidden="true" />
-                Bientôt
-              </Badge>
+            value={
+              user.birthDate ? formatDateUTC(user.birthDate) : "Non renseignée"
             }
+            valueMuted={!user.birthDate}
+            accessory={
+              <Pencil
+                className="size-4 shrink-0 text-muted-foreground"
+                aria-hidden="true"
+              />
+            }
+            onClick={openEdit}
+            actionLabel="Modifier mes informations personnelles (nom et date de naissance)"
           />
           <InfoRow
             icon={Smartphone}
@@ -305,12 +452,22 @@ export function ProfileView({ user, onLogout }: Props) {
             title="Rappels de rendez-vous"
             description="Notification SMS & WhatsApp 24h avant"
             switchLabel="Rappels de rendez-vous"
+            checked={user.appointmentReminders}
+            disabled={prefSaving !== null}
+            onCheckedChange={(checked) =>
+              updatePreference("appointmentReminders", checked)
+            }
           />
           <PreferenceRow
             icon={Megaphone}
             title="Alertes de santé locales"
             description="Campagnes de vaccination, gestes santé"
             switchLabel="Alertes de santé locales"
+            checked={user.healthAlerts}
+            disabled={prefSaving !== null}
+            onCheckedChange={(checked) =>
+              updatePreference("healthAlerts", checked)
+            }
           />
           <div className="flex items-center gap-3 rounded-xl bg-muted/60 p-4">
             <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
@@ -386,6 +543,86 @@ export function ProfileView({ user, onLogout }: Props) {
       >
         Se déconnecter
       </Button>
+
+      {/* Dialog d'édition — nom complet + date de naissance (PATCH profil) */}
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Modifier mes informations</DialogTitle>
+            <DialogDescription>
+              Votre nom et votre date de naissance complètent votre dossier
+              patient.
+            </DialogDescription>
+          </DialogHeader>
+          <form
+            onSubmit={handleSave}
+            noValidate
+            className="flex flex-col gap-4"
+          >
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="profile-fullname">Nom complet</Label>
+              <Input
+                id="profile-fullname"
+                name="fullName"
+                autoComplete="name"
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                aria-invalid={fieldErrors.fullName ? true : undefined}
+                maxLength={80}
+                required
+              />
+              {fieldErrors.fullName ? (
+                <p className="text-xs font-medium text-destructive" role="alert">
+                  {fieldErrors.fullName}
+                </p>
+              ) : null}
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="profile-birthdate">Date de naissance</Label>
+              <Input
+                id="profile-birthdate"
+                name="birthDate"
+                type="date"
+                value={birthDate}
+                onChange={(e) => setBirthDate(e.target.value)}
+                aria-invalid={fieldErrors.birthDate ? true : undefined}
+              />
+              {fieldErrors.birthDate ? (
+                <p className="text-xs font-medium text-destructive" role="alert">
+                  {fieldErrors.birthDate}
+                </p>
+              ) : null}
+              <p className="text-xs text-muted-foreground">
+                Facultative — laissez vide si vous préférez ne pas la
+                renseigner.
+              </p>
+            </div>
+            <DialogFooter className="gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setEditOpen(false)}
+                disabled={saving}
+              >
+                Annuler
+              </Button>
+              <Button type="submit" disabled={saving} className="gap-2">
+                {saving ? (
+                  <>
+                    <Loader2
+                      className="size-4 animate-spin"
+                      aria-hidden="true"
+                    />
+                    Enregistrement…
+                  </>
+                ) : (
+                  "Enregistrer"
+                )}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

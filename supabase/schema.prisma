@@ -32,6 +32,13 @@ model User {
   passwordHash        String
   role                Role                 @default(PATIENT)
   zone                Zone
+  // ——— FEATURE-PROFIL — édition du profil + préférences notifications ———
+  // birthDate : renseignée via PATCH /api/auth/profile (date UTC à minuit) ;
+  // appointmentReminders / healthAlerts : toggles « Préférences & Alertes »
+  // de la vue Profil (rappels RDV 24 h avant · alertes de santé locales).
+  birthDate             DateTime?
+  appointmentReminders  Boolean              @default(true)
+  healthAlerts          Boolean              @default(true)
   createdAt           DateTime             @default(now())
   updatedAt           DateTime             @updatedAt
   sessions            Session[]

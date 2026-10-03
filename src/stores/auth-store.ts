@@ -11,6 +11,11 @@ export type AppUser = {
   phone: string;
   role: AppRole;
   zone: AppZone;
+  // FEATURE-PROFIL (Task 22) : naissance + préférences notifications —
+  // birthDate en ISO string (minuit UTC) ou null (« Non renseignée »).
+  birthDate: string | null;
+  appointmentReminders: boolean;
+  healthAlerts: boolean;
   createdAt: string;
 };
 

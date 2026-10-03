@@ -672,3 +672,26 @@ Work Log:
 Stage Summary:
 - Vue Profil patient conforme à la maquette sur données réelles, états « Bientôt » explicites là où le modèle n'a pas (encore) les champs — next naturels : champ birthDate + édition de profil (API PATCH), persistance des préférences (A10 SMS gateway dépendant pour les rappels).
 - getInitials / formatPhoneDisplay désormais mutualisés (lib/utils.ts, lib/phone.ts) — plus de doublon dans user-dashboard.tsx.
+
+---
+Task ID: 22
+Agent: Super Z
+Task: "ajouter le champ birthDate + édition de profil (API PATCH), développer « Rappels de rendez-vous » et « Alertes de santé locales » — après récupération des derniers commits".
+
+Work Log:
+- `git pull origin main` : récupéré `1c90c37 chore(db): consolidate migrations and seeds` — les dossiers de migration Prisma initiaux ont été remplacés par des fichiers SQL plats ; ATTENTION détectée : `prisma migrate dev --create-only` exigeait un RESET (drift registre local/distant) → REFUSÉ. Chemin sûr : migration écrite à la main au format Prisma (dossier + migration.sql) puis `db:migrate-deploy` (deploy n'applique que les pendings, jamais de reset) + `prisma generate`.
+- Schéma : User.birthDate DateTime? + appointmentReminders/healthAlerts Boolean @default(true) (opt-out) ; migration `20261003120000_add_profile_preferences` appliquée et vérifiée en base (3 colonnes, échantillon lu).
+- Contrat : PATCH /api/auth/profile (API_CONTRACTS.md §auth, statut IMPLÉMENTÉ) — delta sémantique, user ciblé = session (jamais le corps), birthDate "AAAA-MM-JJ" → Date minuit UTC, null → effacer ; `updateProfileSchema` partagé front/back dans lib/auth-schemas.ts (nom 2-80 réutilisé de registerBase, date passée ≥ 1900, au moins un champ requis).
+- Découverte de sécurité : role/phone/zone absents du contrat Zod → stripped → si le corps ne contient qu'eux → 400 « Aucune modification fournie » (défense plus forte qu'un ignore silencieux ; testé E2E, /me prouve que rien n'a changé).
+- PublicUser/AppUser étendus (birthDate string|null ISO, 2 booleans) — login/register/me renvoient désormais les nouveaux champs ; use-auth.ts inchangé (casting direct).
+- ProfileView : bouton « Modifier » (en-tête section) + ligne naissance cliquable → dialog « Modifier mes informations » (nom + date, erreurs inline via le MÊME schéma Zod, PATCH → setUser → héro/lignes mis à jour en direct) ; PreferenceRow désormais fonctionnelle (checked/disabled/onCheckedChange, maj optimiste + revert + toast, badges « Bientôt » retirés sur ces 2 lignes) ; memberSince déplacé dans le sous-titre du héro (zone · membre) ; naissance affichée formatDateUTC (« 15 juin 1995 ») ou « Non renseignée » ; Clock import retiré.
+- E2E scripts/e2e-profile-edit.sh (versionné) : suite API curl (cookie jar) + parcours navigateur. Piège découvert : la base stocke les téléphones au format +225 international — le formulaire login normalise la saisie locale, curl brut « 0709229992 » → 401 ; fix : format +225 dans les corps API (documenté dans le script).
+- E2E final **38/38 PASS** : API 16 (401 sans session, 400 futur/format/vide, 200 valide + vérité renvoyée, injection 400, effacement null, infirmier 200, fixture restaurée) · navigateur 22 (dialog pré-rempli → héro « Patient Maquette UI » + « 15 juin 1995 » en direct, toggles optimistes, PERSISTANCE prouvée après reload, restauration via l'UI, mobile 390×844 sans débordement + dialog utilisable, régression INFIRMIER Accueil/Profil) — 0 erreur page. Captures tool-results/profile-edit-{dialog,desktop,persisted,mobile,infirmier}.png.
+- Lint 0 erreur sur les fichiers modifiés ; tsc : aucune erreur nouvelle (préexistantes register-form/examples/skills uniquement).
+
+Stage Summary:
+- Le patient peut désormais renseigner sa date de naissance et corriger son nom (PATCH persistant, retourné par /me et login) ; les deux interrupteurs de la maquette « Préférences & Alertes » sont réellement persistés (plus d'état « Bientôt » fictif sur ces lignes).
+- Sécurité éprouvée : ciblage session-only, refus des corps sans champ modifiable, validation partagée front/back, naissance passée obligatoire.
+- Restent « Bientôt » honnêtes : secteur d'habitation (zone = décision équipe), mot de passe par code SMS, centre d'aide.
+- Décisions PO toujours ouvertes : créneaux praticien, délai d'annulation, tokens FCFA, Mobile Money (ADR-005), passerelle SMS réelle (les toggles prépareront les rappels SMS/WhatsApp).
+- Pièges consignés : migrations à la main + migrate-deploy (jamais migrate dev sur cette base) ; téléphones API en format +225.

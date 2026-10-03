@@ -87,6 +87,35 @@ export const resetPasswordSchema = z
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
 
+// ——— FEATURE-PROFIL (Task 22) — édition du profil (PATCH /api/auth/profile) ———
+// Champs modifiables uniquement : nom complet, date de naissance, préférences
+// de notification. phone / role / zone volontairement ABSENTS du contrat :
+// identité métier (mobile) et sectorisation (zone = décision équipe) ne se
+// modifient pas depuis l'application. Le user ciblé = celui de la session.
+const birthDateSchema = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/, "Date de naissance invalide (format AAAA-MM-JJ)")
+  .refine((d) => {
+    const date = new Date(`${d}T00:00:00.000Z`);
+    if (Number.isNaN(date.getTime())) return false;
+    return date.getTime() < Date.now();
+  }, "La date de naissance doit être dans le passé")
+  .refine((d) => Number(d.slice(0, 4)) >= 1900, "La date de naissance semble incorrecte");
+
+export const updateProfileSchema = z
+  .object({
+    fullName: registerBase.shape.fullName.optional(),
+    // null = effacer la date (Non renseignée) ; "AAAA-MM-JJ" = renseigner.
+    birthDate: birthDateSchema.nullable().optional(),
+    appointmentReminders: z.boolean().optional(),
+    healthAlerts: z.boolean().optional(),
+  })
+  .refine((d) => Object.values(d).some((v) => v !== undefined), {
+    message: "Aucune modification fournie",
+  });
+
+export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;
+
 // Convertit les issues zod en dictionnaire { champ: message } pour l'affichage inline.
 export function zodIssuesToFieldErrors(error: z.ZodError): Record<string, string> {
   const errors: Record<string, string> = {};
