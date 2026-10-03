@@ -584,7 +584,7 @@ export function RegisterForm({
                             </div>
 
                             {/* Recherche de zone (filtre local, insensible casse/accents) */}
-                            <div className="relative">
+                            {/* <div className="relative">
                                 <Search
                                     className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
                                     aria-hidden="true"
@@ -605,7 +605,7 @@ export function RegisterForm({
                                 >
                                     CI
                                 </span>
-                            </div>
+                            </div> */}
 
                             <RadioGroup
                                 value={zone}
