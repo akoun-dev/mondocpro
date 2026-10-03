@@ -1,11 +1,16 @@
-// PATCH /api/appointments/:id — Annuler un rendez-vous (contrat API_CONTRACTS.md)
-// PATIENT propriétaire uniquement ; action = CANCEL. Règles métier (statuts
-// annulables, propriété) dans src/lib/appointments.ts — 404 / 409 typés.
+// PATCH /api/appointments/:id — Annulation (patient) ou clôture (Médecin
+// Chef) d'un rendez-vous — contrat API_CONTRACTS.md.
+// PATIENT propriétaire : action=CANCEL uniquement (403 si DONE).
+// ADMIN (Médecin Chef) : action=DONE (consultation réalisée → dépense
+// définitive des Tokens) ou CANCEL (échec équipe/système → libération).
+// FEATURE-TOKENS (ADR-007) : le sort des Tokens réservés suit l'action dans
+// la même transaction (releaseAppointmentTokens / consumeAppointmentTokens).
 import { NextResponse } from "next/server";
 import { requireRole } from "@/lib/auth";
 import {
   AppointmentError,
   cancelAppointmentForPatient,
+  closeAppointmentByAdmin,
 } from "@/lib/appointments";
 import { updateAppointmentSchema } from "@/lib/appointment-schemas";
 
@@ -13,7 +18,7 @@ export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const guard = await requireRole(["PATIENT"]);
+  const guard = await requireRole(["PATIENT", "ADMIN"]);
   if (!guard.ok) return guard.response;
 
   const { id } = await params;
@@ -42,8 +47,23 @@ export async function PATCH(
     );
   }
 
+  const { action } = parsed.data;
+
+  // Cloisonnement des rôles : la clôture (DONE) est réservée au Médecin
+  // Chef ; l'ADMIN n'annule pas « à la place » du patient sans passer par
+  // la même endpoint documentée (échec équipe / geste commercial).
+  if (action === "DONE" && guard.user.role !== "ADMIN") {
+    return NextResponse.json(
+      { error: "Accès non autorisé pour ce rôle" },
+      { status: 403 },
+    );
+  }
+
   try {
-    const appointment = await cancelAppointmentForPatient(guard.user.id, id);
+    const appointment =
+      guard.user.role === "ADMIN"
+        ? await closeAppointmentByAdmin(guard.user.id, id, action)
+        : await cancelAppointmentForPatient(guard.user.id, id);
     return NextResponse.json({ appointment });
   } catch (e) {
     if (e instanceof AppointmentError) {

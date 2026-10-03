@@ -4,6 +4,15 @@
 -- Un changement logique par fichier (bonne pratique Supabase).
 -- =============================================================================
 
+-- Cycle de vie des Tokens d'un RDV (ADR-007 — FEATURE-TOKENS) : type intégré
+-- ici (ADR-003 : pas de migration add_* pré-PROD).
+DO $$ BEGIN
+    CREATE TYPE "AppointmentTokenState" AS ENUM
+        ('NONE', 'RESERVED', 'CONSUMED', 'RELEASED');
+EXCEPTION
+    WHEN duplicate_object THEN NULL;
+END $$;
+
 CREATE TABLE "appointments" (
     "id" TEXT NOT NULL,
     "patientId" TEXT NOT NULL,
@@ -18,6 +27,10 @@ CREATE TABLE "appointments" (
     -- Rappel 24 h déjà envoyé (anti-doublon du scheduler — FEATURE-RDV) ;
     -- colonne intégrée ici (ADR-003 : pas de migration add_* pré-PROD).
     "reminderSentAt" TIMESTAMP(3),
+    -- FEATURE-TOKENS (ADR-007) : état de la réservation de Tokens + volume
+    -- bloqué à la création (colonnes intégrées ici — règle ADR-003).
+    "tokenState" "AppointmentTokenState" NOT NULL DEFAULT 'NONE',
+    "tokensReserved" INTEGER NOT NULL DEFAULT 0,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 

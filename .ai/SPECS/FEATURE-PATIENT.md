@@ -48,15 +48,17 @@ manuel). Ce document fixe le périmètre fonctionnel et les **arbitrages MVP** r
 | A5 | Confirmateur | Personne (statut PENDING jusqu'à phase 2) | Qui confirme : NURSE, ADMIN ou auto |
 | A6 | Fuseau | Afrique/Abidjan = UTC+0 sans heure d'été : l'heure locale **est** l'heure UTC (date+heure saisis séparés, combinés côté serveur) | — (constant) |
 | A7 | SENSO rédaction | Seed éditorial versionné | Compte(s) rédacteur(s), workflow de publication |
-| A8 | Valeur jeton | **Non arbitré** — bloque FEATURE-TOKENS | 1 token = ? FCFA (PO) |
-| A9 | Paiement | **Non arbitré** — ADR-005 à ouvrir | Fournisseur Mobile Money (Wave/Orange/MTN) |
+| A8 | Valeur jeton | **Tranché** — 1 Token = 2 500 FCFA (doc fonctionnel PO) ; portefeuille implémenté (Task 26, **ADR-007**) — tarifs par type de consultation PROVISOIRES à valider PO | FEATURE-TOKENS (wallet, réservation/débit, recharges) |
+| A9 | Paiement | **Non arbitré** — ADR-005 à ouvrir ; en attendant : recharge déclarée → rapprochement manuel Médecin Chef (ADR-007 §recharges, garde anti double-crédit) | Fournisseur Mobile Money (Wave/Orange/MTN) |
 | A10 | SMS | **Non arbitré** — comparatif + pilote préparés par **ADR-006** (InApp actif Task 24, SMS en stub) | Passerelle (rappels RDV, codes OTP) |
 
 ## 4. Contrats API
 
-Voir `API_CONTRACTS.md` — sections appointments (GET/POST, PATCH :id) et
-sensibilisations (GET, GET :id), statut **IMPLÉMENTÉ** ; tokens et admin SENSO en
-« Contrats à venir ». Schémas zod de référence : `src/lib/appointment-schemas.ts`.
+Voir `API_CONTRACTS.md` — sections appointments (GET/POST, PATCH :id), wallet
+(GET) + wallet/recharges (POST) + admin/recharges (GET/PATCH) — FEATURE-TOKENS
+**IMPLÉMENTÉ** (Task 26, ADR-007) ; sensibilisations (GET, GET :id) ; admin
+SENSO en « Contrats à venir ». Schémas zod de référence :
+`src/lib/appointment-schemas.ts` + `src/lib/token-schemas.ts`.
 
 ## 5. Vérification (TEST_PLAN)
 

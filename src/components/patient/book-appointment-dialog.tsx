@@ -51,6 +51,11 @@ import {
   slotToDate,
 } from "@/lib/schedule";
 import type { AppZone } from "@/stores/auth-store";
+import type { WalletDto } from "@/lib/tokens";
+import {
+  PROVISIONAL_TARIFFS,
+  tokensToFcfa,
+} from "@/lib/token-schemas";
 
 type Props = {
   open: boolean;
@@ -111,9 +116,32 @@ export function BookAppointmentDialog({ open, onClose, onBooked, zone }: Props) 
   const [time, setTime] = useState<string>("");
   const [reason, setReason] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  // FEATURE-TOKENS (ADR-007) : portefeuille chargé à l'ouverture pour
+  // afficher le coût + le solde restant AVANT confirmation (contrat
+  // fonctionnel §cycle financier — vérification du solde côté écran).
+  const [wallet, setWallet] = useState<WalletDto | null>(null);
 
   const days = useMemo(() => listBookableDays(new Date()), [open]);
   const slots = useMemo(() => listDaySlots(), []);
+
+  // Portefeuille — rechargé à chaque ouverture (le solde peut avoir changé).
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    setWallet(null);
+    fetch("/api/wallet")
+      .then(async res => {
+        if (!res.ok) throw new Error();
+        const body = (await res.json()) as WalletDto;
+        if (!cancelled) setWallet(body);
+      })
+      .catch(() => {
+        // Silencieux : le serveur revalide de toute façon à la soumission.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [open]);
 
   // Catalogue des spécialités actives — chargé à l'ouverture du dialog.
   useEffect(() => {
@@ -153,13 +181,22 @@ export function BookAppointmentDialog({ open, onClose, onBooked, zone }: Props) 
 
   const selectedSpecialty = specialties?.find(s => s.id === specialtyId) ?? null;
 
+  // FEATURE-TOKENS : coût de la consultation selon le type choisi (tarif
+  // provisionnel ADR-007 — source unique token-schemas.ts) et suffisance
+  // du solde (contrôle écran ; le serveur revalide dans la transaction).
+  const costTokens = PROVISIONAL_TARIFFS[type];
+  const costFcfa = tokensToFcfa(costTokens);
+  const balanceTokens = wallet?.balanceTokens ?? null;
+  const hasBalance = balanceTokens === null || balanceTokens >= costTokens;
+
   // Peut-on avancer à l'étape suivante depuis l'étape courante ?
   const canContinue =
     (step === 0 && Boolean(type)) ||
     (step === 1 && Boolean(specialtyId)) ||
     (step === 2 && Boolean(effectiveDate && time && selectedBookable));
 
-  const canSubmit = step === 3 && selectedBookable && !submitting;
+  const canSubmit =
+    step === 3 && selectedBookable && hasBalance && !submitting;
 
   function resetForm() {
     setStep(0);
@@ -211,6 +248,13 @@ export function BookAppointmentDialog({ open, onClose, onBooked, zone }: Props) 
         description:
           body.error ?? "Veuillez vérifier votre saisie puis réessayez.",
       });
+      if (res.status === 402) {
+        // Solde insuffisant confirmé par le serveur → réaligner le portefeuille.
+        fetch("/api/wallet")
+          .then(async r => (r.ok ? ((await r.json()) as WalletDto) : null))
+          .then(w => w && setWallet(w))
+          .catch(() => undefined);
+      }
       if (res.status === 409) {
         // Créneau repris entre-temps → on force un nouveau choix d'horaire.
         setTime("");
@@ -573,9 +617,40 @@ export function BookAppointmentDialog({ open, onClose, onBooked, zone }: Props) 
                         : "—"}
                     </span>
                   </li>
+                  {/* FEATURE-TOKENS (ADR-007) — coût + solde restant affichés
+                      AVANT confirmation (contrat fonctionnel §cycle). */}
+                  <li className="flex items-center justify-between gap-3">
+                    <span className="text-muted-foreground">Coût</span>
+                    <span className="font-semibold">
+                      {costTokens} Token{costTokens > 1 ? "s" : ""} · {costFcfa.toLocaleString("fr-FR")} FCFA
+                    </span>
+                  </li>
+                  <li className="flex items-center justify-between gap-3">
+                    <span className="text-muted-foreground">Solde après réservation</span>
+                    <span
+                      className={`font-semibold ${balanceTokens !== null && !hasBalance ? "text-destructive" : ""}`}
+                    >
+                      {balanceTokens === null
+                        ? "—"
+                        : `${balanceTokens - costTokens} Token${balanceTokens - costTokens > 1 ? "s" : ""}`}
+                    </span>
+                  </li>
                 </ul>
               </div>
             </div>
+          )}
+          {/* Étape 4 · Solde insuffisant — blocage explicite AVANT envoi */}
+          {step === 3 && !hasBalance && (
+            <p
+              role="alert"
+              className="rounded-xl border border-destructive/30 bg-destructive/5 p-3 text-xs font-medium text-destructive"
+            >
+              Solde insuffisant — cette consultation coûte {costTokens} Token
+              {costTokens > 1 ? "s" : ""} et votre portefeuille en contient
+              {" "}
+              {balanceTokens ?? 0}. Rechargez-le depuis votre profil puis
+              revenez confirmer votre demande.
+            </p>
           )}
         </div>
 
@@ -623,8 +698,10 @@ export function BookAppointmentDialog({ open, onClose, onBooked, zone }: Props) 
           </div>
           {step === 3 && (
             <p className="text-center text-xs text-muted-foreground">
-              Votre demande sera en attente jusqu'à confirmation par l'équipe
-              soignante.
+              {costTokens} Token{costTokens > 1 ? "s" : ""} seront réservés sur
+              votre portefeuille et débités définitivement après la visite —
+              votre demande sera en attente jusqu&apos;à confirmation par
+              l&apos;équipe soignante.
             </p>
           )}
         </DialogFooter>

@@ -1,0 +1,387 @@
+// Service métier Portefeuille de Tokens — FEATURE-TOKENS (ADR-007).
+// Server only (importe db). Ledger APPEND-ONLY : chaque mouvement est une
+// ligne immuable de token_transactions ; le solde est TOUJOURS recalculé
+// (aucun champ solde stocké → pas de dérive possible). Seule mutation
+// autorisée sur une ligne : le statut d'une recharge PENDING (garde
+// updateMany — une double confirmation reste sans effet).
+import { db } from "@/lib/db";
+import { Prisma, type TokenTransaction } from "@prisma/client";
+import {
+  PROVISIONAL_TARIFFS,
+  TOKEN_VALUE_FCFA,
+  fcfaToTokens,
+  tokensToFcfa,
+} from "@/lib/token-schemas";
+
+export class TokenError extends Error {
+  constructor(
+    message: string,
+    public status: number = 400,
+  ) {
+    super(message);
+    this.name = "TokenError";
+  }
+}
+
+// Types de mouvements qui CRÉDITENT directement le disponible (+N).
+// NB : RESERVATION/RELEASE/CONSUMPTION suivent le modèle du cycle (ADR-007) —
+// une réservation déduit TANT QU'ELLE EXISTE (active ⇒ bloquée, consommée ⇒
+// dépense définitive, libérée ⇒ neutralisée par la RELEASE). Voir
+// computeBalance pour la formule exacte, source unique.
+const BALANCE_CREDITING_TYPES = ["RECHARGE", "REFUND"] as const;
+
+// Coût en Tokens d'un RDV selon le type de consultation (tarif provisionnel —
+// ADR-007 §tarifs, décision PO ouverte). Source unique : token-schemas.ts.
+export function appointmentCostTokens(type: keyof typeof PROVISIONAL_TARIFFS): number {
+  return PROVISIONAL_TARIFFS[type];
+}
+
+// ——— DTO ———
+
+export type WalletTransactionDto = {
+  id: string;
+  type: TokenTransaction["type"];
+  status: TokenTransaction["status"];
+  tokens: number;
+  amountFcfa: number | null;
+  note: string | null;
+  createdAt: string;
+};
+
+export type WalletDto = {
+  // Tokens disponibles (non réservés) — le patient peut les engager.
+  balanceTokens: number;
+  // Équivalent FCFA du disponible (valeur théorique).
+  balanceFcfa: number;
+  // Tokens bloqués par des RDV actifs (réservations en cours).
+  reservedTokens: number;
+  // Tokens définitivement consommés (visites réalisées) + équivalent FCFA.
+  spentTokens: number;
+  spentFcfa: number;
+  transactions: WalletTransactionDto[];
+};
+
+export type RechargeDto = WalletTransactionDto & { patientName?: string };
+
+function toTransactionDto(row: TokenTransaction): WalletTransactionDto {
+  return {
+    id: row.id,
+    type: row.type,
+    status: row.status,
+    tokens: row.tokens,
+    amountFcfa: row.amountFcfa,
+    note: row.note,
+    createdAt: row.createdAt.toISOString(),
+  };
+}
+
+// ——— Formule de solde — SOURCE UNIQUE (affichage + vérification de réservation) ———
+// solde = recharges confirmées + remboursements + ajustements signés
+//         − TOUTES les réservations + toutes les libérations
+// Une réservation déduit tant qu'elle existe : active = bloquée (reserved),
+// consommée = dépense définitive, libérée = neutralisée par sa RELEASE.
+// Compter les réservations TOUTES (et non « actives seules ») interdit tout
+// double-crédit : annuler ne redonne pas plus que ce qui avait été bloqué.
+type BalanceClient = Prisma.TransactionClient;
+
+export async function computeBalance(
+  client: BalanceClient,
+  userId: string,
+): Promise<{
+  balanceTokens: number;
+  reservedTokens: number;
+  spentTokens: number;
+  spentFcfa: number;
+}> {
+  // 6 agrégats : [recharges+remboursements, ajustements, toutes réservations,
+  // libérations, réservations actives (blocage), consommations]
+  const [recharges, adjustments, reservations, releases, reservedActive, spent] =
+    await Promise.all([
+      client.tokenTransaction.aggregate({
+        where: { userId, status: "CONFIRMED", type: { in: [...BALANCE_CREDITING_TYPES] } },
+        _sum: { tokens: true },
+      }),
+      client.tokenTransaction.aggregate({
+        where: { userId, status: "CONFIRMED", type: "ADJUSTMENT" },
+        _sum: { tokens: true },
+      }),
+      client.tokenTransaction.aggregate({
+        where: { userId, type: "RESERVATION" },
+        _sum: { tokens: true },
+      }),
+      client.tokenTransaction.aggregate({
+        where: { userId, type: "RELEASE" },
+        _sum: { tokens: true },
+      }),
+      // Blocage réel = réservations dont le RDV lié est toujours RESERVED.
+      client.tokenTransaction.aggregate({
+        where: { userId, type: "RESERVATION", appointment: { tokenState: "RESERVED" } },
+        _sum: { tokens: true },
+      }),
+      client.tokenTransaction.aggregate({
+        where: { userId, type: "CONSUMPTION" },
+        _sum: { tokens: true, amountFcfa: true },
+      }),
+    ]);
+
+  const balanceTokens =
+    (recharges._sum.tokens ?? 0) +
+    (adjustments._sum.tokens ?? 0) -
+    (reservations._sum.tokens ?? 0) +
+    (releases._sum.tokens ?? 0);
+
+  return {
+    balanceTokens,
+    reservedTokens: reservedActive._sum.tokens ?? 0,
+    spentTokens: spent._sum.tokens ?? 0,
+    spentFcfa: spent._sum.amountFcfa ?? 0,
+  };
+}
+
+// ——— Solde & historique (GET /api/wallet) ———
+
+export async function getWalletForPatient(userId: string): Promise<WalletDto> {
+  const [summary, transactions] = await Promise.all([
+    computeBalance(db, userId),
+    db.tokenTransaction.findMany({
+      where: { userId },
+      orderBy: { createdAt: "desc" },
+      take: 50,
+    }),
+  ]);
+
+  const { balanceTokens, reservedTokens, spentTokens, spentFcfa } = summary;
+
+  return {
+    balanceTokens,
+    balanceFcfa: tokensToFcfa(balanceTokens),
+    reservedTokens,
+    spentTokens,
+    spentFcfa,
+    transactions: transactions.map(toTransactionDto),
+  };
+}
+
+// ——— Réservation de Tokens (au POST /api/appointments) ———
+// À appeler DANS la transaction sérialisable de création du RDV (le RDV est
+// déjà créé avec tokenState=RESERVED) : si le solde est insuffisant, la
+// TokenError provoque le rollback complet (RDV + éventuelle écriture).
+
+type ReservationTx = Prisma.TransactionClient;
+
+export async function reserveTokensForAppointment(
+  tx: ReservationTx,
+  patientId: string,
+  appointmentId: string,
+  costTokens: number,
+): Promise<void> {
+  if (costTokens <= 0) return;
+
+  // MÊME formule que l'affichage (computeBalance — source unique) : le RDV
+  // étant déjà créé en RESERVED, sa future réservation n'est pas encore au
+  // ledger ⇒ le solde calculé ici est exactement celui que verra le patient.
+  const { balanceTokens } = await computeBalance(tx, patientId);
+
+  if (balanceTokens < costTokens) {
+    throw new TokenError(
+      balanceTokens <= 0
+        ? `Solde insuffisant — cette consultation coûte ${costTokens} Token${costTokens > 1 ? "s" : ""} (${tokensToFcfa(costTokens).toLocaleString("fr-FR")} FCFA). Rechargez votre portefeuille depuis votre profil.`
+        : `Solde insuffisant — il vous manque ${costTokens - balanceTokens} Token${costTokens - balanceTokens > 1 ? "s" : ""}. Rechargez votre portefeuille depuis votre profil.`,
+      402,
+    );
+  }
+
+  await tx.tokenTransaction.create({
+    data: {
+      userId: patientId,
+      type: "RESERVATION",
+      status: "CONFIRMED",
+      tokens: costTokens,
+      amountFcfa: tokensToFcfa(costTokens),
+      appointmentId,
+    },
+  });
+}
+
+// ——— Consommation définitive (clôture RDV par le Médecin Chef) ———
+// La réservation devient dépense définitive : le disponible ne bouge PAS
+// (les Tokens avaient déjà été déduits à la réservation) — on enregistre la
+// dépense pour l'historique et la comptabilité.
+export async function consumeAppointmentTokens(
+  tx: ReservationTx,
+  appointment: { id: string; patientId: string; tokensReserved: number },
+  adminId: string,
+): Promise<void> {
+  if (appointment.tokensReserved <= 0) return;
+
+  const reservation = await tx.tokenTransaction.findFirst({
+    where: {
+      userId: appointment.patientId,
+      type: "RESERVATION",
+      appointmentId: appointment.id,
+    },
+    select: { id: true },
+    orderBy: { createdAt: "desc" },
+  });
+
+  await tx.tokenTransaction.create({
+    data: {
+      userId: appointment.patientId,
+      type: "CONSUMPTION",
+      status: "CONFIRMED",
+      tokens: appointment.tokensReserved,
+      amountFcfa: tokensToFcfa(appointment.tokensReserved),
+      appointmentId: appointment.id,
+      relatedTransactionId: reservation?.id ?? null,
+      processedById: adminId,
+    },
+  });
+}
+
+// ——— Libération (annulation patient/admin, équipe non trouvée) ———
+// Rend les Tokens réservés au disponible (+N).
+export async function releaseAppointmentTokens(
+  tx: ReservationTx,
+  appointment: { id: string; patientId: string; tokensReserved: number },
+  note: string,
+  processedById?: string,
+): Promise<void> {
+  if (appointment.tokensReserved <= 0) return;
+
+  const reservation = await tx.tokenTransaction.findFirst({
+    where: {
+      userId: appointment.patientId,
+      type: "RESERVATION",
+      appointmentId: appointment.id,
+    },
+    select: { id: true },
+    orderBy: { createdAt: "desc" },
+  });
+
+  await tx.tokenTransaction.create({
+    data: {
+      userId: appointment.patientId,
+      type: "RELEASE",
+      status: "CONFIRMED",
+      tokens: appointment.tokensReserved,
+      amountFcfa: tokensToFcfa(appointment.tokensReserved),
+      appointmentId: appointment.id,
+      relatedTransactionId: reservation?.id ?? null,
+      note,
+      processedById: processedById ?? null,
+    },
+  });
+}
+
+// ——— Recharges ———
+
+// POST /api/wallet/recharges — le patient déclare une recharge : statut
+// PENDING jusqu'à validation du paiement par le Médecin Chef (modèle
+// transitoire — la confirmation automatique par le prestataire arrivera avec
+// la décision Mobile Money, ADR-005 ; cf. ADR-007 §recharges).
+export async function requestRecharge(
+  userId: string,
+  amountFcfa: number,
+): Promise<RechargeDto> {
+  const tokens = fcfaToTokens(amountFcfa);
+  if (!Number.isInteger(tokens) || tokens <= 0) {
+    throw new TokenError(
+      `Le montant doit être un multiple de ${TOKEN_VALUE_FCFA.toLocaleString("fr-FR")} FCFA (1 Token)`,
+      400,
+    );
+  }
+  const created = await db.tokenTransaction.create({
+    data: {
+      userId,
+      type: "RECHARGE",
+      status: "PENDING",
+      tokens,
+      amountFcfa,
+      note: "Recharge déclarée — paiement à rapprocher par le Médecin Chef",
+    },
+  });
+  return toTransactionDto(created);
+}
+
+export type AdminRechargeDto = RechargeDto & {
+  patientName: string;
+  patientPhone: string;
+};
+
+// GET /api/admin/recharges — files du Médecin Chef : PENDING d'abord, puis
+// les décisions récentes (traçabilité).
+export async function listRechargesForAdmin(): Promise<{
+  pending: AdminRechargeDto[];
+  processed: AdminRechargeDto[];
+}> {
+  const include = {
+    user: { select: { fullName: true, phone: true } },
+  } as const;
+
+  const [pending, processed] = await Promise.all([
+    db.tokenTransaction.findMany({
+      where: { type: "RECHARGE", status: "PENDING" },
+      orderBy: { createdAt: "asc" },
+      take: 50,
+      include,
+    }),
+    db.tokenTransaction.findMany({
+      where: { type: "RECHARGE", status: { not: "PENDING" } },
+      orderBy: { updatedAt: "desc" },
+      take: 30,
+      include,
+    }),
+  ]);
+
+  const map = (row: (typeof pending)[number]): AdminRechargeDto => ({
+    ...toTransactionDto(row),
+    patientName: row.user.fullName,
+    patientPhone: row.user.phone,
+  });
+  return { pending: pending.map(map), processed: processed.map(map) };
+}
+
+// PATCH /api/admin/recharges/:id — décision du Médecin Chef.
+// Garde anti double-crédit : la transition n'aboutit que si la recharge est
+// encore PENDING (updateMany conditionnel — une 2e confirmation concurrente
+// ou tardive ne crédite JAMAIS deux fois).
+export async function decideRecharge(
+  adminId: string,
+  rechargeId: string,
+  decision: "CONFIRM" | "REJECT",
+  note?: string,
+): Promise<RechargeDto> {
+  const existing = await db.tokenTransaction.findUnique({
+    where: { id: rechargeId },
+  });
+  if (!existing || existing.type !== "RECHARGE") {
+    throw new TokenError("Recharge introuvable", 404);
+  }
+  if (existing.status !== "PENDING") {
+    throw new TokenError(
+      `Cette recharge a déjà été traitée (${existing.status === "CONFIRMED" ? "confirmée" : "refusée"})`,
+      409,
+    );
+  }
+
+  const updated = await db.tokenTransaction.updateMany({
+    where: { id: rechargeId, type: "RECHARGE", status: "PENDING" },
+    data: {
+      status: decision === "CONFIRM" ? "CONFIRMED" : "REJECTED",
+      processedById: adminId,
+      note:
+        note?.slice(0, 300) ??
+        (decision === "CONFIRM"
+          ? "Paiement rapproché par le Médecin Chef"
+          : "Paiement non rapproché"),
+    },
+  });
+  if (updated.count === 0) {
+    throw new TokenError("Cette recharge a déjà été traitée", 409);
+  }
+
+  const fresh = await db.tokenTransaction.findUniqueOrThrow({
+    where: { id: rechargeId },
+  });
+  return toTransactionDto(fresh);
+}

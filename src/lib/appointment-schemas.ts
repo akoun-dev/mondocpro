@@ -45,7 +45,11 @@ export const createAppointmentSchema = z.object({
 
 export type CreateAppointmentInput = z.infer<typeof createAppointmentSchema>;
 
-// Seule action patient supportée au MVP : l'annulation.
+// Actions supportées : CANCEL (patient propriétaire ou Médecin Chef) ·
+// DONE (Médecin Chef uniquement — clôture de la consultation réalisée,
+// FEATURE-TOKENS). Le contrôle fin des rôles est fait par la route.
 export const updateAppointmentSchema = z.object({
-  action: z.literal("CANCEL"),
+  action: z.enum(["CANCEL", "DONE"], {
+    message: "Action non supportée",
+  }),
 });

@@ -29,24 +29,24 @@ Validation: schéma zod de référence (src/lib/<domaine>.ts)
 - Notes: remplace le hello-world scaffold comme vérification de santé lors des tests E2E et du monitoring. La sonde exécute `SELECT 1` via Prisma — toujours HTTP 200 (l'état porté par le corps permet à l'app de répondre même en cas d'incident DB) ; `status: "degraded"` ⇔ `database: "down"`.
 
 ### [GET] /api/appointments — Mes rendez-vous
-- Feature: FEATURE-RDV | Owner: Backend | Statut: **IMPLÉMENTÉ** (lot P0/P1 2026-10-03, audit §4 validé par GO PO ; spécialité ajoutée Task 19)
+- Feature: FEATURE-RDV | Owner: Backend | Statut: **IMPLÉMENTÉ** (lot P0/P1 2026-10-03, audit §4 validé par GO PO ; spécialité ajoutée Task 19 ; cycle Tokens ajouté Task 26)
 - Request: — (cookie de session, rôle PATIENT)
-- Response: 200 `{ "appointments": [{ "id": string, "type": "CABINET" | "DOMICILE", "zone": Zone, "specialty": { "id": string, "name": string } | null, "scheduledAt": string(ISO UTC), "status": "PENDING" | "CONFIRMED" | "CANCELLED" | "DONE", "reason": string | null, "createdAt": string }] }` — tri décroissant par créneau, 100 derniers ; `specialty: null` = RDV antérieurs au wizard (backfill « Médecine générale » en base)
+- Response: 200 `{ "appointments": [{ "id": string, "type": "CABINET" | "DOMICILE", "zone": Zone, "specialty": { "id": string, "name": string } | null, "scheduledAt": string(ISO UTC), "status": "PENDING" | "CONFIRMED" | "CANCELLED" | "DONE", "reason": string | null, "tokenState": "NONE" | "RESERVED" | "CONSUMED" | "RELEASED", "tokensReserved": number, "createdAt": string }] }` — tri décroissant par créneau, 100 derniers ; `specialty: null` = RDV antérieurs au wizard (backfill « Médecine générale » en base) ; `tokenState: "NONE"` = RDV antérieurs aux Tokens
 - Errors: 401 `{ error }` non authentifié · 403 `{ error }` rôle hors PATIENT · 500
 
 ### [POST] /api/appointments — Prendre un rendez-vous
-- Feature: FEATURE-RDV | Owner: Backend | Statut: **IMPLÉMENTÉ** (lot P0/P1 2026-10-03 ; wizard 4 étapes + specialtyId requis — Task 19)
+- Feature: FEATURE-RDV | Owner: Backend | Statut: **IMPLÉMENTÉ** (lot P0/P1 2026-10-03 ; wizard 4 étapes + specialtyId requis — Task 19 ; réservation de Tokens atomique — Task 26/ADR-007)
 - Request: `{ "type": "CABINET" | "DOMICILE", "specialtyId": string, "zone": Zone, "date": string("YYYY-MM-DD"), "time": string("HH:MM"), "reason"?: string(≤500) }` — date/heure saisis séparément (Afrique/Abidjan = UTC+0 : l'heure locale est l'heure UTC)
-- Response: 201 `{ "appointment": { ...idem GET } }`
-- Errors: 400 `{ error, details }` (zod, règle créneau : grille 30 min, lundi–vendredi 08:00–16:30, ≥ 2 h à l'avance, ≤ 60 jours, ou spécialité inexistante/inactive) · 401 · 403 · 409 `{ error }` RDV actif déjà réservé sur ce créneau par le patient · 500
-- Notes: arbitrages MVP (spec FEATURE-PATIENT §arbitrages) modifiables sans migration — constantes `src/lib/schedule.ts` (client-safe partagé avec le formulaire) ; `specialtyId` validé en base (doit référencer une spécialité ACTIVE du catalogue ADMIN).
+- Response: 201 `{ "appointment": { ...idem GET, tokenState: "RESERVED" } }` — le RDV naît AVEC sa réservation de Tokens (même transaction sérialisable)
+- Errors: 400 `{ error, details }` (zod, règle créneau : grille 30 min, lundi–vendredi 08:00–16:30, ≥ 2 h à l'avance, ≤ 60 jours, ou spécialité inexistante/inactive) · **402 `{ error }` solde insuffisant** (message patient prêt à afficher : coût + recharge depuis le profil) · 401 · 403 · 409 `{ error }` RDV actif déjà réservé sur ce créneau par le patient · 500
+- Notes: arbitrages MVP (spec FEATURE-PATIENT §arbitrages) modifiables sans migration — constantes `src/lib/schedule.ts` (client-safe partagé avec le formulaire) ; `specialtyId` validé en base (doit référencer une spécialité ACTIVE du catalogue ADMIN) ; **coût** = `PROVISIONAL_TARIFFS[type]` (tarif provisionnel ADR-007 — 1 Token, à valider PO), source unique `src/lib/token-schemas.ts` ; solde vérifié DANS la transaction (réservation `RESERVATION` écrite au ledger) — solde insuffisant ⇒ rollback complet.
 
-### [PATCH] /api/appointments/:id — Annuler un rendez-vous
-- Feature: FEATURE-RDV | Owner: Backend | Statut: **IMPLÉMENTÉ** (lot P0/P1 2026-10-03)
-- Request: `{ "action": "CANCEL" }` — seule action patient supportée au MVP
-- Response: 200 `{ "appointment": { ...idem GET, status: "CANCELLED" } }`
-- Errors: 400 `{ error, details }` (action non supportée) · 401 · 403 · 404 `{ error }` introuvable ou hors propriété (indistinguables) · 409 `{ error }` statut non annulable (CANCELLED/DONE) · 500
-- Notes: propriété vérifiée côté serveur (`patientId` = session) ; pas de délai limite d'annulation au MVP (arbitrage PO à trancher pour la phase 2).
+### [PATCH] /api/appointments/:id — Annuler (patient) / clôturer (Médecin Chef) un rendez-vous
+- Feature: FEATURE-RDV + FEATURE-TOKENS | Owner: Backend | Statut: **IMPLÉMENTÉ** (lot P0/P1 2026-10-03 ; actions étendues + sort des Tokens — Task 26/ADR-007)
+- Request: `{ "action": "CANCEL" }` (patient propriétaire **ou** ADMIN) **ou** `{ "action": "DONE" }` (**ADMIN uniquement** — consultation réalisée)
+- Response: 200 `{ "appointment": { ...idem GET, status: "CANCELLED" | "DONE", tokenState: "RELEASED" | "CONSUMED" } }` — le sort des Tokens réservés suit l'action DANS la même transaction : CANCEL ⇒ `RELEASE` (+N au disponible) ; DONE ⇒ `CONSUMPTION` (dépense définitive, disponible inchangé)
+- Errors: 400 `{ error, details }` (action non supportée) · 401 · 403 `{ error }` patient demandant DONE · 404 `{ error }` introuvable ou hors propriété (patient ; indistinguables) · 409 `{ error }` statut non annulable/clôturable (CANCELLED/DONE) · 500
+- Notes: propriété vérifiée côté serveur (`patientId` = session) pour le patient ; pas de délai limite d'annulation au MVP (arbitrage PO à trancher pour la phase 2) — politique Tokens MVP : **libération complète avant visite** (frais après départ de l'équipe : attends le dispatch équipe, ADR-007).
 
 ### [GET] /api/specialties — Catalogue des spécialités actives
 - Feature: FEATURE-RDV (wizard étape 2) | Owner: Backend | Statut: **IMPLÉMENTÉ** (Task 19)
@@ -140,6 +140,32 @@ Validation: schéma zod de référence (src/lib/<domaine>.ts)
 - Response: 200 `{ "ok": true, "unreadCount": number }` — vérité serveur pour réaligner le badge
 - Errors: 400 `{ error, details }` (JSON invalide, les deux formes ou aucune) · 401 `{ error }` non authentifié · 404 `{ error }` `id` inexistant **ou** appartenant à un autre utilisateur (indistinguables — pas de fuite d'existence) · 500
 - Notes: le user ciblé = session (jamais le corps) ; `updateMany` scopé `userId + readAt IS NULL` — idempotent ; le front patient applique en optimiste puis réaligne sur le `unreadCount` renvoyé.
+
+### [GET] /api/wallet — Portefeuille de Tokens du patient (FEATURE-TOKENS, ADR-007)
+- Feature: FEATURE-TOKENS | Owner: Backend | Statut: **IMPLÉMENTÉ** (Task 26, 2026-10-03)
+- Request: — (cookie de session, rôle PATIENT)
+- Response: 200 `{ "balanceTokens": number, "balanceFcfa": number, "reservedTokens": number, "spentTokens": number, "spentFcfa": number, "transactions": [{ "id": string, "type": "RECHARGE" | "RESERVATION" | "CONSUMPTION" | "RELEASE" | "REFUND" | "ADJUSTMENT", "status": "PENDING" | "CONFIRMED" | "REJECTED", "tokens": number, "amountFcfa": number | null, "note": string | null, "createdAt": string }] }` — 50 derniers mouvements, tri décroissant
+- Errors: 401 `{ error }` non authentifié · 403 `{ error }` rôle hors PATIENT · 500
+- Notes: **ledger append-only** — le solde est TOUJOURS recalculé par `computeBalance` (source unique partagée avec la réservation de RDV) : `recharges confirmées + remboursements + ajustements − TOUTES les réservations + libérations` (une réservation déduit tant qu'elle existe : active = bloquée, consommée = dépense définitive, libérée = neutralisée par sa RELEASE) ; `reservedTokens` = lignes `RESERVATION` dont le RDV lié est toujours `tokenState=RESERVED` ; 1 Token = 2 500 FCFA (`TOKEN_VALUE_FCFA`).
+
+### [POST] /api/wallet/recharges — Déclarer une recharge (FEATURE-TOKENS, ADR-007)
+- Feature: FEATURE-TOKENS | Owner: Backend | Statut: **IMPLÉMENTÉ** (Task 26, 2026-10-03 — validation manuelle transitoire, ADR-005 ouverte)
+- Request: `{ "amountFcfa": number }` — multiple exact de 2 500 FCFA, plafond 500 000 FCFA (anti-fraude MVP)
+- Response: 201 `{ "recharge": { "id": string, "type": "RECHARGE", "status": "PENDING", "tokens": number, "amountFcfa": number, "createdAt": string } }`
+- Errors: 400 `{ error, details }` (zod : multiple/plafond/entier) · 401 · 403 · 500
+- Notes: la recharge naît **PENDING** (paiement Wave/OM/MTN/Visa déclaré mais non rapproché) ; le Médecin Chef crédite via [PATCH] /api/admin/recharges/:id ; `providerRef` accueillera la référence prestataire à ADR-005.
+
+### [GET] /api/admin/recharges — File de validation des recharges (Médecin Chef)
+- Feature: FEATURE-TOKENS | Owner: Backend | Statut: **IMPLÉMENTÉ** (Task 26, 2026-10-03)
+- Request: — (cookie de session, rôle ADMIN)
+- Response: 200 `{ "pending": [{ ...recharge, "patientName": string, "patientPhone": string }], "processed": [...] }` — PENDING triées croissantes (50 max) puis décisions récentes (30 max, triées par date de décision)
+- Errors: 401 `{ error }` · 403 `{ error }` rôle hors ADMIN · 500
+
+### [PATCH] /api/admin/recharges/:id — Décision du Médecin Chef sur une recharge
+- Feature: FEATURE-TOKENS | Owner: Backend | Statut: **IMPLÉMENTÉ** (Task 26, 2026-10-03)
+- Request: `{ "decision": "CONFIRM" | "REJECT", "note"?: string(≤300) }` — note par défaut : « Paiement rapproché par le Médecin Chef » / « Paiement non rapproché »
+- Response: 200 `{ "recharge": { ...status: "CONFIRMED" | "REJECTED" } }` — CONFIRM crédite les Tokens (statut comptabilisé) ; REJECT ne crédite jamais
+- Errors: 400 `{ error, details }` · 401 · 403 · 404 `{ error }` recharge inexistante ou hors type RECHARGE · 409 `{ error }` déjà traitée (garde anti double-crédit : transition conditionnelle `PENDING → CONFIRMED/REJECTED` via `updateMany` — une double confirmation, même concurrente, ne crédite JAMAIS deux fois) · 500
 
 ### [POST] /api/auth/forgot-password — Mot de passe oublié (étape 1)
 - Feature: FEATURE-AUTH (SYS-010 / US-AUTH-5) | Owner: Backend | Statut: **VALIDÉ** (maj PO 2026-10)

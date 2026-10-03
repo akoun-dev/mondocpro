@@ -11,6 +11,13 @@ import {
   slotToDate,
   validateSlot,
 } from "@/lib/schedule";
+import {
+  TokenError,
+  appointmentCostTokens,
+  consumeAppointmentTokens,
+  releaseAppointmentTokens,
+  reserveTokensForAppointment,
+} from "@/lib/tokens";
 
 // Ré-export : la route API et les scripts continuent d'importer depuis ici.
 export {
@@ -44,6 +51,9 @@ export type AppointmentDto = {
   scheduledAt: string;
   status: AppointmentStatus;
   reason: string | null;
+  // FEATURE-TOKENS (ADR-007) — cycle financier du RDV.
+  tokenState: "NONE" | "RESERVED" | "CONSUMED" | "RELEASED";
+  tokensReserved: number;
   createdAt: string;
 };
 
@@ -60,6 +70,8 @@ export function toAppointmentDto(
     scheduledAt: appointment.scheduledAt.toISOString(),
     status: appointment.status,
     reason: appointment.reason,
+    tokenState: appointment.tokenState,
+    tokensReserved: appointment.tokensReserved,
     createdAt: appointment.createdAt.toISOString(),
   };
 }
@@ -149,7 +161,11 @@ export async function createAppointmentForPatient(
           );
         }
 
-        return tx.appointment.create({
+        // FEATURE-TOKENS (ADR-007) : le RDV naît AVEC sa réservation de
+        // Tokens (tokenState=RESERVED). Le coût suit le tarif provisionnel
+        // du type de consultation — source unique token-schemas.ts.
+        const costTokens = appointmentCostTokens(input.type);
+        const created = await tx.appointment.create({
           data: {
             patientId,
             specialtyId: specialty.id,
@@ -157,15 +173,28 @@ export async function createAppointmentForPatient(
             zone: input.zone,
             scheduledAt,
             reason: input.reason || null,
+            tokenState: "RESERVED",
+            tokensReserved: costTokens,
           },
           include: { specialty: { select: { id: true, name: true } } },
         });
+
+        // Vérification du solde + écriture de la réservation dans le ledger
+        // — DANS la même transaction : solde insuffisant ⇒ rollback complet
+        // (aucun RDV sans réservation, aucune réservation orpheline).
+        await reserveTokensForAppointment(tx, patientId, created.id, costTokens);
+
+        return created;
       },
       { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
     );
     return toAppointmentDto(created);
   } catch (error) {
     if (error instanceof AppointmentError) throw error;
+    if (error instanceof TokenError) {
+      // Solde insuffisant (402) — message patient prêt à afficher.
+      throw new AppointmentError(error.message, error.status);
+    }
     // Deux créations concurrentes peuvent faire échouer la transaction
     // sérialisable : restituer une collision métier plutôt qu'un 500.
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2034") {
@@ -178,6 +207,10 @@ export async function createAppointmentForPatient(
   }
 }
 
+// Annulation patient (PATCH action=CANCEL) — FEATURE-TOKENS : si le RDV
+// porte une réservation active, les Tokens sont LIBÉRÉS dans la même
+// transaction (politique MVP « avant affectation : libération complète » —
+// les frais après départ de l'équipe attendent le dispatch équipe, ADR-007).
 export async function cancelAppointmentForPatient(
   patientId: string,
   appointmentId: string,
@@ -196,10 +229,87 @@ export async function cancelAppointmentForPatient(
     );
   }
 
-  const cancelled = await db.appointment.update({
-    where: { id: appointmentId },
-    data: { status: "CANCELLED", cancelledAt: new Date() },
-    include: { specialty: { select: { id: true, name: true } } },
+  const cancelled = await db.$transaction(async tx => {
+    const updated = await tx.appointment.update({
+      where: { id: appointmentId },
+      data: {
+        status: "CANCELLED",
+        cancelledAt: new Date(),
+        ...(existing.tokenState === "RESERVED"
+          ? { tokenState: "RELEASED" as const }
+          : {}),
+      },
+      include: { specialty: { select: { id: true, name: true } } },
+    });
+    if (existing.tokenState === "RESERVED") {
+      await releaseAppointmentTokens(
+        tx,
+        existing,
+        "Annulation par le patient — libération de la réservation",
+      );
+    }
+    return updated;
   });
   return toAppointmentDto(cancelled);
+}
+
+// Clôture par le Médecin Chef (PATCH admin action=DONE|CANCEL) — FEATURE-
+// TOKENS : DONE transforme la réservation en DÉPENSE DÉFINITIVE (visite
+// réalisée, ADR-007 §cycle) ; CANCEL libère la réservation (échec imputable
+// à l'équipe / au système ⇒ le patient ne paie pas).
+export async function closeAppointmentByAdmin(
+  adminId: string,
+  appointmentId: string,
+  action: "DONE" | "CANCEL",
+): Promise<AppointmentDto> {
+  const existing = await db.appointment.findUnique({
+    where: { id: appointmentId },
+  });
+  if (!existing) {
+    throw new AppointmentError("Rendez-vous introuvable", 404);
+  }
+  if (!ACTIVE_STATUSES.includes(existing.status)) {
+    throw new AppointmentError(
+      action === "DONE"
+        ? "Ce rendez-vous n'est plus actif — il ne peut pas être clôturé"
+        : "Ce rendez-vous n'est plus actif — il ne peut pas être annulé",
+      409,
+    );
+  }
+
+  const closed = await db.$transaction(async tx => {
+    const updated = await tx.appointment.update({
+      where: { id: appointmentId },
+      data:
+        action === "DONE"
+          ? {
+              status: "DONE" as const,
+              ...(existing.tokenState === "RESERVED"
+                ? { tokenState: "CONSUMED" as const }
+                : {}),
+            }
+          : {
+              status: "CANCELLED" as const,
+              cancelledAt: new Date(),
+              ...(existing.tokenState === "RESERVED"
+                ? { tokenState: "RELEASED" as const }
+                : {}),
+            },
+      include: { specialty: { select: { id: true, name: true } } },
+    });
+    if (existing.tokenState === "RESERVED") {
+      if (action === "DONE") {
+        await consumeAppointmentTokens(tx, existing, adminId);
+      } else {
+        await releaseAppointmentTokens(
+          tx,
+          existing,
+          "Annulation par l'équipe — libération de la réservation",
+          adminId,
+        );
+      }
+    }
+    return updated;
+  });
+  return toAppointmentDto(closed);
 }

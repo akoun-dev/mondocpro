@@ -72,6 +72,7 @@ import { ProfileView } from "@/components/patient/profile-view"
 import { BookAppointmentDialog } from "@/components/patient/book-appointment-dialog"
 import { SensibilisationDialog } from "@/components/patient/sensibilisation-dialog"
 import { SpecialtiesView } from "@/components/admin/specialties-view"
+import { RechargesView } from "@/components/admin/recharges-view"
 
 const ROLE_LABELS: Record<AppRole, string> = {
     PATIENT: "Patient",
@@ -174,8 +175,9 @@ const ROLE_SPACE: Record<
 // « Rendez-vous » en accès direct (menu de 1er niveau) ; les autres rôles
 // conservent Accueil / Profil. Sous-vues hors navigation basse : patient
 // « senso » (entrée « Tout voir ») ; admin « specialties » (entrée « Gérer
-// les spécialités »).
-type DashboardTab = "accueil" | "rdv" | "senso" | "specialties" | "profil"
+// les spécialités ») et « recharges » (FEATURE-TOKENS — rapprochement des
+// paiements patients, Médecin Chef seul).
+type DashboardTab = "accueil" | "rdv" | "senso" | "specialties" | "recharges" | "profil"
 
 const PATIENT_TABS: { id: DashboardTab; label: string; icon: LucideIcon }[] = [
     { id: "accueil", label: "Accueil", icon: Home },
@@ -185,6 +187,14 @@ const PATIENT_TABS: { id: DashboardTab; label: string; icon: LucideIcon }[] = [
 
 const BASE_TABS: { id: DashboardTab; label: string; icon: LucideIcon }[] = [
     { id: "accueil", label: "Accueil", icon: Home },
+    { id: "profil", label: "Profil", icon: UserRound },
+]
+
+// Onglets ADMIN (Médecin Chef) : accueil + recharges de Tokens (FEATURE-
+// TOKENS) + profil — les recharges consomment la navigation basse dédiée.
+const ADMIN_TABS: { id: DashboardTab; label: string; icon: LucideIcon }[] = [
+    { id: "accueil", label: "Accueil", icon: Home },
+    { id: "recharges", label: "Recharges", icon: Wallet },
     { id: "profil", label: "Profil", icon: UserRound },
 ]
 
@@ -678,6 +688,29 @@ export function UserDashboard() {
                                 </div>
                             </div>
 
+                            {/* Raccourci ADMIN — validation des recharges de Tokens
+                                (FEATURE-TOKENS : cycle financier de la consultation) */}
+                            {user.role === "ADMIN" && (
+                                <button
+                                    type="button"
+                                    onClick={() => setTab("recharges")}
+                                    className="mb-6 flex w-full items-center gap-3 rounded-2xl border bg-card p-4 text-left shadow-sm transition-colors hover:border-primary/40 hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:p-5"
+                                >
+                                    <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                                        <Wallet className="size-5" aria-hidden="true" />
+                                    </span>
+                                    <span className="min-w-0 flex-1">
+                                        <span className="block text-sm font-bold">
+                                            Recharges de Tokens
+                                        </span>
+                                        <span className="block text-xs text-muted-foreground">
+                                            Valider les paiements patients (Wave, OM, MTN, Visa)
+                                        </span>
+                                    </span>
+                                    <ChevronRight className="size-5 shrink-0 text-muted-foreground" aria-hidden="true" />
+                                </button>
+                            )}
+
                             {/* Raccourci ADMIN — gestion du catalogue de spécialités
                                 consommé par l'étape 2 du wizard patient (feature live,
                                 contrairement aux modules « à venir » ci-dessous) */}
@@ -812,6 +845,19 @@ export function UserDashboard() {
                         </motion.section>
                     )}
 
+                    {tab === "recharges" && user.role === "ADMIN" && (
+                        <motion.section
+                            key="recharges"
+                            variants={tabVariants}
+                            initial="enter"
+                            animate="center"
+                            exit="exit"
+                            aria-label="Recharges de Tokens"
+                        >
+                            <RechargesView onBack={() => setTab("accueil")} />
+                        </motion.section>
+                    )}
+
                     {tab === "profil" && (
                         <motion.section
                             key="profil"
@@ -907,7 +953,12 @@ export function UserDashboard() {
                 className="fixed inset-x-0 bottom-0 z-20 px-4 pb-[max(env(safe-area-inset-bottom),1rem)]"
             >
                 <ul className="mx-auto flex max-w-md items-center justify-around gap-1 rounded-2xl border border-border/70 bg-card/95 p-1.5 shadow-lg shadow-primary/[0.08] backdrop-blur-md">
-                    {(isPatient ? PATIENT_TABS : BASE_TABS).map(item => {
+                    {(isPatient
+                        ? PATIENT_TABS
+                        : user.role === "ADMIN"
+                          ? ADMIN_TABS
+                          : BASE_TABS
+                    ).map(item => {
                         const isActive = tab === item.id
                         return (
                             <li key={item.id} className="flex-1">

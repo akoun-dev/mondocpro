@@ -45,6 +45,7 @@ model User {
   passwordResetTokens PasswordResetToken[]
   appointments        Appointment[]
   notifications       Notification[]
+  tokenTransactions   TokenTransaction[]
 
   @@map("users")
 }
@@ -112,6 +113,16 @@ model Appointment {
   // (FEATURE-RDV). Canal SMS provider-agnostic tant que la décision A10
   // (choix de la passerelle) est ouverte.
   reminderSentAt DateTime?
+  // ——— FEATURE-TOKENS (ADR-007) — cycle financier de la consultation ———
+  // tokenState suit la vie de la réservation de Tokens : NONE (RDV
+  // antérieurs aux Tokens / hors périmètre) → RESERVED (à la demande) →
+  // CONSUMED (visite réalisée = dépense définitive) ou RELEASED (annulation
+  // / équipe non trouvée = libération). tokensReserved : nombre de Tokens
+  // bloqués à la création (tarif provisionnel — ADR-007 §tarifs).
+  tokenState    AppointmentTokenState @default(NONE)
+  tokensReserved Int                 @default(0)
+  // Mouvements de Tokens liés à ce RDV (réservation/consommation/libération).
+  tokenTransactions TokenTransaction[]
   createdAt   DateTime          @default(now())
   updatedAt   DateTime          @updatedAt
 
@@ -119,6 +130,15 @@ model Appointment {
   @@index([scheduledAt])
   @@index([specialtyId])
   @@map("appointments")
+}
+
+// Cycle de vie des Tokens d'un RDV (ADR-007) — NONE couvre les RDV créés
+// avant la feature (et un futur RDV sans facturation).
+enum AppointmentTokenState {
+  NONE
+  RESERVED
+  CONSUMED
+  RELEASED
 }
 
 // ——— FEATURE-RDV — Spécialités de consultation (configurables ADMIN) ———
@@ -158,6 +178,62 @@ model Sensibilisation {
 
   @@index([publishedAt])
   @@map("sensibilisations")
+}
+
+// ——— FEATURE-TOKENS (ADR-007) — Portefeuille de Tokens (crédits prépayés) ———
+// 1 Token = 2 500 FCFA (valeur fixée par le document de présentation).
+// Ledger APPEND-ONLY : chaque mouvement financier est une ligne immuable —
+// le solde est TOUJOURS recalculé (aucun champ solde modifiable), seule la
+// transition de statut d'une recharge PENDING est une mutation autorisée
+// (garde updateMany : une double confirmation reste sans effet).
+enum TokenTransactionType {
+  RECHARGE      // +N — recharge validée (paiement externe Wave/OM/MTN/Visa)
+  RESERVATION   // +N — blocage à la demande de RDV (déduit du disponible)
+  CONSUMPTION   // +N — clôture de la réservation en dépense définitive (solde inchangé)
+  RELEASE       // +N — libération d'une réservation (annulation / non trouvée)
+  REFUND        // +N — remboursement au patient (24 décembre, geste commercial)
+  ADJUSTMENT    // ±N — correction manuelle du Médecin Chef (anomalie)
+}
+
+enum TokenTransactionStatus {
+  PENDING   // recharge déclarée, en attente de validation du Médecin Chef
+  CONFIRMED // mouvement effectif (comptabilisé dans le solde)
+  REJECTED  // recharge refusée (paiement non rapproché) — jamais comptabilisée
+}
+
+model TokenTransaction {
+  id        String                 @id @default(cuid())
+  userId    String
+  user      User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      TokenTransactionType
+  status    TokenTransactionStatus @default(CONFIRMED)
+  // Nombre de Tokens du mouvement (positif ; ADJUSTMENT peut être négatif).
+  // Effet sur le disponible : RECHARGE/RELEASE/REFUND +N · RESERVATION −N ·
+  // CONSUMPTION 0 (la réservation avait déjà déduit) · ADJUSTMENT signé.
+  tokens     Int
+  // Équivalent FCFA du mouvement (recharges, consommations, remboursements).
+  amountFcfa Int?
+  // Référence prestataire de paiement (Wave/OM/MTN/Visa) — remplie quand la
+  // décision Mobile Money (ADR-005) sera tranchée ; antichambre à la
+  // déduplication des confirmations prestataires.
+  providerRef String?
+  // RDV lié (réservation / consommation / libération) — SetNull : le ledger
+  // survit à une purge éventuelle du RDV (traçabilité financière).
+  appointmentId String?
+  appointment   Appointment? @relation(fields: [appointmentId], references: [id], onDelete: SetNull)
+  // Réservation source d'une CONSUMPTION / RELEASE (chaînage auditable).
+  relatedTransactionId String?
+  // Note libre (motif de refus, libellé d'ajustement, preuve remboursement…).
+  note        String?  @db.VarChar(300)
+  // ADMIN ayant traité la recharge (confirmée/refusée) ou clôturé le RDV.
+  processedById String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([userId, createdAt])
+  @@index([userId, type, status])
+  @@index([appointmentId])
+  @@map("token_transactions")
 }
 
 // ——— FEATURE-RDV / Task 24 — Notifications InApp ———
