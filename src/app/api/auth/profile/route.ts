@@ -1,17 +1,19 @@
-// PATCH /api/auth/profile — FEATURE-PROFIL (Task 22, contrat API_CONTRACTS.md)
-// Édition du profil de l'utilisateur connecté : nom complet, date de naissance
-// et préférences de notification (rappels RDV, alertes de santé locales).
+// PATCH /api/auth/profile — FEATURE-PROFIL (Task 22/23, contrat API_CONTRACTS.md)
+// Édition du profil de l'utilisateur connecté : nom complet, date de naissance,
+// secteur d'habitation (zone) et préférences de notification (rappels RDV,
+// alertes de santé locales).
 // Sécurité :
 //   - le user ciblé est TOUJOURS celui de la session (jamais pris du corps) :
 //     chacun ne peut modifier que son propre profil ;
-//   - phone / role / zone non modifiables (le schéma Zod les refuse) ;
+//   - phone / role non modifiables (le schéma Zod les refuse) ; zone éditable
+//     depuis la Task 23 (même modèle : Zod partagé + PATCH sémantique) ;
 //   - tous les rôles authentifiés sont admis (chacun possède un profil).
 // birthDate "AAAA-MM-JJ" → Date minuit UTC (Afrique/Abidjan = UTC+0) ;
 // birthDate null → efface la valeur (affichage « Non renseignée »).
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireRole, toPublicUser } from "@/lib/auth";
-import { updateProfileSchema } from "@/lib/auth-schemas";
+import { updateProfileSchema, ZONES } from "@/lib/auth-schemas";
 
 export async function PATCH(request: Request) {
     const guard = await requireRole(["PATIENT", "INFIRMIER", "ADMIN"]);
@@ -45,10 +47,12 @@ export async function PATCH(request: Request) {
     const data: {
         fullName?: string;
         birthDate?: Date | null;
+        zone?: (typeof ZONES)[number];
         appointmentReminders?: boolean;
         healthAlerts?: boolean;
     } = {};
     if (parsed.data.fullName !== undefined) data.fullName = parsed.data.fullName;
+    if (parsed.data.zone !== undefined) data.zone = parsed.data.zone;
     if (parsed.data.birthDate !== undefined) {
         data.birthDate = parsed.data.birthDate
             ? new Date(`${parsed.data.birthDate}T00:00:00.000Z`)

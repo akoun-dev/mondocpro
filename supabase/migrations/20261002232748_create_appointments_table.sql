@@ -15,6 +15,9 @@ CREATE TABLE "appointments" (
     "reason" VARCHAR(500),
     "notes" VARCHAR(1000),
     "cancelledAt" TIMESTAMP(3),
+    -- Rappel 24 h déjà envoyé (anti-doublon du scheduler — FEATURE-RDV) ;
+    -- colonne intégrée ici (ADR-003 : pas de migration add_* pré-PROD).
+    "reminderSentAt" TIMESTAMP(3),
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 

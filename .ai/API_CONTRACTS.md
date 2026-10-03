@@ -113,12 +113,19 @@ Validation: schéma zod de référence (src/lib/<domaine>.ts)
 - Response: 200 `{ "user": { ...idem register } }`
 - Errors: 401 `{ error }` non authentifié / session expirée · 500
 
-### [PATCH] /api/auth/profile — Éditer son profil (FEATURE-PROFIL, Task 22)
-- Feature: FEATURE-PROFIL | Owner: Backend | Statut: **IMPLÉMENTÉ** (Task 22, 2026-10-03)
-- Request: `{ "fullName"?: string(2..80), "birthDate"?: string("AAAA-MM-JJ", passée) | null, "appointmentReminders"?: boolean, "healthAlerts"?: boolean }` — delta sémantique : seuls les champs fournis sont modifiés ; `birthDate: null` efface (« Non renseignée ») ; au moins un champ requis. **`phone`/`role`/`zone` absents du contrat Zod** → stripped : un corps qui ne contient qu'eux est refusé 400 (le user ciblé = session, jamais le corps)
+### [PATCH] /api/auth/profile — Éditer son profil (FEATURE-PROFIL, Task 22/23)
+- Feature: FEATURE-PROFIL | Owner: Backend | Statut: **IMPLÉMENTÉ** (Task 22/23, 2026-10-03)
+- Request: `{ "fullName"?: string(2..80), "birthDate"?: string("AAAA-MM-JJ", passée) | null, "zone"?: "YOPOUGON" | "SONGON" | "PK22" | "NDOTRE", "appointmentReminders"?: boolean, "healthAlerts"?: boolean }` — delta sémantique : seuls les champs fournis sont modifiés ; `birthDate: null` efface (« Non renseignée ») ; au moins un champ requis. **`phone`/`role` absents du contrat Zod** → stripped : un corps qui ne contient qu'eux est refusé 400 (le user ciblé = session, jamais le corps). `zone` éditable depuis la Task 23 (secteur d'habitation, même liste fermée que l'inscription)
 - Response: 200 `{ "user": { ...idem register } }` — vérité serveur renvoyée (le front réaligne son store dessus)
 - Errors: 400 `{ error, details }` (zod : nom, format/passage de la date, « Aucune modification fournie ») · 401 `{ error }` non authentifié · 500
-- Notes: tous rôles authentifiés (chacun édite SON profil) ; naissance stockée à minuit UTC (Afrique/Abidjan = UTC+0) ; préférences = opt-out par défaut `true` (rappels RDV SMS/WhatsApp 24 h avant · alertes de santé locales) ; schéma Zod partagé front/back (`updateProfileSchema`, src/lib/auth-schemas.ts) ; E2E `scripts/e2e-profile-edit.sh`.
+- Notes: tous rôles authentifiés (chacun édite SON profil) ; naissance stockée à minuit UTC (Afrique/Abidjan = UTC+0) ; préférences = opt-out par défaut `true` (rappels RDV **SMS** 24 h avant · alertes de santé locales) ; schéma Zod partagé front/back (`updateProfileSchema`, src/lib/auth-schemas.ts) ; E2E `scripts/e2e-profile-edit.sh` + `scripts/e2e-sector-reminders.sh`.
+
+### [GET|POST] /api/cron/reminders — Scheduler des rappels de RDV (FEATURE-RDV, Task 23)
+- Feature: FEATURE-RDV | Owner: Backend | Statut: **IMPLÉMENTÉ** (Task 23, 2026-10-03 — transport en stub tant que la décision A10 est ouverte)
+- Request: — · header `Authorization: Bearer ${CRON_SECRET}` (obligatoire) ; à brancher sur un planificateur externe (Vercel Cron / cron système)
+- Response: 200 `{ ok: true, gateway: string, due: number, sent: number, failed: number, results: [{ appointmentId, ok, error? }] }` — résumé du tick
+- Errors: 401 `{ error }` secret absent/faux (comparaison à temps constant) · 503 `{ error }` **CRON_SECRET non configuré** = scheduler non déployé (passerelle SMS : décision A10 en attente) · 500
+- Notes: périmètre PO — rappels **UNIQUEMENT AVANT les RDV**, fenêtre **24 h** (`REMINDER_LEAD_HOURS`, src/lib/reminders.ts) ; sélection : `status = CONFIRMED` ∧ `scheduledAt ∈ [maintenant, +24 h]` ∧ `reminderSentAt IS NULL` ∧ patient `appointmentReminders = true` ; **anti-doublon** : envoi réussi ⇒ `Appointment.reminderSentAt` marqué (un RDV rappelé n'est jamais repris ; échec ⇒ non marqué ⇒ retenté au tick suivant) ; batch plafonné à 100/tick ; transport **provider-agnostic** (`SmsGateway`) avec stub console — brancher le fournisseur choisi à A10 = 1 seule fonction (`getSmsGateway`) ; message SMS fr-FR ≤ 160 c. (heure locale Afrique/Abidjan = UTC+0).
 
 ### [POST] /api/auth/forgot-password — Mot de passe oublié (étape 1)
 - Feature: FEATURE-AUTH (SYS-010 / US-AUTH-5) | Owner: Backend | Statut: **VALIDÉ** (maj PO 2026-10)

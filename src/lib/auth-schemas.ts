@@ -87,11 +87,12 @@ export const resetPasswordSchema = z
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
 
-// ——— FEATURE-PROFIL (Task 22) — édition du profil (PATCH /api/auth/profile) ———
-// Champs modifiables uniquement : nom complet, date de naissance, préférences
-// de notification. phone / role / zone volontairement ABSENTS du contrat :
-// identité métier (mobile) et sectorisation (zone = décision équipe) ne se
-// modifient pas depuis l'application. Le user ciblé = celui de la session.
+// ——— FEATURE-PROFIL (Task 22/23) — édition du profil (PATCH /api/auth/profile) ———
+// Champs modifiables : nom complet, date de naissance, secteur d'habitation
+// (zone — Task 23, « sur le même modèle » que nom/naissance) et préférences de
+// notification. phone / role volontairement ABSENTS du contrat : le mobile est
+// l'identité métier (session) et ne se modifie pas depuis l'application. Le
+// user ciblé = celui de la session.
 const birthDateSchema = z
   .string()
   .regex(/^\d{4}-\d{2}-\d{2}$/, "Date de naissance invalide (format AAAA-MM-JJ)")
@@ -107,6 +108,8 @@ export const updateProfileSchema = z
     fullName: registerBase.shape.fullName.optional(),
     // null = effacer la date (Non renseignée) ; "AAAA-MM-JJ" = renseigner.
     birthDate: birthDateSchema.nullable().optional(),
+    // Secteur d'habitation — même liste fermée que l'inscription (Task 23).
+    zone: z.enum(ZONES, { message: "Zone invalide" }).optional(),
     appointmentReminders: z.boolean().optional(),
     healthAlerts: z.boolean().optional(),
   })

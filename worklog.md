@@ -695,3 +695,27 @@ Stage Summary:
 - Restent « Bientôt » honnêtes : secteur d'habitation (zone = décision équipe), mot de passe par code SMS, centre d'aide.
 - Décisions PO toujours ouvertes : créneaux praticien, délai d'annulation, tokens FCFA, Mobile Money (ADR-005), passerelle SMS réelle (les toggles prépareront les rappels SMS/WhatsApp).
 - Pièges consignés : migrations à la main + migrate-deploy (jamais migrate dev sur cette base) ; téléphones API en format +225.
+
+---
+Task ID: 23
+Agent: Super Z
+Task: "Rappels de rendez-vous (uniquement) avant les RDV (passerelle SMS — décision A10 encore ouverte) et activer l'édition du secteur d'habitation sur le même modèle"
+
+Work Log:
+- Prérequis utilisateur (« récupérer les derniers commits ») : commit bruit UUID (5 captures tool-results auto-committées) supprimé (reset --hard HEAD~1, artefacts régénérables), puis `git pull --rebase origin main` → `08e6229` upstream qui CONSOLIDE les migrations : colonnes profil fusionnées dans `20261002232740_create_users_table.sql` et NOUVELLE RÈGLE ADR-003 « Règle de modification des migrations » — pas de migrations `add_*`/`alter_*` pré-PROD, les colonnes vont dans la migration de création de la table.
+- Édition du secteur (même modèle que nom/naissance) : `zone` ajouté à `updateProfileSchema` (z.enum ZONES, liste fermée = inscription) + route PATCH /api/auth/profile (commentaire sécurité mis à jour : phone/role seulement hors contrat) ; ProfileView — dialog dédié « Modifier mon secteur » (Select shadcn des 4 secteurs, Zod partagé côté client, PATCH → setUser → héro + ligne mis à jour en direct, toast « Secteur mis à jour »), ligne secteur crayon → openZoneEdit (brouillon réinitialisé à l'ouverture).
+- Rappels avant RDV (A10 ouverte) : colonne `Appointment.reminderSentAt` AJOUTÉE DANS `20261002232748_create_appointments_table.sql` (règle ADR-003) + schema.prisma ; application en base : `prisma db push` REFUSÉ (dérive préexistante enum SensibilisationCategory CONSEIL/ALERTE vs ADVICE/ALERT — hors périmètre, non touchée) → ALTER idempotent `ADD COLUMN IF NOT EXISTS` via `prisma db execute` + `prisma generate`, colonne vérifiée (information_schema).
+- `src/lib/reminders.ts` : `SmsGateway` (interface) + `consoleStubGateway` (journalise `[SMS:stub]`, même philosophie que le placeholder SMS forgot-password ; brancher le fournisseur quand A10 tranchée = 1 fonction `getSmsGateway`) ; `selectDueAppointments` : CONFIRMED ∧ scheduledAt ∈ [maintenant, +24 h] ∧ reminderSentAt null ∧ patient.appointmentReminders true (batch 100) ; `buildReminderMessage` SMS fr-FR ≤ 160 c. (Intl fr-FR Africa/Abidjan) ; `processDueReminders` : envoi → marquage reminderSentAt (échec ⇒ non marqué ⇒ retenté).
+- `src/app/api/cron/reminders/route.ts` (GET|POST) : Authorization Bearer CRON_SECRET (timingSafeEqual), 401 si secret faux, **503 explicite si CRON_SECRET absent** (scheduler non déployé tant que A10 ouverte), réponse = résumé {gateway, due, sent, failed, results} ; à brancher sur un planificateur externe.
+- Copy Profil : « Un SMS de rappel 24 h avant chacun de vos rendez-vous — envoi bientôt actif. » (remplace « Notification SMS & WhatsApp 24h avant » — canal SMS uniquement, dispatch en attente A10 ; la préférence, elle, est déjà effective).
+- Fixture `scripts/reminder-fixture.ts` (create / create-pending / clean, RDV dû à 23 h, motif préfixé E2E-RAPPEL, NEUTRE sur appointmentReminders — l'opt-in est géré par la suite E2E pour que le test opt-out soit un vrai test) ; E2E `scripts/e2e-sector-reminders.sh` (même squelette que e2e-profile-edit.sh, CRON_SECRET exporté avant boot).
+- Run 1 : 33/36 — 1 check mal formatté (commande non substituée) + 2 FAILS RÉELS : le fixture forçait l'opt-in ⇒ test opt-out tautologique (1 envoi inattendu) ; fixes : fixture neutre + opt-in explicite via PATCH avant fixtures.
+- E2E final **37/37 PASS** : API — PATCH zone 401/200+vérité/400 hors liste, injection role/phone 400, cron 401/401/200, base saine 0/0, RDV CONFIRMED dû → **1 envoi stub journalisé serveur** ([SMS:stub] dans les logs), **anti-doublon** (2e tick 0/0), PENDING jamais rappelé, **opt-out jamais rappelé**, exactement 1 envoi sur tout le run ; navigateur — dialog secteur (4 options, Radix pointerdown dispatch), héro « Songon » + toast, **persistance après reload**, restauration via API, copy rappels vérifiée, mobile 390×844 sans débordement, régression INFIRMIER 2 onglets. 0 erreur page.
+- Régression croisée : `scripts/e2e-profile-edit.sh` mis à jour (injection role+phone SANS zone — la zone étant éditable) → re-run **38/38 PASS**.
+- Lint 0 erreur ; tsc : seule l'erreur préexistante scripts/audit-db.ts (hors périmètre).
+- Docs : API_CONTRACTS.md (PATCH Task 22/23 + nouvelle section [GET|POST] /api/cron/reminders), TEST_PLAN +1 ligne PASS, CHANGELOG (Ajouté + Modifié).
+
+Stage Summary:
+- Le patient peut désormais modifier son secteur d'habitation depuis la vue Profil (même modèle PATCH/Zod que nom/naissance) — héro, ligne et store réalignés.
+- Le pipeline « Rappels de rendez-vous » est câblé de bout en bout dans le périmètre décidé par le PO (UNIQUEMENT avant les RDV, opt-in patient, anti-doublon) avec un transport SMS provider-agnostic en stub console : la décision A10 (choix de la passerelle) ne demande qu'une implémentation de `SmsGateway` + config `CRON_SECRET` + branchement du scheduler externe.
+- Dérive préexistante signalée : enum `SensibilisationCategory` (base : CONSEIL/ALERTE ; schéma : ADVICE/ALERT) — bloque `prisma db push`, à arbitrer côté owner.

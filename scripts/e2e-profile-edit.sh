@@ -96,11 +96,12 @@ curl -s -o /tmp/api-r4.json -w "%{http_code}" -b $JAR -X PATCH $BASE/auth/profil
 check "API — PATCH valide → 200" "200" "$(cat /tmp/api-r4.code)"
 check "API — birthDate ISO minuit UTC renvoyé" "yes" "$(grep -q '1995-06-15' /tmp/api-r4.json && echo yes || echo no)"
 check "API — préférence false renvoyée" "yes" "$(grep -q '"appointmentReminders":false' /tmp/api-r4.json && echo yes || echo no)"
-# Injection : role/zone/phone absents du contrat Zod → stripped → plus aucun
-# champ modifiable dans le corps → l'API REFUSE (400 « Aucune modification
-# fournie ») : défense plus forte qu'un simple ignore silencieux.
-curl -s -o /tmp/api-r5.json -w "%{http_code}" -b $JAR -X PATCH $BASE/auth/profile -H "Content-Type: application/json" -d '{"role":"ADMIN","phone":"+2250700000000","zone":"SONGON"}' > /tmp/api-r5.code
-check "API — injection role/phone/zone → 400 (aucun champ modifiable)" "400" "$(cat /tmp/api-r5.code)"
+# Injection : role/phone absents du contrat Zod → stripped → plus aucun champ
+# modifiable dans le corps → l'API REFUSE (400 « Aucune modification fournie ») :
+# défense plus forte qu'un simple ignore silencieux. (Zone : éditable depuis la
+# Task 23 — retirée de ce corps d'injection, couverte par e2e-sector-reminders.sh.)
+curl -s -o /tmp/api-r5.json -w "%{http_code}" -b $JAR -X PATCH $BASE/auth/profile -H "Content-Type: application/json" -d '{"role":"ADMIN","phone":"+2250700000000"}' > /tmp/api-r5.code
+check "API — injection role/phone → 400 (aucun champ modifiable)" "400" "$(cat /tmp/api-r5.code)"
 check "API — message d'injection explicite" "yes" "$(grep -q 'Aucune modification fournie' /tmp/api-r5.json && echo yes || echo no)"
 curl -s -b $JAR $BASE/auth/me > /tmp/api-me.json
 check "API — /me : rôle toujours PATIENT" "yes" "$(grep -q '"role":"PATIENT"' /tmp/api-me.json && echo yes || echo no)"

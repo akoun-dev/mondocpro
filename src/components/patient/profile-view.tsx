@@ -9,9 +9,12 @@
 // Task 22 : le nom et la date de naissance sont ÉDITABLES (dialog → PATCH
 // /api/auth/profile, mise à jour du store auth) et les préférences « Rappels
 // de rendez-vous » / « Alertes de santé locales » sont PERSISTÉES (maj
-// optimiste + revert en cas d'échec). Restent en état « Bientôt » honnête :
-// secteur d'habitation, mot de passe (code SMS), centre d'aide — aucun flux
-// correspondant côté modèle/API à ce stade.
+// optimiste + revert en cas d'échec).
+// Task 23 : le secteur d'habitation devient éditable « sur le même modèle »
+// (dialog dédié → PATCH zone → store) ; les rappels RDV sont précisés PO :
+// UNIQUEMENT avant les RDV, canal SMS — passerelle en attente de la décision
+// A10 (envoi bientôt actif, préférence déjà effective). Restent en état
+// « Bientôt » honnête : mot de passe (code SMS), centre d'aide.
 import { useState } from "react";
 import {
   Ambulance,
@@ -41,6 +44,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -50,6 +60,7 @@ import { useAuthStore, type AppUser } from "@/stores/auth-store";
 import {
   updateProfileSchema,
   zodIssuesToFieldErrors,
+  ZONES,
   ZONE_LABELS,
 } from "@/lib/auth-schemas";
 import { formatDateUTC, relativePublishedLabel } from "@/lib/datetime";
@@ -176,6 +187,13 @@ export function ProfileView({ user, onLogout }: Props) {
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
 
+  // — Édition du secteur d'habitation (Task 23) — même modèle : dialog →
+  // PATCH { zone } → store. Brouillon réinitialisé à chaque ouverture.
+  const [zoneOpen, setZoneOpen] = useState(false);
+  const [zoneDraft, setZoneDraft] = useState<AppUser["zone"]>(user.zone);
+  const [zoneError, setZoneError] = useState<string | undefined>(undefined);
+  const [zoneSaving, setZoneSaving] = useState(false);
+
   // — Préférences (rappels RDV / alertes locales) — maj optimiste persistée.
   const [prefSaving, setPrefSaving] = useState<
     "appointmentReminders" | "healthAlerts" | null
@@ -190,6 +208,59 @@ export function ProfileView({ user, onLogout }: Props) {
     setBirthDate(user.birthDate?.slice(0, 10) ?? "");
     setFieldErrors({});
     setEditOpen(true);
+  }
+
+  function openZoneEdit() {
+    setZoneDraft(user.zone);
+    setZoneError(undefined);
+    setZoneOpen(true);
+  }
+
+  async function handleZoneSave(event: React.FormEvent) {
+    event.preventDefault();
+    // Même schéma Zod que le serveur (source unique des règles) — la liste
+    // fermée des zones est celle de l'inscription.
+    const parsed = updateProfileSchema.safeParse({ zone: zoneDraft });
+    if (!parsed.success) {
+      setZoneError(zodIssuesToFieldErrors(parsed.error).zone ?? "Zone invalide");
+      return;
+    }
+    setZoneError(undefined);
+    setZoneSaving(true);
+    try {
+      const res = await fetch("/api/auth/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(parsed.data),
+      });
+      if (res.ok) {
+        const data = (await res.json()) as { user: AppUser };
+        setUser(data.user); // héro + ligne secteur se re-rendent avec la zone
+        toast({
+          title: "Secteur mis à jour",
+          description: `Votre secteur d'habitation est désormais ${ZONE_LABELS[data.user.zone]}.`,
+        });
+        setZoneOpen(false);
+        return;
+      }
+      const body = (await res.json().catch(() => ({}))) as {
+        error?: string;
+      };
+      toast({
+        variant: "destructive",
+        title: "Modification impossible",
+        description: body.error ?? "Veuillez réessayer.",
+      });
+    } catch {
+      toast({
+        variant: "destructive",
+        title: "Modification impossible",
+        description:
+          "Impossible de contacter le serveur. Vérifiez votre connexion internet puis réessayez.",
+      });
+    } finally {
+      setZoneSaving(false);
+    }
   }
 
   async function handleSave(event: React.FormEvent) {
@@ -381,19 +452,13 @@ export function ProfileView({ user, onLogout }: Props) {
             label="Secteur d'habitation"
             value={ZONE_LABELS[user.zone]}
             accessory={
-              <>
-                <Pencil
-                  className="size-4 shrink-0 text-muted-foreground"
-                  aria-hidden="true"
-                />
-                <ChevronRight
-                  className="size-4 shrink-0 text-muted-foreground"
-                  aria-hidden="true"
-                />
-              </>
+              <Pencil
+                className="size-4 shrink-0 text-muted-foreground"
+                aria-hidden="true"
+              />
             }
-            onClick={() => soonToast("La modification du secteur")}
-            actionLabel="Modifier le secteur d'habitation (bientôt disponible)"
+            onClick={openZoneEdit}
+            actionLabel="Modifier le secteur d'habitation"
           />
         </div>
       </section>
@@ -450,7 +515,7 @@ export function ProfileView({ user, onLogout }: Props) {
           <PreferenceRow
             icon={BellRing}
             title="Rappels de rendez-vous"
-            description="Notification SMS & WhatsApp 24h avant"
+            description="Un SMS de rappel 24 h avant chacun de vos rendez-vous — envoi bientôt actif."
             switchLabel="Rappels de rendez-vous"
             checked={user.appointmentReminders}
             disabled={prefSaving !== null}
@@ -608,6 +673,76 @@ export function ProfileView({ user, onLogout }: Props) {
               </Button>
               <Button type="submit" disabled={saving} className="gap-2">
                 {saving ? (
+                  <>
+                    <Loader2
+                      className="size-4 animate-spin"
+                      aria-hidden="true"
+                    />
+                    Enregistrement…
+                  </>
+                ) : (
+                  "Enregistrer"
+                )}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog d'édition du secteur d'habitation (Task 23 — même modèle que
+          nom/naissance : Zod partagé → PATCH { zone } → store) */}
+      <Dialog open={zoneOpen} onOpenChange={setZoneOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Modifier mon secteur</DialogTitle>
+            <DialogDescription>
+              Votre secteur d&apos;habitation détermine les équipes soignantes
+              et les alertes qui vous sont proposées.
+            </DialogDescription>
+          </DialogHeader>
+          <form
+            onSubmit={handleZoneSave}
+            noValidate
+            className="flex flex-col gap-4"
+          >
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="profile-zone">Secteur d&apos;habitation</Label>
+              <Select
+                value={zoneDraft}
+                onValueChange={(value) => setZoneDraft(value as AppUser["zone"])}
+              >
+                <SelectTrigger
+                  id="profile-zone"
+                  aria-invalid={zoneError ? true : undefined}
+                  className="w-full"
+                >
+                  <SelectValue placeholder="Choisir un secteur" />
+                </SelectTrigger>
+                <SelectContent>
+                  {ZONES.map((zone) => (
+                    <SelectItem key={zone} value={zone}>
+                      {ZONE_LABELS[zone]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {zoneError ? (
+                <p className="text-xs font-medium text-destructive" role="alert">
+                  {zoneError}
+                </p>
+              ) : null}
+            </div>
+            <DialogFooter className="gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setZoneOpen(false)}
+                disabled={zoneSaving}
+              >
+                Annuler
+              </Button>
+              <Button type="submit" disabled={zoneSaving} className="gap-2">
+                {zoneSaving ? (
                   <>
                     <Loader2
                       className="size-4 animate-spin"

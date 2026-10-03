@@ -107,6 +107,10 @@ model Appointment {
   reason      String?           @db.VarChar(500)
   notes       String?           @db.VarChar(1000)
   cancelledAt DateTime?
+  // Rappel « 24 h avant RDV » déjà envoyé — anti-doublon du scheduler
+  // (FEATURE-RDV). Canal SMS provider-agnostic tant que la décision A10
+  // (choix de la passerelle) est ouverte.
+  reminderSentAt DateTime?
   createdAt   DateTime          @default(now())
   updatedAt   DateTime          @updatedAt
 
