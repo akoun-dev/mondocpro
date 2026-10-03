@@ -275,7 +275,7 @@ export function RegisterForm({
             noValidate
             className="flex flex-col gap-5"
         >
-            {/* En-tête : Retour + badge contextuel (Accès Patient → Étape finale, maquettes PO) */}
+            {/* En-tête : Retour + badge de l'étape finale */}
             <div className="flex flex-col gap-1">
                 <div className="mb-2 flex items-center justify-between gap-2">
                     <Button
@@ -288,15 +288,7 @@ export function RegisterForm({
                         <ChevronLeft className="size-4" aria-hidden="true" />
                         Retour
                     </Button>
-                    {step < TOTAL_STEPS ? (
-                        <span className="flex items-center gap-1.5 rounded-full bg-success/10 px-3 py-1 text-xs font-semibold text-success ring-1 ring-inset ring-success/25">
-                            <span
-                                className="size-1.5 rounded-full bg-success"
-                                aria-hidden="true"
-                            />
-                            Accès Patient
-                        </span>
-                    ) : (
+                    {step === TOTAL_STEPS && (
                         <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary ring-1 ring-inset ring-primary/25">
                             Étape finale
                         </span>
@@ -589,11 +581,6 @@ export function RegisterForm({
                                 >
                                     Où résidez-vous à Abidjan&nbsp;?
                                 </h4>
-                                <p className="text-sm text-muted-foreground">
-                                    Pour afficher les médecins de garde,
-                                    cliniques et officines partenaires au plus
-                                    près de chez vous.
-                                </p>
                             </div>
 
                             {/* Recherche de zone (filtre local, insensible casse/accents) */}
@@ -684,11 +671,6 @@ export function RegisterForm({
                                                     {ZONE_META[z].quartier}
                                                 </span>
                                             </span>
-                                            {ZONE_META[z].recommended && (
-                                                <span className="self-start rounded-full bg-success px-2 py-0.5 text-[11px] font-semibold text-success-foreground">
-                                                    Recommandé
-                                                </span>
-                                            )}
                                         </motion.label>
                                     )
                                 })}

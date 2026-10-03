@@ -55,9 +55,6 @@ export default function Home() {
                                 className="heartbeat-line"
                             />
                         </svg>
-                        <p className="mt-5 text-sm font-semibold text-foreground">
-                            Connexion à votre espace…
-                        </p>
                         <span className="sr-only">
                             Chargement de votre espace…
                         </span>
