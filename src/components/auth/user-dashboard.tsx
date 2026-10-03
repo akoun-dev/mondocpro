@@ -2,8 +2,8 @@
 
 // Espace connecté MVP — US-AUTH-3/4 (SPEC-AUTH) + FEATURE-PATIENT UI (maquette PO 2026-10)
 // Design v3 « app mobile » : barre d'app sticky (zone, actualiser, notifications),
-// navigation basse flottante (patient : Accueil / Rendez-vous / Profil — autres
-// rôles : Accueil / Profil), vues animées sobres framer-motion
+// navigation basse flottante (patient : Accueil / Conseils / Rendez-vous /
+// Profil — autres rôles : Accueil / Profil), vues animées sobres framer-motion
 // (DESIGN_SYSTEM §4). Accueil patient dédié (src/components/patient/) branché sur les
 // API contractées ; rôles NURSE/ADMIN inchangés (cartes « à venir »).
 import { useCallback, useEffect, useState } from "react"
@@ -172,15 +172,16 @@ const ROLE_SPACE: Record<
 }
 
 // Onglets de la navigation basse (style app mobile), par rôle : le patient a
-// « Rendez-vous » en accès direct (menu de 1er niveau) ; les autres rôles
-// conservent Accueil / Profil. Sous-vues hors navigation basse : patient
-// « senso » (entrée « Tout voir ») ; admin « specialties » (entrée « Gérer
+// « Conseils » (campagnes et conseils santé) et « Rendez-vous » en accès direct
+// (menus de 1er niveau) ; les autres rôles conservent Accueil / Profil.
+// Sous-vues hors navigation basse : admin « specialties » (entrée « Gérer
 // les spécialités ») et « recharges » (FEATURE-TOKENS — rapprochement des
 // paiements patients, Médecin Chef seul).
-type DashboardTab = "accueil" | "rdv" | "senso" | "specialties" | "recharges" | "tarifs" | "profil"
+type DashboardTab = "accueil" | "conseils" | "rdv" | "specialties" | "recharges" | "tarifs" | "profil"
 
 const PATIENT_TABS: { id: DashboardTab; label: string; icon: LucideIcon }[] = [
     { id: "accueil", label: "Accueil", icon: Home },
+    { id: "conseils", label: "Conseils", icon: Megaphone },
     { id: "rdv", label: "Rendez-vous", icon: CalendarCheck },
     { id: "profil", label: "Profil", icon: UserRound },
 ]
@@ -840,21 +841,20 @@ export function UserDashboard() {
                         </motion.section>
                     )}
 
-                    {tab === "senso" && isPatient && (
+                    {tab === "conseils" && isPatient && (
                         <motion.section
-                            key="senso"
+                            key="conseils"
                             variants={tabVariants}
                             initial="enter"
                             animate="center"
                             exit="exit"
-                            aria-label="Sensibilisations"
+                            aria-label="Conseils santé"
                         >
                             <SensibilisationsView
                                 feed={patientData.sensibilisations}
                                 zone={user.zone}
                                 loading={patientData.loading}
                                 error={patientData.error}
-                                onBack={() => setTab("accueil")}
                                 onRefresh={() => void patientData.refresh()}
                                 onOpenArticle={setOpenArticle}
                             />

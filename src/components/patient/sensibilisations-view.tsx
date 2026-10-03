@@ -1,13 +1,13 @@
 "use client";
 
-// Vue « Sensibilisations » — même langage visuel que la maquette RDV
-// (cartes blanches arrondies, pill catégorie, créneau bleu) : fil complet des
-// conseils et alertes santé ciblés pour la zone du patient, écoute vocale et
-// ouverture de l'article complet (dialog porté par UserDashboard).
+// Vue « Conseils » — menu de 1er niveau (navigation basse, même gabarit que
+// « Mes rendez-vous » — pas de flèche retour) : fil complet des campagnes et
+// conseils santé ciblés pour la zone du patient, onglets segmentés Tout /
+// Alertes / Conseils, écoute vocale et ouverture de l'article complet (dialog
+// porté par UserDashboard).
 import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import {
-  ArrowLeft,
   ArrowRight,
   HeartPulse,
   Square,
@@ -27,7 +27,6 @@ type Props = {
   zone: AppZone;
   loading: boolean;
   error: string | null;
-  onBack: () => void;
   onRefresh: () => void;
   onOpenArticle: (item: SensibilisationDto) => void;
 };
@@ -137,7 +136,6 @@ export function SensibilisationsView({
   zone,
   loading,
   error,
-  onBack,
   onRefresh,
   onOpenArticle,
 }: Props) {
@@ -159,26 +157,15 @@ export function SensibilisationsView({
 
   return (
     <div className="flex flex-col gap-5">
-      {/* En-tête — même gabarit que « Mes Rendez-vous » */}
+      {/* En-tête — même gabarit 1er niveau que « Mes Rendez-vous » (sans flèche) */}
       <div className="flex items-start justify-between gap-3">
-        <div className="flex min-w-0 items-start gap-1.5">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={onBack}
-            aria-label="Retour à l'accueil"
-            className="size-9 shrink-0 rounded-full"
-          >
-            <ArrowLeft className="size-5" aria-hidden="true" />
-          </Button>
-          <div className="min-w-0">
-            <h2 className="text-xl font-bold tracking-tight sm:text-2xl">
-              Sensibilisations
-            </h2>
-            <p className="mt-0.5 text-xs text-muted-foreground sm:text-sm">
-              Conseils et alertes santé — {ZONE_LABELS[zone]} et Abidjan
-            </p>
-          </div>
+        <div className="min-w-0">
+          <h2 className="text-xl font-bold tracking-tight sm:text-2xl">
+            Conseils
+          </h2>
+          <p className="mt-0.5 text-xs text-muted-foreground sm:text-sm">
+            Campagnes et conseils santé — {ZONE_LABELS[zone]} et Abidjan
+          </p>
         </div>
       </div>
 
@@ -194,7 +181,7 @@ export function SensibilisationsView({
             type="button"
             onClick={() => setTab(category.id)}
             aria-pressed={tab === category.id}
-            className={`min-h-9 flex-1 rounded-lg px-3 py-1.5 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+            className={`min-h-9 flex-1 whitespace-nowrap rounded-lg px-3 py-1.5 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
               tab === category.id
                 ? "bg-primary text-primary-foreground shadow-sm"
                 : "text-muted-foreground hover:text-foreground"
@@ -247,7 +234,7 @@ export function SensibilisationsView({
           <div>
             <p className="font-bold">Rien pour l'instant</p>
             <p className="mt-1 text-sm text-muted-foreground">
-              Les prochains conseils et alertes santé apparaîtront ici.
+              Les prochaines campagnes et conseils santé apparaîtront ici.
             </p>
           </div>
         </div>
