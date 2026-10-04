@@ -974,3 +974,26 @@ Work Log:
 Stage Summary:
 - Diagnostic péremptoire : la prod Vercel ne joint pas la base (database:down) ; l'app elle-même est saine (login/me 200 local, client Prisma généré sur Vercel)
 - Le PO doit ajouter DATABASE_URL (pooler Supabase, voir .ai/DEPLOY_VERCEL.md §2-3) dans Vercel puis redéployer ; le nouveau bloc diagnostic de /api/health identifiera immédiatement toute erreur résiduelle (P1001/P1010/...) sans accès aux logs
+
+---
+Task ID: 34
+Agent: ORCHESTRATEUR (Super Z) — exécution directe
+Task: « Développe le profil complet des Nurse, avec modifications de mot de passe et autre » (PO, 2026-10-04)
+
+Work Log:
+- Constat initial : onglet Profil NURSE rendait une carte générique dépouillée ; AUCUN endpoint de changement de mot de passe authentifié (seul forgot/reset par code SMS, US-AUTH-5, en attente ADR-006)
+- POST /api/auth/change-password (nouveau, requireRole 3 rôles) : user = session (jamais le corps), bcrypt + DUMMY_HASH anti timing-attack (constante alignée login), refus nouveau == actuel (comparaison bcrypt), révocation des AUTRES sessions (deleteMany NOT tokenHash courant), session courante préservée ; changePasswordSchema Zod dans auth-schemas (règles 8..72 identiques register)
+- Components/profile/profile-primitives.tsx : InfoRow/PreferenceRow/soonToast/ProfileSectionTitle EXTRAITS de profile-view.tsx (partage patient/infirmier, zéro duplication) ; Switch import nettoyé du profil patient
+- PasswordChangeDialog (components/auth/) : 3 champs + bascules œil (aria dynamique), Zod client = serveur, erreurs serveur details[] → inline champ à champ, reset du brouillon à la fermeture ; réutilisable patient/admin
+- NurseProfileView (components/nurse/) : héro (initiales gradient + check + badge Infirmier + zone + ancienneté), Activité de terrain (stats réelles depuis /api/nurse/missions : reçues/actives/terminées/CR — carte masquée si échec API), Informations professionnelles éditables (nom+naissance dialog, secteur d'intervention), Sécurité (mot de passe FONCTIONNEL + RGPD 2013-430 reformulé données patients), Préférences persistées (optimiste+revert), Urgences 185/180, Centre d'aide, Déconnexion
+- user-dashboard : branche NURSE → NurseProfileView (ADMIN garde sa carte générique) ; import ajouté
+- Docs : API_CONTRACTS.md contrat change-password (erreurs 400 typées currentPassword/password), FEATURE-NURSE.md section « Profil infirmier (Task 34) »
+- E2E API scripts/audit-nurse-profile.sh : 23/23 vert — gardes 401/400 (champ fautif vérifié), sémantique 2 appareils (courant préservé / autre révoqué), old password refusé, restauration du mot de passe de test (dépendance audits existants préservée), PATCH birthDate nurse 200 + effacement null
+- Navigateur (agent-browser, règle sandbox : dev-boot.sh en tête) : login infirmier → profil complet rendu (stats 1/1/0/1 = mission audit Task 32), dialog ouvert (piège « covered » nav flottante → clic JS par aria-label), validation vide → alerts, mauvais mot de passe actuel → « Mot de passe actuel incorrect » inline, changement nominal → dialog fermé + me 200 (session préservée), réouverture formulaire vierge, restauration via UI → login creds origine 200
+- Non-régression : profil patient revérifié navigateur (4 sections + « Par code SMS — à venir » conservé volontairement côté patient + 2 switches) après extraction des primitives
+- Commit b41551f poussé (7cbeea8..b41551f) ; captures tool-results/nurse-profile-{mobile,desktop}.png + nurse-password-error.png
+
+Stage Summary:
+- L'infirmier dispose d'un profil complet fonctionnel : édition nom/naissance/secteur, préférences persistées, stats missions réelles, et changement de mot de passe sécurisé par preuve du mot de passe actuel (révocation des autres sessions)
+- L'endpoint change-password est rôle-agnostique : branchable côté patient en un dialog quand la décision PO sera prise (le profil patient garde « code SMS — à venir » pour l'instant)
+- Primitives de profil mutualisées patient/infirmier — prochaine vue profil (admin) réutilisera le même socle
