@@ -63,3 +63,8 @@ supabase/.temp/
 # artefacts d'outillage AI (captures E2E, sorties d'outils — régénérables,
 # preuves E2E conservées en local uniquement ; cf. worklog Tasks 23-24)
 tool-results/
+
+# natif Android — Capacitor (Task 36)
+android/app/google-services.json
+*.keystore
+*.jks

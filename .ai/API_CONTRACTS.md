@@ -256,6 +256,29 @@ Validation: schéma zod de référence (src/lib/<domaine>.ts)
 - Response: 200 `{ "ok": true }` — session détruite en DB + cookie écrasé
 - Errors: 500 (idempotent : sans cookie valide → 200 `ok`)
 
+### [POST] /api/push/register — Enregistrement du jeton FCM (appareil natif)
+
+- Feature: FEATURE-PUSH (Task 36, ADR-008) | Owner: Backend | Statut: **IMPLÉMENTÉ** (2026-10-05)
+- Request: `{ "token": string(16..4096), "platform": "android" | "ios" | "web", "deviceName"?: string(≤120), "appVersion"?: string(≤40) }` (cookie de session, tous rôles)
+- Response: 200 `{ "ok": true }` — **upsert par jeton** : si l'appareil était lié à un autre compte, le jeton est réattribué (un appareil ne pousse que pour le compte courant)
+- Errors: 400 `{ error, details }` (zod : token longueur, platform énumérée) · 401 `{ error }` · 500
+- Notes: appelé par `src/lib/native.ts` à chaque ouverture/reprise de l'APK (idempotent). Le jeton autorise à ENVOYER à l'appareil — aucune donnée lisible. Sans configuration Firebase côté serveur, l'enregistrement reste actif et l'envoi est no-op (`[push] Firebase non configuré` dans les logs).
+
+### [POST] /api/push/unregister — Révocation du jeton FCM (déconnexion)
+
+- Feature: FEATURE-PUSH (Task 36, ADR-008) | Owner: Backend | Statut: **IMPLÉMENTÉ** (2026-10-05)
+- Request: `{ "token": string }` **ou** `{ "all": true }` — exactement une des deux formes (sinon 400)
+- Response: 200 `{ "ok": true }` — **idempotent** : supprimer un jeton absent est un succès
+- Errors: 400 `{ error, details }` (corps ambigu) · 401 `{ error }` · 500
+- Notes: appelé fire-and-forget AVANT `POST /api/auth/logout` (la session doit encore être valide) ; `{ all: true }` disponible pour une future « déconnexion partout ».
+
+### Push FCM — payload envoyé par le serveur (documenté, hors HTTP)
+
+- Feature: FEATURE-PUSH (Task 36) | Owner: Backend | Statut: **IMPLÉMENTÉ**
+- Notification: `{ title, body }` — **contenu identique à la notification InApp jumelle** (canaux doubles : InApp toujours, push best-effort)
+- Data: `{ "url": "/?tab=<onglet>", "type": <NotificationType>, "entityId": string }` — l'app native navigue vers `url` au tap (`pushNotificationActionPerformed`) ; mapping miroir de `notificationDestination()` : PATIENT recharge→`wallet` / reste→`rdv` · NURSE→`missions` · ADMIN recharge→`recharges` / reste→`missions`
+- Notes: envoyée APRÈS le commit de la transaction métier (jamais bloquante) ; jetons invalides (app désinstallée) purgés automatiquement ; déclencheurs = table des types de notification (Task 35) + rappel RDV 24 h (Task 24).
+
 ---
 
 ## Contrats à venir

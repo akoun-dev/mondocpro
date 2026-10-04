@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
+    <title>Mon doc Pro</title>
+    <!--
+      Task 36 — Shell de secours embarqué (webDir Capacitor).
+      Le WebView charge normalement l'app Next.js déployée (server.url dans
+      capacitor.config.ts) ; ce shell n'est visible que pendant l'initialisation
+      ou si le serveur distant est injoignable (mode avion, maintenance).
+      Style aligné sur le chargement brandé de src/app/page.tsx (ADR-002).
+    -->
+    <style>
+      :root {
+        --brand: #1565c0;
+        --brand-dark: #0d47a1;
+      }
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 20px;
+        background: linear-gradient(160deg, var(--brand) 0%, var(--brand-dark) 100%);
+        font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
+        color: #ffffff;
+      }
+      .ring {
+        width: 96px;
+        height: 96px;
+        border-radius: 9999px;
+        background: rgba(255, 255, 255, 0.14);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 44px;
+        user-select: none;
+      }
+      .title {
+        font-size: 20px;
+        font-weight: 700;
+        letter-spacing: 0.01em;
+      }
+      .status {
+        font-size: 14px;
+        opacity: 0.85;
+        text-align: center;
+        max-width: 260px;
+        line-height: 1.45;
+      }
+      .pulse {
+        width: 120px;
+        height: 28px;
+        display: block;
+      }
+      .pulse path {
+        stroke: #ffffff;
+        stroke-width: 2;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        fill: none;
+        stroke-dasharray: 220;
+        animation: beat 1.6s linear infinite;
+      }
+      @keyframes beat {
+        from {
+          stroke-dashoffset: 220;
+        }
+        to {
+          stroke-dashoffset: 0;
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .pulse path {
+          animation: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="ring" aria-hidden="true">&#9829;</div>
+    <div class="title">Mon doc Pro</div>
+    <svg class="pulse" viewBox="0 0 144 28" fill="none" aria-hidden="true">
+      <path d="M2 14h24l6-10 8 20 8-14h18l6-6 8 20 8-10h24" />
+    </svg>
+    <div class="status" id="status">Chargement de votre espace santé…</div>
+    <script>
+      // Si le serveur distant n'est pas joignable, le WebView reste sur ce
+      // shell : on affiche un message utile au lieu d'un écran figé.
+      window.addEventListener("load", function () {
+        setTimeout(function () {
+          var el = document.getElementById("status");
+          if (el) {
+            el.textContent =
+              "Connexion au serveur impossible. Vérifiez votre connexion internet puis rouvrez l'application.";
+          }
+        }, 8000);
+      });
+    </script>
+  </body>
+</html>

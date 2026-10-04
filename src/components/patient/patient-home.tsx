@@ -11,6 +11,7 @@ import { CalendarCheck, ChevronRight, Coins } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import type { PatientData } from "@/hooks/use-patient-data"
 import type { AppointmentDto } from "@/lib/appointments"
+import { cancelAppointmentReminders } from "@/lib/native"
 import { ZONE_LABELS } from "@/lib/auth-schemas"
 import type { AppUser } from "@/stores/auth-store"
 import { formatHeaderDate } from "@/lib/datetime"
@@ -175,7 +176,12 @@ export function PatientHome({
             <AppointmentDetailDialog
                 appointment={detail}
                 onClose={() => setDetail(null)}
-                onCancelled={() => void data.refresh()}
+                onCancelled={(appointment) => {
+                    void data.refresh()
+                    // Task 36 — les rappels LOCAUX planifiés (H-24/H-1) sont
+                    // retirés de l'appareil dès l'annulation du RDV.
+                    void cancelAppointmentReminders(appointment.id)
+                }}
             />
         </div>
     )

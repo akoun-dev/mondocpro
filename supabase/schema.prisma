@@ -45,6 +45,7 @@ model User {
   passwordResetTokens PasswordResetToken[]
   appointments        Appointment[]
   notifications       Notification[]
+  deviceTokens        DeviceToken[]
   tokenTransactions   TokenTransaction[]
   updatedTariffs      TariffConfig[]
   nurseMissions       NurseMission[]       @relation("NurseMissions")
@@ -338,6 +339,32 @@ model VisitReport {
 
   @@index([nurseId, createdAt])
   @@map("visit_reports")
+}
+
+// ——— FEATURE-PUSH (Task 36) — Jetons FCM des appareils natifs (Capacitor) ———
+// Un appareil = une ligne, identifiée par son token FCM (unique). Le token
+// est RÉATTRIBUÉ si l'utilisateur se reconnecte avec un autre compte sur le
+// même appareil (upsert côté API : un token ne sert qu'un compte à la fois).
+// Suppression à la déconnexion (POST /api/push/unregister) et écrémage
+// automatique des tokens invalidés par FCM (erreur 404/410 lors d'un envoi).
+// lastSeenAt trace l'activité : un appareil vu depuis > 90 jours pourra être
+// purgé par une future tâche d'entretien.
+model DeviceToken {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // Token FCM — jusqu'à ~4 Ko, jamais secret côté DB (il autorise à ENVOYER
+  // à l'appareil, pas à lire quoi que ce soit).
+  token      String   @unique @db.VarChar(4096)
+  // "android" | "ios" | "web" — Device.platform (Capacitor).
+  platform   String   @db.VarChar(20)
+  deviceName String?  @db.VarChar(120)
+  appVersion String?  @db.VarChar(40)
+  createdAt  DateTime @default(now())
+  lastSeenAt DateTime @default(now()) @updatedAt
+
+  @@index([userId])
+  @@map("device_tokens")
 }
 
 // ——— FEATURE-TOKENS (ADR-007) — Grille tarifaire configurable par l'ADMIN ———

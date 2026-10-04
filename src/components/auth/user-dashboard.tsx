@@ -64,6 +64,11 @@ import {
     type NotificationDto,
     type NotificationsResponse,
 } from "@/lib/notifications"
+import {
+    cancelAppointmentReminders,
+    hapticSuccess,
+    scheduleAppointmentReminders,
+} from "@/lib/native"
 import { PatientHome } from "@/components/patient/patient-home"
 import { AppointmentsView } from "@/components/patient/appointments-view"
 import { SensibilisationsView } from "@/components/patient/sensibilisations-view"
@@ -396,6 +401,40 @@ export function UserDashboard() {
         const interval = setInterval(() => void refreshNotifications(), 60_000)
         return () => clearInterval(interval)
     }, [isNotificationUser, refreshNotifications])
+
+    // Task 36 — push reçue app ouverte : NativeBootstrap diffuse cet événement,
+    // le badge et le fil se rafraîchissent immédiatement (pas d'attente du tick 60 s).
+    useEffect(() => {
+        const handler = () => void refreshNotifications()
+        window.addEventListener("mondocpro:notifications-changed", handler)
+        return () =>
+            window.removeEventListener("mondocpro:notifications-changed", handler)
+    }, [refreshNotifications])
+
+    // Task 36 — lien profond depuis une notification PUSH (?tab=…) : au
+    // montage, un onglet valide pour le rôle est affiché (patient → wallet/rdv,
+    // infirmier → missions, admin → recharges/missions…). Les onglets hors
+    // rôle sont ignorés (aucun rendu vide).
+    useEffect(() => {
+        if (!user) return
+        const requested = new URLSearchParams(window.location.search).get("tab")
+        if (!requested) return
+        const allowed: Record<AppRole, DashboardTab[]> = {
+            PATIENT: ["accueil", "rdv", "wallet", "senso", "profil"],
+            NURSE: ["accueil", "missions", "profil"],
+            ADMIN: [
+                "accueil",
+                "profil",
+                "recharges",
+                "specialties",
+                "missions",
+                "tarifs",
+            ],
+        }
+        if (allowed[user.role].includes(requested as DashboardTab)) {
+            setTab(requested as DashboardTab)
+        }
+    }, [user])
 
     if (!user) return null
 
@@ -1254,7 +1293,19 @@ export function UserDashboard() {
                 <BookAppointmentDialog
                     open={bookingOpen}
                     onClose={() => setBookingOpen(false)}
-                    onBooked={() => void patientData.refresh()}
+                    onBooked={(appointment) => {
+                        void patientData.refresh()
+                        // Task 36 — rappels LOCAUX H-24 / H-1 planifiés sur
+                        // l'appareil (fonctionnent sans Firebase ni réseau) +
+                        // retour haptique de succès.
+                        void scheduleAppointmentReminders({
+                            id: appointment.id,
+                            type: appointment.type,
+                            scheduledAt: appointment.scheduledAt,
+                            enabled: user.appointmentReminders,
+                        })
+                        void hapticSuccess()
+                    }}
                     onRecharge={() => {
                         setBookingOpen(false)
                         setRechargeRequested(true)

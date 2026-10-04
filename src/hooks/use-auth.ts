@@ -4,6 +4,7 @@
 // État global zustand + appels fetch vers /api/auth/*. Pas de react-query ici.
 import { useCallback, useEffect } from "react";
 import { toast } from "@/hooks/use-toast";
+import { unregisterPush } from "@/lib/native";
 import {
   useAuthStore,
   type AppRole,
@@ -186,6 +187,9 @@ export function useAuth() {
   );
 
   const logout = useCallback(async () => {
+    // Task 36 — l'appareil natif ne doit plus recevoir les push de ce compte
+    // (révocation du jeton FCM tant que la session est encore valide).
+    void unregisterPush();
     try {
       await postJson("/api/auth/logout", {});
     } catch {

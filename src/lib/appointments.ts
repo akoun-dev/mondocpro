@@ -7,6 +7,7 @@ import { db } from "@/lib/db";
 import { Prisma, type Appointment, type AppointmentStatus } from "@prisma/client";
 import type { CreateAppointmentInput } from "@/lib/appointment-schemas";
 import { notifyAdmins, notifyUsers } from "@/lib/notifications";
+import { sendPushToAdmins, sendPushToUsers } from "@/lib/push";
 import { ZONE_LABELS } from "@/lib/auth-schemas";
 import { formatFullSlotUTC } from "@/lib/datetime";
 import {
@@ -219,6 +220,21 @@ export async function createAppointmentForPatient(
         maxWait: 10_000,
       },
     );
+    // Task 36 — push jumelle : le Médecin Chef voit la demande même app fermée
+    // (fire-and-forget, jamais bloquant, no-op sans Firebase). Le nom du
+    // patient est relus hors transaction (id + créneau déjà connus).
+    void (async () => {
+      const patient = await db.user.findUnique({
+        where: { id: patientId },
+        select: { fullName: true },
+      });
+      void sendPushToAdmins({
+        title: "Consultation à domicile à affecter",
+        body: `${patient?.fullName ?? "Un patient"} a demandé une consultation à domicile (${ZONE_LABELS[input.zone] ?? input.zone}) le ${formatFullSlotUTC(created.scheduledAt.toISOString())}. Affectez une équipe infirmière.`,
+        type: "APPOINTMENT_REQUESTED",
+        entityId: created.id,
+      });
+    })();
     return toAppointmentDto(created);
   } catch (error) {
     if (error instanceof AppointmentError) throw error;
@@ -291,6 +307,13 @@ export async function cancelAppointmentForPatient(
       entityId: existing.id,
     });
     return updated;
+  });
+  // Task 36 — push jumelle aux admins (suivi de charge, créneau libéré).
+  void sendPushToAdmins({
+    title: "Rendez-vous annulé par le patient",
+    body: `${existing.patient.fullName} a annulé son rendez-vous du ${formatFullSlotUTC(existing.scheduledAt.toISOString())}.${existing.tokenState === "RESERVED" ? " Les Tokens réservés ont été libérés." : ""}`,
+    type: "APPOINTMENT_CANCELLED",
+    entityId: existing.id,
   });
   return toAppointmentDto(cancelled);
 }
@@ -379,5 +402,29 @@ export async function closeAppointmentByAdmin(
     }
     return updated;
   });
+  // Task 36 — push jumelle au patient (clôture ou annulation équipe) —
+  // après le commit, contenu identique à la notification InApp jumelle.
+  const slot = formatFullSlotUTC(existing.scheduledAt.toISOString());
+  if (action === "DONE") {
+    void sendPushToUsers([existing.patientId], {
+      title: "Consultation réalisée",
+      body:
+        existing.tokensReserved > 0
+          ? `Votre consultation du ${slot} est terminée. ${existing.tokensReserved === 1 ? "1 Token a été débité" : `${existing.tokensReserved} Tokens ont été débités`} de votre portefeuille. Merci de votre confiance.`
+          : `Votre consultation du ${slot} est terminée. Merci de votre confiance.`,
+      type: "APPOINTMENT_COMPLETED",
+      entityId: existing.id,
+    });
+  } else {
+    void sendPushToUsers([existing.patientId], {
+      title: "Rendez-vous annulé par l'équipe",
+      body:
+        existing.tokenState === "RESERVED"
+          ? `Votre rendez-vous du ${slot} a été annulé par notre équipe — vos Tokens réservés ont été libérés. Vous pouvez reprendre un nouveau créneau depuis l'app.`
+          : `Votre rendez-vous du ${slot} a été annulé par notre équipe. Vous pouvez reprendre un nouveau créneau depuis l'app.`,
+      type: "APPOINTMENT_CANCELLED",
+      entityId: existing.id,
+    });
+  }
   return toAppointmentDto(closed);
 }

@@ -18,6 +18,7 @@ import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import type { PatientData } from "@/hooks/use-patient-data"
 import type { AppointmentDto } from "@/lib/appointments"
+import { cancelAppointmentReminders } from "@/lib/native"
 import { ZONE_LABELS } from "@/lib/auth-schemas"
 import { appointmentRef, formatCardSlotUTC } from "@/lib/datetime"
 import { APPOINTMENT_TYPE_LABELS, AppointmentStatusBadge } from "./shared"
@@ -251,7 +252,11 @@ export function AppointmentsView({ data, onBook }: Props) {
             <AppointmentDetailDialog
                 appointment={detail}
                 onClose={() => setDetail(null)}
-                onCancelled={() => void data.refresh()}
+                onCancelled={(appointment) => {
+                    void data.refresh()
+                    // Task 36 — rappels LOCAUX retirés de l'appareil.
+                    void cancelAppointmentReminders(appointment.id)
+                }}
             />
         </div>
     )
