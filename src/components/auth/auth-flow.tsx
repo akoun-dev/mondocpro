@@ -112,7 +112,7 @@ export function AuthFlow() {
             <div className="relative z-10 flex min-h-screen flex-col items-center justify-center gap-7 px-4 py-10 sm:py-14">
                 <header className="flex animate-in flex-col items-center gap-3 text-center text-primary-foreground fade-in slide-in-from-bottom-2 duration-500">
                     <Image
-                        src="/img/Mon doc Pro.jpeg"
+                        src="/img/logo.png"
                         alt="Logo Mon doc Pro"
                         width={80}
                         height={80}

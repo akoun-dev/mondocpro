@@ -7,6 +7,7 @@
 // (DESIGN_SYSTEM §4). Accueil patient dédié (src/components/patient/) branché sur les
 // API contractées ; rôles NURSE/ADMIN inchangés (cartes « à venir »).
 import { useCallback, useEffect, useState } from "react"
+import Image from "next/image"
 import { AnimatePresence, motion } from "framer-motion"
 import {
     Activity,
@@ -380,14 +381,15 @@ export function UserDashboard() {
             <header className="sticky top-0 z-20 border-b bg-card/80 backdrop-blur-md">
                 <div className="mx-auto flex w-full max-w-3xl items-center justify-between gap-3 px-4 py-3">
                     <div className="flex items-center gap-2.5">
-                        {/* Maquette PO 2026-10 v2 : tuile verte « M » + « Mon doc »
-                            + badge PRO, sous-titre « Réseau Abidjan » */}
-                        <span
-                            aria-hidden="true"
-                            className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-success to-emerald-600 text-lg font-black text-white shadow-sm"
-                        >
-                            M
-                        </span>
+                        {/* Maquette PO 2026-10 v2 : logo + « Mon doc » + badge PRO. */}
+                        <Image
+                            src="/img/logo.png"
+                            alt="Mon doc Pro"
+                            width={64}
+                            height={64}
+                            priority
+                            className="size-16 shrink-0 rounded-full object-cover shadow-md ring-1 ring-border/60"
+                        />
                         <div className="flex flex-col leading-tight">
                             <span className="flex items-center gap-1.5">
                                 <span className="text-base font-bold tracking-tight text-foreground sm:text-lg">
@@ -399,15 +401,6 @@ export function UserDashboard() {
                                     </span>
                                 )}
                             </span>
-                            {isPatient && (
-                                <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                                    <span
-                                        aria-hidden="true"
-                                        className="size-1.5 rounded-full bg-success"
-                                    />
-                                    Réseau Abidjan
-                                </span>
-                            )}
                         </div>
                     </div>
                     {isPatient ? (

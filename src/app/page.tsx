@@ -31,7 +31,7 @@ export default function Home() {
                             />
                             <div className="relative rounded-full bg-card p-2 shadow-lg ring-1 ring-border/70">
                                 <Image
-                                    src="/img/Mon doc Pro.jpeg"
+                                    src="/img/logo.png"
                                     alt="Mon doc Pro"
                                     width={64}
                                     height={64}

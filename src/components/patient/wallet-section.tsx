@@ -305,14 +305,18 @@ export function WalletSection({ openRecharge = false, onRechargeOpened }: Props)
                           {paymentLabel}
                         </Badge>
                       )}
-                      {tx.status !== "CONFIRMED" && (
-                        <Badge
-                          variant={tx.status === "PENDING" ? "secondary" : "outline"}
-                          className="px-1.5 py-0 text-[10px]"
-                        >
-                          {TOKEN_STATUS_LABELS[tx.status] ?? tx.status}
-                        </Badge>
-                      )}
+                      <Badge
+                        variant="outline"
+                        className={`px-1.5 py-0 text-[10px] font-semibold ${
+                          tx.status === "CONFIRMED"
+                            ? "border-success/30 bg-success/10 text-success"
+                            : tx.status === "PENDING"
+                              ? "border-warning/30 bg-warning/10 text-warning-foreground"
+                              : "border-destructive/30 bg-destructive/10 text-destructive"
+                        }`}
+                      >
+                        {TOKEN_STATUS_LABELS[tx.status] ?? tx.status}
+                      </Badge>
                     </span>
                     <span className="block text-xs text-muted-foreground" suppressHydrationWarning>
                       {relativePublishedLabel(tx.createdAt)}

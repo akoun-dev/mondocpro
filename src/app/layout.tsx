@@ -17,8 +17,13 @@ export const metadata: Metadata = {
     title: "Mon doc Pro — Votre santé en main",
     description:
         "Mon doc Pro : prise de rendez-vous médicaux au cabinet ou à domicile, épargne santé Tokens et sensibilisations — Yopougon, Songon, PK22, N'Dotré (Côte d'Ivoire).",
+    manifest: "/img/site.webmanifest",
     icons: {
-        icon: "/img/Mon doc Pro.jpeg",
+        icon: [
+            { url: "/img/favicon.svg", type: "image/svg+xml" },
+            { url: "/img/favicon.ico", sizes: "16x16 32x32 48x48" },
+        ],
+        apple: "/img/apple-touch-icon.png",
     },
 }
 

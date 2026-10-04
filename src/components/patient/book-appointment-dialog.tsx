@@ -19,6 +19,7 @@ import {
   Home,
   Loader2,
   MapPin,
+  Navigation,
   Stethoscope,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -101,22 +102,14 @@ const TYPE_OPTIONS: {
 
 const REASON_MAX = 500;
 
-// Libellé de puce de jour : « sam. 25 oct. » (pas d'heure).
-function formatDayChip(date: Date): string {
-  return new Intl.DateTimeFormat("fr-FR", {
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-    timeZone: "UTC",
-  }).format(date);
-}
-
 export function BookAppointmentDialog({ open, onClose, onBooked, onRecharge, zone }: Props) {
   const [step, setStep] = useState(0);
   const [type, setType] = useState<AppointmentTypeValue>("CABINET");
   const [specialties, setSpecialties] = useState<SpecialtyDto[] | null>(null);
   const [specialtiesError, setSpecialtiesError] = useState<string | null>(null);
   const [specialtyId, setSpecialtyId] = useState<string>("");
+  const [locationOpen, setLocationOpen] = useState(false);
+  const [locationLoading, setLocationLoading] = useState(false);
   const [zone_, setZone_] = useState<AppZone>(zone);
   const [date, setDate] = useState<string>("");
   const [time, setTime] = useState<string>("");
@@ -313,19 +306,19 @@ export function BookAppointmentDialog({ open, onClose, onBooked, onRecharge, zon
   const stepper = (
     <ol
       aria-label="Étapes de la prise de rendez-vous"
-      className="flex min-w-0 items-center gap-1.5"
+      className="mx-auto flex w-full max-w-sm min-w-0 items-start justify-center gap-1 sm:gap-1.5"
     >
       {STEPS.map((entry, index) => {
         const isDone = index < step;
         const isActive = index === step;
         return (
-          <li key={entry.title} className="min-w-0 flex-1">
+          <li key={entry.title} className="relative flex min-w-0 flex-1 flex-col items-center">
             <button
               type="button"
               disabled={index > step}
               onClick={() => setStep(index)}
               aria-current={isActive ? "step" : undefined}
-              className="flex w-full items-center gap-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
+              className="relative z-10 flex w-full min-w-0 flex-col items-center gap-1 rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               <span
                 className={`flex size-6 shrink-0 items-center justify-center rounded-full text-[11px] font-bold ${
@@ -339,21 +332,19 @@ export function BookAppointmentDialog({ open, onClose, onBooked, onRecharge, zon
                 {isDone ? <Check className="size-3.5" aria-hidden="true" /> : index + 1}
               </span>
               <span
-                className={`hidden truncate text-[11px] font-semibold sm:block ${
+                className={`hidden w-full truncate text-center text-[10px] font-semibold sm:block ${
                   isActive ? "text-primary" : "text-muted-foreground"
                 }`}
               >
                 {entry.title}
               </span>
             </button>
-            {index < STEPS.length - 1 && (
-              <span
-                aria-hidden="true"
-                className={`mt-1 block h-1 rounded-full ${
-                  isDone ? "bg-success" : isActive ? "bg-primary" : "bg-border"
-                }`}
-              />
-            )}
+            <span
+              aria-hidden="true"
+              className={`mx-auto mt-1.5 block h-1 w-[85%] rounded-full ${
+                isDone ? "bg-success" : isActive ? "bg-primary" : "bg-border"
+              }`}
+            />
           </li>
         );
       })}
@@ -361,9 +352,13 @@ export function BookAppointmentDialog({ open, onClose, onBooked, onRecharge, zon
   );
 
   return (
+    <>
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="max-h-[90vh] grid-cols-[minmax(0,1fr)] overflow-y-auto rounded-2xl sm:max-w-md">
         <DialogHeader>
+          {step === 3 && (
+            <p className="text-[11px] font-semibold text-primary">Étape 4 sur 4 — Validation</p>
+          )}
           <DialogTitle className="text-left">Nouveau rendez-vous</DialogTitle>
           <DialogDescription className="text-left">
             Consultations du lundi au vendredi, de 08:00 à 16:30 — réservation
@@ -523,9 +518,17 @@ export function BookAppointmentDialog({ open, onClose, onBooked, onRecharge, zon
                 </p>
               </div>
               <div className="flex flex-col gap-2">
-                <Label htmlFor="rdv-zone" className="text-sm font-semibold">
-                  Zone
-                </Label>
+                <div className="flex items-center justify-between gap-2">
+                  <Label htmlFor="rdv-zone" className="text-sm font-semibold">Zone</Label>
+                  <button
+                    type="button"
+                    onClick={() => setLocationOpen(true)}
+                    className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-semibold text-primary hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  >
+                    <Navigation className="size-3.5" aria-hidden="true" />
+                    Me localiser
+                  </button>
+                </div>
                 <Select
                   value={zone_}
                   onValueChange={value => setZone_(value as AppZone)}
@@ -547,9 +550,12 @@ export function BookAppointmentDialog({ open, onClose, onBooked, onRecharge, zon
               </div>
 
               <div className="flex flex-col gap-2">
-                <Label htmlFor="rdv-date" className="text-sm font-semibold">
-                  Jour
-                </Label>
+                <div className="flex items-center justify-between gap-2">
+                  <Label htmlFor="rdv-date" className="text-sm font-semibold">Jour</Label>
+                  <span className="text-xs font-medium text-muted-foreground">
+                    {new Intl.DateTimeFormat("fr-FR", { month: "long", year: "numeric" }).format(days[0]?.date ?? new Date())}
+                  </span>
+                </div>
                 <div
                   id="rdv-date"
                   role="radiogroup"
@@ -572,7 +578,7 @@ export function BookAppointmentDialog({ open, onClose, onBooked, onRecharge, zon
                             setTime("");
                           }
                         }}
-                        className={`flex shrink-0 items-center rounded-xl border px-3 py-2 text-xs font-semibold capitalize transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                        className={`flex min-w-[76px] shrink-0 flex-col items-center gap-0.5 rounded-xl border px-2.5 py-2 text-xs font-semibold capitalize transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
                           selected
                             ? "border-primary bg-primary text-primary-foreground"
                             : enabled
@@ -580,8 +586,14 @@ export function BookAppointmentDialog({ open, onClose, onBooked, onRecharge, zon
                               : "cursor-not-allowed border-dashed text-muted-foreground/60"
                         }`}
                       >
-                        <span suppressHydrationWarning>
-                          {formatDayChip(day.date)}
+                        <span className="text-[10px] uppercase opacity-80" suppressHydrationWarning>
+                          {new Intl.DateTimeFormat("fr-FR", { weekday: "short" }).format(day.date).replace(".", "")}
+                        </span>
+                        <span className="text-sm font-bold" suppressHydrationWarning>
+                          {new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "short" }).format(day.date)}
+                        </span>
+                        <span className="text-[9px] font-normal opacity-70">
+                          {dayBookable(day.key) ? `${slots.length} créneaux` : "Indisponible"}
                         </span>
                       </button>
                     );
@@ -655,31 +667,30 @@ export function BookAppointmentDialog({ open, onClose, onBooked, onRecharge, zon
               </div>
 
               {/* Récapitulatif — vérification avant confirmation */}
-              <div className="rounded-xl border bg-muted/40 p-4">
-                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  Récapitulatif
-                </p>
-                <ul className="mt-2.5 grid gap-2 text-sm">
+              <div className="overflow-hidden rounded-xl border bg-muted/30">
+                <div className="flex items-center justify-between border-b bg-primary/5 px-3.5 py-3">
+                  <p className="text-xs font-bold uppercase tracking-wide text-primary">
+                    Récapitulatif de consultation
+                  </p>
+                  <span className="rounded-full bg-success/10 px-2 py-0.5 text-[10px] font-bold text-success">
+                    {type === "CABINET" ? "Cabinet Pro" : "À domicile"}
+                  </span>
+                </div>
+                <ul className="grid gap-0 px-3.5 text-xs">
                   <li className="flex items-center justify-between gap-3">
-                    <span className="text-muted-foreground">Lieu</span>
-                    <span className="font-semibold">
-                      {type === "CABINET" ? "Au cabinet" : "À domicile"}
-                    </span>
-                  </li>
-                  <li className="flex items-center justify-between gap-3">
-                    <span className="text-muted-foreground">Spécialité</span>
+                    <span className="py-2 text-muted-foreground">Spécialité</span>
                     <span className="font-semibold">
                       {selectedSpecialty?.name ?? "—"}
                     </span>
                   </li>
                   <li className="flex items-center justify-between gap-3">
-                    <span className="text-muted-foreground">Zone</span>
+                    <span className="py-2 text-muted-foreground">Commune / Zone</span>
                     <span className="font-semibold">{ZONE_LABELS[zone_]}</span>
                   </li>
                   <li className="flex items-center justify-between gap-3">
-                    <span className="text-muted-foreground">Créneau</span>
+                    <span className="py-2 text-muted-foreground">Créneau choisi</span>
                     <span
-                      className="text-right font-semibold"
+                      className="rounded-md bg-primary/10 px-2 py-1 text-right font-semibold text-primary"
                       suppressHydrationWarning
                     >
                       {selectedSlot
@@ -691,16 +702,16 @@ export function BookAppointmentDialog({ open, onClose, onBooked, onRecharge, zon
                       AVANT confirmation (contrat fonctionnel §cycle). Coût
                       issu de la grille tarifaire EN VIGUEUR (configurable
                       Médecin Chef) — « — » pendant le chargement. */}
-                  <li className="flex items-center justify-between gap-3">
-                    <span className="text-muted-foreground">Coût</span>
+                   <li className="flex items-center justify-between gap-3 border-t border-border/60">
+                     <span className="py-2 text-muted-foreground">Coût consultation</span>
                     <span className="font-semibold">
                       {costTokens === null
                         ? "—"
                         : `${costTokens} Token${costTokens > 1 ? "s" : ""} · ${costFcfa?.toLocaleString("fr-FR")} FCFA`}
                     </span>
                   </li>
-                  <li className="flex items-center justify-between gap-3">
-                    <span className="text-muted-foreground">Solde après réservation</span>
+                   <li className="flex items-center justify-between gap-3 border-t border-border/60">
+                     <span className="py-2 text-muted-foreground">Solde après réservation</span>
                     <span
                       className={`font-semibold ${balanceTokens !== null && !hasBalance ? "text-destructive" : ""}`}
                     >
@@ -783,5 +794,54 @@ export function BookAppointmentDialog({ open, onClose, onBooked, onRecharge, zon
         </DialogFooter>
       </DialogContent>
     </Dialog>
+    <Dialog open={locationOpen} onOpenChange={setLocationOpen}>
+      <DialogContent className="max-w-sm rounded-2xl">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <span className="flex size-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
+              <Navigation className="size-4" aria-hidden="true" />
+            </span>
+            Votre localisation
+          </DialogTitle>
+          <DialogDescription>
+            Autorisez la géolocalisation pour faciliter le choix de votre zone de consultation.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="rounded-xl border bg-muted/40 p-3 text-sm">
+          <p className="font-semibold">Zone sélectionnée</p>
+          <p className="mt-1 text-xs text-muted-foreground">{ZONE_LABELS[zone_]}</p>
+        </div>
+        <DialogFooter className="gap-2">
+          <Button variant="outline" onClick={() => setLocationOpen(false)} disabled={locationLoading}>
+            Annuler
+          </Button>
+          <Button
+            disabled={locationLoading}
+            onClick={() => {
+              if (!navigator.geolocation) {
+                setLocationOpen(false);
+                return;
+              }
+              setLocationLoading(true);
+              navigator.geolocation.getCurrentPosition(
+                () => {
+                  setLocationLoading(false);
+                  setLocationOpen(false);
+                },
+                () => {
+                  setLocationLoading(false);
+                  setLocationOpen(false);
+                },
+              );
+            }}
+            className="gap-1.5"
+          >
+            <Navigation className="size-4" aria-hidden="true" />
+            {locationLoading ? "Localisation…" : "Utiliser ma position"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+    </>
   );
 }
