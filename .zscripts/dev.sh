@@ -38,7 +38,17 @@ if [ -n "$DATABASE_URL" ]; then
   echo "[dev.sh] DATABASE_URL exportée depuis .env (postgresql://…pooler.supabase.com)"
   # SYS-009 : schéma piloté par les migrations versionnées Supabase
   # (supabase/migrations — source unique, cf. ADR-003).
-  npx supabase db push --linked
+  # Le mode --linked passe par l'API Management (token + état de lien
+  # supabase/.temp — tous deux perdus lors d'un rebuild/reboot conteneur,
+  # incident 2026-10-03 : « Cannot find project ref »)
+  # → fallback direct sur la base : mêmes migrations versionnées, sans token.
+  # Dernier recours non fatal : la base est déjà migrée, le serveur doit
+  # toujours démarrer (même philosophie que le else ci-dessous).
+  if ! npx supabase db push --linked; then
+    echo "[dev.sh] ⚠️ db push --linked indisponible (lien/token absent) — bascule --db-url directe"
+    npx supabase db push --db-url "$DATABASE_URL" \
+      || echo "[dev.sh] ⚠️ migrations non appliquées via --db-url (base déjà à jour ?) — démarrage quand même"
+  fi
 else
   echo "[dev.sh] ⚠️ DATABASE_URL absente de .env — migrations ignorées, le serveur démarre sans base de données"
 fi
