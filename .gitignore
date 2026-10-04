@@ -68,3 +68,5 @@ tool-results/
 android/app/google-services.json
 *.keystore
 *.jks
+.android-sdk/
+.jdk21/

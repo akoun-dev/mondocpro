@@ -1086,3 +1086,22 @@ Stage Summary:
 - INCIDENT CLÔTURÉ : prod pleinement opérationnelle (health ok/up, login 200, session persistante)
 - Rôle du health v4 : auto-diagnostic de la cause exacte sans accès logs Vercel (hostKind, dbErrorKind, hints)
 - Leçon PO : Supabase → Connect affiche l'URL DIRECTE par défaut (IPv6-only, incompatible Vercel) — toujours prendre l'onglet Connection pooling
+
+---
+Task ID: 36-bis (build APK)
+Agent: Super Z (principal)
+Task: « genere moi le APK et aussi avec le logo » (PO) — compilation effective de l'APK Capacitor
+
+Work Log:
+- Reprise de l'état f086ffd (Task 36 complète côté code) : config capacitor.config.ts restaurée telle que commitée (appId ci.mondopro.app, webDir capacitor-shell, splash launchAutoHide:false piloté par NativeBootstrap) — réécriture involontaire annulée, mobile/ éphémère supprimé
+- Android SDK installé dans le projet (gitigné) : cmdline-tools 11076708 + platform-tools + platforms;android-36 + build-tools 35/36 (licences acceptées)
+- JRE système sans javac → JDK portable Temurin 21.0.12.1 installé (.jdk21/, gitigné) ; pas de sudo dans la sandbox
+- android/local.properties (sdk.dir) écrit (gitigné) ; cap sync android OK (13 plugins)
+- BUILD : ./gradlew assembleDebug --no-daemon → SUCCESS en ~2 min ; app-debug.apk 7 811 328 octets
+- Vérif aapt2 badging : ci.mondopro.app v1.0 (versionCode 1), compileSdk/targetSdk 36, label « Mon doc Pro », permissions INTERNET/POST_NOTIFICATIONS/RECEIVE_BOOT_COMPLETED/VIBRATE/WAKE_LOCK/SCHEDULE_EXACT_ALARM/ACCESS_NETWORK_STATE/c2dm.RECEIVE, 55 ressources mipmap+splash (logo brandé généré depuis public/img/logo.png)
+- Artefact livré : download/MondocPro-debug.apk
+
+Stage Summary:
+- APK debug signé (keystore debug) prêt à installer : download/MondocPro-debug.apk — WebView distante vers https://mondocpro.vercel.app, 13 plugins natifs actifs, icônes+splash au logo
+- Push FCM : à activer par le PO (google-services.json dans android/app/ + FIREBASE_SERVICE_ACCOUNT_JSON sur Vercel, guide .ai/APK_BUILD.md §4) — sans quoi dégradation gracieuse
+- Outils de build reproductibles consignés dans .gitignore (.android-sdk/, .jdk21/) + APK_BUILD.md
