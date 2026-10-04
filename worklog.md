@@ -931,3 +931,25 @@ Stage Summary:
 
 - L'accueil patient est pixel-fidèle à la nouvelle maquette PO sur mobile et desktop, avec les vraies données (RDV, campagnes, zone, TTS navigateur) et la recharge branchée sur le portefeuille Tokens réel — la fausse section épargne disparaît.
 - Boot éphémère `scripts/dev-boot.sh` disponible pour toute vérification navigateur future (relance serveur auto en début de commande).
+
+---
+
+Task ID: 32
+Agent: ORCHESTRATEUR (Super Z) — exécution directe
+Task: « Récupère les derniers commits et fais un audit complet » (PO, 2026-10-04)
+
+Work Log:
+- Remote re-poussé en force (ff24eaa, feature missions infirmiers) ; fix boot 1b8dc8e absent du nouvel historique → sauvegarde backup/local-diverged-20261003-v2, reset --hard, cherry-pick du fix, push (38a2a5c)
+- Audit statique : eslint 0 erreur ; tsc src : 2 erreurs (register-form ref union) ; 1 console.log assumé (TODO INT-SMS) ; secrets uniquement dans fixtures scripts/ ; dangerouslySetInnerHTML unique et canonique (chart.tsx)
+- Découverte piège outils : grep/sed/Read divergeaient sur schema.prisma ligne 318 — fausse « coquille issionId » (sous-chaîne de [missionId] + sanitize ANSI avalant [m) ; tranché via od -c et prisma validate → schéma TOUJOURS valide, aucune modification
+- Finding P1 (BUG-002) : client Prisma périmé (modèles ff24eaa générés par personne) → 500 sur /api/nurse/missions et /api/admin/missions ; migration 20261004140000 non appliquée non plus → appliquée via supabase db push --db-url (pooler session 5432, prompt pipé « y ») ; prisma generate ajouté au boot (2570e76)
+- Finding P0 (BUG-003) : serializeMission ≠ MissionDto (scheduledAt/zone/type/specialty manquants) → crash client formatSlot(undefined) reproduit en navigateur ; corrigé include + aplatissement (83aec56) ; vérifié visuellement (carte complète)
+- Finding P3 (BUG-004) : narrowing ref register-form corrigé (2570e76)
+- E2E API : scripts/audit-e2e-missions.sh (persisté) — 18/18 vert : logins 3 rôles, guards 403/401, recharge tokens 10000 FCFA confirmée admin, RDV DOMICILE 201, dispatch 201, doublon 409, transitions + illégale 409, CR 201/doublon 409, 3 notifications
+- Registres : .ai/AUDITS/AUDIT-001-2026-10-04.md créé (84/100), BUGS.md BUG-002/003/004, AUDIT_REPORT.md indexé
+
+Stage Summary:
+- Workspace = ff24eaa + 38a2a5c (boot résilient) + 2570e76 (generate au boot + ref) + 83aec56 (contrat missions)
+- FEATURE-NURSE fonctionnelle de bout en bout (API + UI infirmier), mission de test en base (IN_PROGRESS, CR rédigé)
+- Scripts d'audit réutilisables : scripts/audit-e2e-missions.sh, audit-missions-probe.ts, audit-migrations-state.ts
+- Leçon consignée : sortie outils potentiellement tronquée ([m) et vue FS incohérente entre appels → od -c + mêmes-commande pour écriture/lecture

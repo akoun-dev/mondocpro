@@ -7,7 +7,7 @@
 
 | ID | Date | Score /100 | Déclencheur | Rapport | Statut |
 |---|---|---|---|---|---|
-| — | — | **Aucun audit global réalisé** (système initialisé aujourd'hui). Premier audit prévu : après la 1re feature terminée ou sur demande. | — | — | — |
+| AUDIT-001 | 2026-10-04 | **84/100** | Demande PO (post-récupération ff24eaa) | [AUDITS/AUDIT-001-2026-10-04.md](AUDITS/AUDIT-001-2026-10-04.md) | ✅ Terminé — 2 incidents corrigés (BUG-002, BUG-003) |
 
 **Seuil de conformité :** score global cible **≥ 60/100** pour toute livraison PROD (cf. `.ai/SYSTEM_COMPLIANCE.md`).
 
