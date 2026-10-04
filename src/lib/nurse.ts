@@ -11,15 +11,27 @@ export class NurseMissionError extends Error {
 const missionInclude = {
   nurse: { select: { id: true, fullName: true, phone: true, zone: true } },
   patient: { select: { id: true, fullName: true, phone: true, zone: true } },
-  appointment: { select: { scheduledAt: true, type: true, zone: true, reason: true } },
+  appointment: { select: { scheduledAt: true, type: true, zone: true, reason: true, specialty: { select: { name: true } } } },
   visitReport: { select: { id: true, observations: true, actionsTaken: true, recommendations: true, vitalSigns: true, createdAt: true } },
 } as const;
 
+// Contrat MissionDto (nurse-schemas.ts) : scheduledAt / zone / type au premier
+// niveau + appointment.specialty.name — la vue infirmier (nurse-missions-view)
+// les consomme directement (formatSlot(mission.scheduledAt), mission.zone…).
+// Sans cet aplatissement : Date(undefined) → crash client dès la première
+// mission (incident audit 2026-10-03).
 export function serializeMission(mission: any) {
   return {
     ...mission,
+    scheduledAt: mission.appointment.scheduledAt.toISOString(),
+    zone: mission.appointment.zone,
+    type: mission.appointment.type,
     assignedAt: mission.assignedAt.toISOString(),
-    appointment: { ...mission.appointment, scheduledAt: mission.appointment.scheduledAt.toISOString() },
+    appointment: {
+      ...mission.appointment,
+      scheduledAt: mission.appointment.scheduledAt.toISOString(),
+      specialty: mission.appointment.specialty ?? null,
+    },
     report: mission.visitReport ? { ...mission.visitReport, createdAt: mission.visitReport.createdAt.toISOString() } : null,
     visitReport: undefined,
   };
