@@ -953,3 +953,24 @@ Stage Summary:
 - FEATURE-NURSE fonctionnelle de bout en bout (API + UI infirmier), mission de test en base (IN_PROGRESS, CR rédigé)
 - Scripts d'audit réutilisables : scripts/audit-e2e-missions.sh, audit-missions-probe.ts, audit-migrations-state.ts
 - Leçon consignée : sortie outils potentiellement tronquée ([m) et vue FS incohérente entre appels → od -c + mêmes-commande pour écriture/lecture
+
+---
+Task ID: 33
+Agent: ORCHESTRATEUR (Super Z) — exécution directe
+Task: « J'ai déployé sur https://mondocpro.vercel.app/ mais j'ai cette erreur quand je veux me connecter : Erreur interne — réessayez » (PO, 2026-10-04)
+
+Work Log:
+- Reproduction externe : /api/health 200 mais {status:degraded, database:down} ; login 500 {error:"Erreur interne — réessayez"} = catch générique de la route (aucune fuite d'info) ; register passe la validation 400 (route exécutée)
+- Arborescence : /api/health attrape l'erreur DB et reste 200 (contrat) → health 200 ne prouvait PAS une DB saine ; JSON structuré renvoyé ⇒ client Prisma généré et chargé sur Vercel (sinon l'import planterait avant tout try/catch)
+- Cause racine : DATABASE_URL absente/injoignable dans les variables Vercel (.env gitignore n'arrive jamais en déploiement) — aucune variable Supabase NEXT_PUBLIC_* n'est utilisée dans src/ (app 100% Prisma)
+- Schéma supabase/schema.prisma localisé par prisma.config.ts COMMITE (découverte CLI OK partout) — pas de clé package.json#prisma ajoutée (redondante)
+- /api/health v3 : bloc additif diagnostic {hasDatabaseUrl, dbErrorCode (P1xxx/pg 5 chiffres uniquement), dbHint FR} — jamais le message Prisma brut (fuite potentielle de la chaîne de connexion) ; fix au passage prefix log hérité « ealth] » → « [health] »
+- package.json : postinstall prisma generate (génération client garantie npm/bun sur Vercel, schéma via prisma.config.ts)
+- .ai/DEPLOY_VERCEL.md (nouveau) : variables requises (DATABASE_URL seule obligatoire), formats pooler session 5432 (identique local, aws-0-eu-west-1) / transaction 6543+pgbouncer=true&connection_limit=1, procédure Settings → Environment Variables (Production+Preview) → Redeploy, table dépannage mappée sur les codes health, checklist prod
+- API_CONTRACTS.md : contrat health v3 documenté (bloc additif rétrocompatible)
+- Validation locale (dev-boot.sh + sondes) : health {status ok, database up, hasDatabaseUrl true}, login 200 (compte test +2250709229992), me 200 cookie ; eslint 0 erreur route modifiée ; tsc : 5 erreurs préexistantes HORS src/ (examples/, scripts/, skills/) — inchangées
+- Commit 7cbeea8 poussé (b7a7853..7cbeea8) → redeploy Vercel auto ; la CORRECTION finale exige l'action PO : ajouter DATABASE_URL sur Vercel puis Redeploy (non automatisable depuis le repo)
+
+Stage Summary:
+- Diagnostic péremptoire : la prod Vercel ne joint pas la base (database:down) ; l'app elle-même est saine (login/me 200 local, client Prisma généré sur Vercel)
+- Le PO doit ajouter DATABASE_URL (pooler Supabase, voir .ai/DEPLOY_VERCEL.md §2-3) dans Vercel puis redéployer ; le nouveau bloc diagnostic de /api/health identifiera immédiatement toute erreur résiduelle (P1001/P1010/...) sans accès aux logs
