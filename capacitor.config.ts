@@ -1,73 +1,58 @@
 import type { CapacitorConfig } from "@capacitor/cli";
 
-// Task 36 — Configuration Capacitor de l'application Android « Mon doc Pro ».
-//
-// Architecture « WebView distante » (ADR-007) : le WebView Android charge
-// l'application Next.js DÉPLOYÉE (https://mondocpro.vercel.app) — les API
-// routes, le SSR et les cookies de session restent côté serveur, sans
-// double maintenance. Le pont natif (window.Capacitor) est injecté par le
-// WebView dans les pages chargées depuis server.url ; les plugins JS
-// (@capacitor/*) sont bundlés dans l'app web et se connectent automatiquement
-// au pont quand ils détectent la plateforme native (Capacitor.isNativePlatform()).
-// Dans un navigateur classique, tout cela reste inerte — un seul code source.
-//
-// Pour pointer le WebView vers un serveur de développement local
-// (émulateur ou appareil sur le même réseau) :
-//   CAPACITOR_SERVER_URL=http://192.168.1.42:3000 npx cap sync android
-// (cleartext HTTP n'est alors autorisé que pour ce build de dev — jamais en prod).
-const serverUrl =
-  process.env.CAPACITOR_SERVER_URL ?? "https://mondocpro.vercel.app";
-const isLocalDev = Boolean(process.env.CAPACITOR_SERVER_URL);
-
+/**
+ * Configuration Capacitor — Mon doc Pro (ADR-007, Task 36)
+ *
+ * Stratégie WebView distante : l'APK embarque un WebView pointant vers
+ * l'app Next.js déployée (API routes + SSR + cookies de session vivent côté
+ * serveur). Le pont natif Capacitor est injecté automatiquement dans le
+ * WebView, ce qui rend les plugins (@capacitor/*) disponibles à la web-app.
+ *
+ * - webDir "mobile" : pages d'amorçage statiques uniquement (splash offline /
+ *   écran d'erreur réseau) — la logique métier reste sur le serveur.
+ * - server.url : cible production ; allowNavigation garde la navigation dans
+ *   le WebView (sinon les liens s'ouvrent dans le navigateur système).
+ * - androidScheme https : cohérent avec les cookies SameSite=None; Secure
+ *   posés par src/lib/auth.ts en production.
+ */
 const config: CapacitorConfig = {
-  // Identifiant d'application (package Android) — NE PEUT PAS être changé
-  // après la première publication. À valider par le PO avant toute mise en
-  // ligne sur le Play Store (voir .ai/APK_BUILD.md §1).
-  appId: "ci.mondopro.app",
+  appId: "com.mondocpro.app",
   appName: "Mon doc Pro",
-  // Shell de secours embarqué (affiché si le serveur distant est injoignable)
-  // — voir capacitor-shell/index.html.
-  webDir: "capacitor-shell",
+  webDir: "mobile",
   server: {
-    url: serverUrl,
-    cleartext: isLocalDev,
+    url: "https://mondocpro.vercel.app",
+    allowNavigation: ["mondocpro.vercel.app"],
+    // Page locale (dans mobile/) affichée si le serveur est injoignable
+    errorPath: "offline.html",
     androidScheme: "https",
   },
   android: {
     allowMixedContent: false,
     captureInput: true,
-    webContentsDebuggingEnabled: isLocalDev,
+    webContentsDebuggingEnabled: true,
   },
   plugins: {
     SplashScreen: {
-      // Le splash natif est masqué par NativeBootstrap (src/lib/native.ts)
-      // une fois l'app web chargée — pas de flash blanc, pas de splash figé.
-      launchShowDuration: 2000,
-      launchAutoHide: false,
-      backgroundColor: "#1565c0",
-      androidSplashResourceName: "splash",
+      launchShowDuration: 2500,
+      launchAutoHide: true,
+      backgroundColor: "#0F766E",
       androidScaleType: "CENTER_CROP",
       showSpinner: false,
-      splashFullScreen: true,
-      splashImmersive: true,
     },
     StatusBar: {
-      // Fond clair, icônes sombres — cohérent avec le thème light de l'app.
-      style: "LIGHT",
-      backgroundColor: "#ffffff",
+      style: "DARK",
+      backgroundColor: "#0F766E",
       overlaysWebView: false,
     },
     Keyboard: {
-      // Les formulaires (login, RDV, recharge) ne sont jamais recouverts.
       resize: "body",
-      style: "DEFAULT",
+      style: "DARK",
+    },
+    LocalNotifications: {
+      iconColor: "#0F766E",
     },
     PushNotifications: {
       presentationOptions: ["badge", "sound", "alert"],
-    },
-    LocalNotifications: {
-      smallIcon: "ic_launcher",
-      iconColor: "#1565c0",
     },
   },
 };
