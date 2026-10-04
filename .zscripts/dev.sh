@@ -16,6 +16,15 @@ cd /home/z/my-project
 # Dépendances d'abord (le fallback SYS-010 a besoin de bun/bunx prisma).
 bun install
 
+# Le client Prisma DOIT suivre le schéma : un rebuild conteneur ne rejoue pas
+# `prisma generate` et un client périmé fait planter les nouvelles routes API
+# (incident 2026-10-03 : commit ff24eaa ajoutant NurseMission/VisitReport —
+# `nurseMission` absent du client généré → 500 sur /api/*/missions).
+# Non fatal : un client périmé vaut mieux qu'un serveur absent — les routes
+# impactées ralentissent visiblement et l'incident reste diagnostiquable.
+bunx prisma generate \
+  || echo "[dev.sh] ⚠️ prisma generate échoué — client potentiellement périmé (routes récentes à risque)"
+
 # Piège 1 : restauration de l'env Supabase (+ auto-réparation si perdue).
 if [ ! -s .zscripts/.env.supabase ]; then
   echo "[dev.sh] ⚠️  .zscripts/.env.supabase absent (rebuild conteneur ?) — auto-réparation SYS-010…"

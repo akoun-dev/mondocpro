@@ -154,9 +154,12 @@ export function RegisterForm({
 
     // Accessibilité : après chaque navigation, le focus arrive sur le titre d'étape.
     // Délai calé sur la fin de la transition (exit 220 ms avant le montage du contenu).
+    // Ref union (callback | objet) : ne manipuler .current que sur un RefObject.
     useEffect(() => {
         if (!hasNavigatedRef.current) return
-        const timer = setTimeout(() => headingRef.current?.focus(), 300)
+        const timer = setTimeout(() => {
+            if (headingRef && "current" in headingRef) headingRef.current?.focus()
+        }, 300)
         return () => clearTimeout(timer)
     }, [step])
 
