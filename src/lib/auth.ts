@@ -7,7 +7,12 @@ import bcrypt from "bcryptjs"
 import { db } from "@/lib/db"
 import type { Role, Zone } from "@prisma/client"
 
-export const SESSION_COOKIE = "Mon doc Pro_session"
+// RFC 6265 §4.1.1 : cookie-name est une suite de tokens — ni espace, ni
+// accent, ni « # », ni « / ». Le nom historique « Mon doc Pro_session » était
+// donc rejeté en bloc par les navigateurs : le serveur posait bien le cookie
+// (login 200) mais le client ne le stockait jamais, d'où les 401 sur /me.
+// Nom ASCII sans espace ni caractère spécial.
+export const SESSION_COOKIE = "mondocpro_session"
 const SESSION_TTL_DAYS = 30
 // Session courte (« Se souvenir de moi » décoché) : le cookie expire à la
 // fermeture du navigateur et le token serveur au bout de 24 h.

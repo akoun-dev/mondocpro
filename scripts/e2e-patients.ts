@@ -41,9 +41,9 @@ function cookieFromJar(content: string): string | undefined {
   const line = content
     .split("\n")
     .reverse()
-    .find((l) => l.includes("Mon doc Pro_session") && !l.trim().startsWith("# ") && !l.startsWith("# Netscape") && !l.startsWith("# This file") && !l.startsWith("# https"));
+    .find((l) => l.includes("mondocpro_session") && !l.trim().startsWith("# ") && !l.startsWith("# Netscape") && !l.startsWith("# This file") && !l.startsWith("# https"));
   const value = line?.split("\t").pop()?.trim();
-  return value ? `Mon doc Pro_session=${value}` : undefined;
+  return value ? `mondocpro_session=${value}` : undefined;
 }
 
 // ——— Jar A : PATIENT existant (fichier curl) ———
