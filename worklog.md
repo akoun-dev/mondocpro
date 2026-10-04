@@ -1125,3 +1125,25 @@ Stage Summary:
 - Mode sombre PAR UTILISATEUR complet : User.theme (SYSTEM/LIGHT/DARK), PATCH /api/auth/profile, toggle en-tête + « Apparence » en profil, boot sans flash (localStorage) puis sync serveur, barre de statut native APK synchronisée
 - Limite preview connue : persistance PATCH inactive tant que le serveur dev n'est pas redémarré (client Prisma périmé) — le visuel localStorage fonctionne ; prod OK dès déploiement
 - Découverte infra : pool session Supabase 5432 saturable (pool_size 15) par Vercel en session mode — candidat à un passage prod en Option B (6543 + pgbouncer) et à connection_limit=1 (DEPLOY_VERCEL.md §3)
+
+---
+Task ID: 38
+Agent: Super Z (principal)
+Task: « Lorsque j'accepte les notifications l'application crashe et se ferme seul » (PO) — crash APK à l'acceptation de la permission notifications
+
+Work Log:
+- Lecture worklog (Task 37 mode sombre : bien achevée en session précédente) + sync git (propre)
+- Cause racine confirmée par lecture du code natif : @capacitor/push-notifications 8.1.3, register() appelle FirebaseMessaging.getInstance() SANS garde (PushNotificationsPlugin.java:114) ; build sans google-services.json → FirebaseApp jamais initialisé → IllegalStateException ; Bridge.callPluginMethod (Bridge.java:854) catch Exception puis RE-PROPAGE new RuntimeException(ex) dans le Runnable du thread principal → mort du process. Le try/catch JS de registerPush() ne peut rien contre un crash natif
+- Déclencheur exact : NativeBootstrap → /api/auth/me ok → registerPush() → checkPermissions=prompt → dialogue système → acceptation → register() → crash
+- Correctif web (src/lib/native.ts) : registerPlugin("Diagnostics") + isPushCapable() (promesse mémoïsée) — garde AVANT demande de permission ET register ; APK v1 sans le plugin → rejet "not implemented" → catch → push neutralisé (le correctif atteint les APK déjà installés via la WebView distante dès le déploiement Vercel, sans réinstallation)
+- Correctif natif : DiagnosticsPlugin.java (@CapacitorPlugin "Diagnostics") — firebaseAvailable() par RÉFLEXION (Class.forName com.google.firebase.FirebaseApp, initializeApp(context) fallback ; aucune dépendance de compilation ajoutée) + lastCrash()/clearLastCrash() ; MainActivity : registerPlugin(DiagnosticsPlugin.class) avant super.onCreate + handler uncaught exception → files/last_crash.txt puis délégation au handler d'origine (diagnostic sans adb)
+- Build : env reconstruit après recyclage sandbox — scripts/setup_android_env.sh (idempotent, JDK Temurin 21.0.12.1 via API adoptium + cmdline-tools 11076708 + platform-tools/android-36/build-tools 36.0.0, licences) ; SIGPIPE « yes | » corrigé (sortie vers fichier)
+- Signature : découverte que la clé debug v1 (74ef8dba…) est PERDUE (keystore ~/.android régénéré 21:17 par ce build → 050993fe…, comparaison apksigner v1 vs v2) → v2 exige une désinstallation préalable ; keystore debug VERSIONNÉ android/keys/debug.keystore + signingConfigs.debug explicite (alias androiddebugkey, exception .gitignore documentée) → signature stable pour tous les builds futurs ; versionCode 2 / versionName 1.0.1
+- BUILD SUCCESSFUL (assembleDebug, 25 s) ; aapt2 : ci.mondopro.app versionCode 2 (1.0.1), permissions inchangées ; DEX classes14.dex contient DiagnosticsPlugin + firebaseAvailable/lastCrash
+- Artefact : download/MondocPro-debug.apk (7 811 324 octets) ; commit 10ea705 poussé (web déployé par Vercel automatiquement)
+- Docs : .ai/APK_BUILD.md §4 (encart incident : « un APK sans google-services.json ne doit jamais afficher le dialogue notifications » + lastCrash) + §6 (2 lignes : crash à l'acceptation / permission jamais demandée)
+
+Stage Summary:
+- CRASH CLÔTURÉ à deux niveaux : dès le déploiement Vercel, l'APK v1 installé ne crashe plus (garde web) ; l'APK v2 (désinstaller v1 une fois, clé v1 perdue) embarque le garde natif + journal de crash — et une signature désormais stable
+- Le canal push FCM reste INACTIF tant que le PO ne fournit pas le projet Firebase (google-services.json dans android/app/ + FIREBASE_SERVICE_ACCOUNT_JSON sur Vercel, APK_BUILD.md §4) ; InApp + rappels locaux de RDV fonctionnels sans Firebase
+- Prochaines étapes possibles : exposer lastCrash() dans une section support/diagnostic de l'app (upload du stack trace) ; Task 35 (admin+InApp E2E), Task 34 (profil Nurse), Task 26 (Tokens)
