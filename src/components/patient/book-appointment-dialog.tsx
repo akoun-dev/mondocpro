@@ -15,6 +15,7 @@ import {
   Building2,
   CalendarDays,
   Check,
+  Coins,
   Home,
   Loader2,
   MapPin,
@@ -66,14 +67,15 @@ type Props = {
   onClose: () => void;
   /** Appelé après un POST 201 → rafraîchissement des listes partagées. */
   onBooked: (appointment: AppointmentDto) => void;
+  onRecharge: () => void;
   /** Zone de résidence du patient — pré-sélection de l'étape 3. */
   zone: AppZone;
 };
 
 const STEPS = [
-  { title: "Type" },
+  { title: "Lieu" },
   { title: "Spécialité" },
-  { title: "Créneau" },
+  { title: "Date" },
   { title: "Confirmation" },
 ] as const;
 
@@ -109,7 +111,7 @@ function formatDayChip(date: Date): string {
   }).format(date);
 }
 
-export function BookAppointmentDialog({ open, onClose, onBooked, zone }: Props) {
+export function BookAppointmentDialog({ open, onClose, onBooked, onRecharge, zone }: Props) {
   const [step, setStep] = useState(0);
   const [type, setType] = useState<AppointmentTypeValue>("CABINET");
   const [specialties, setSpecialties] = useState<SpecialtyDto[] | null>(null);
@@ -378,7 +380,7 @@ export function BookAppointmentDialog({ open, onClose, onBooked, zone }: Props) 
           {step === 0 && (
             <fieldset className="flex flex-col gap-2.5">
               <legend className="text-sm font-semibold">
-                Où souhaitez-vous être consulté ?
+                Où souhaitez-vous consulter ?
               </legend>
               <div className="grid grid-cols-2 gap-2.5">
                 {TYPE_OPTIONS.map(option => {
@@ -418,9 +420,22 @@ export function BookAppointmentDialog({ open, onClose, onBooked, zone }: Props) 
           {/* ——— Étape 2 · Spécialité (catalogue ADMIN) ——— */}
           {step === 1 && (
             <fieldset className="flex flex-col gap-2.5">
-              <legend className="text-sm font-semibold">
-                Quelle spécialité voulez-vous consulter ?
-              </legend>
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-sm font-semibold">
+                  Quelle spécialité voulez-vous consulter ?
+                </p>
+                {specialties && (
+                  <span className="text-xs font-semibold text-primary">
+                    Voir tout ({specialties.length})
+                  </span>
+                )}
+              </div>
+              <div className="flex items-start gap-2 rounded-xl border border-warning/30 bg-warning/10 p-3 text-xs text-foreground">
+                <Coins className="mt-0.5 size-4 shrink-0 text-warning" aria-hidden="true" />
+                <span>
+                  Couvert à 100% avec MonDoc Pass (1 séance = {costTokens ?? 2} crédits santé).
+                </span>
+              </div>
               {specialties === null && !specialtiesError ? (
                 <div className="grid grid-cols-2 gap-2.5" aria-busy="true">
                   {[0, 1, 2, 3].map(index => (
@@ -457,7 +472,7 @@ export function BookAppointmentDialog({ open, onClose, onBooked, zone }: Props) 
                         role="radio"
                         aria-checked={selected}
                         onClick={() => setSpecialtyId(specialty.id)}
-                        className={`flex min-h-16 items-center gap-2.5 rounded-xl border p-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                        className={`relative flex min-h-20 flex-col items-start gap-2 rounded-xl border p-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
                           selected
                             ? "border-primary bg-primary/5 ring-1 ring-primary"
                             : "hover:border-primary/40 hover:bg-muted/40"
@@ -472,8 +487,18 @@ export function BookAppointmentDialog({ open, onClose, onBooked, zone }: Props) 
                         >
                           <Stethoscope className="size-4" aria-hidden="true" />
                         </span>
-                        <span className="text-sm font-semibold leading-tight">
-                          {specialty.name}
+                        {selected && (
+                          <span className="absolute right-2.5 top-2.5 flex size-4 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                            <Check className="size-3" aria-hidden="true" />
+                          </span>
+                        )}
+                        <span>
+                          <span className="block text-xs font-bold leading-tight">
+                            {specialty.name}
+                          </span>
+                          <span className="mt-1 block text-[10px] text-muted-foreground">
+                            Consultation médicale
+                          </span>
                         </span>
                       </button>
                     );
@@ -491,6 +516,12 @@ export function BookAppointmentDialog({ open, onClose, onBooked, zone }: Props) 
           {/* ——— Étape 3 · Zone, jour et créneau ——— */}
           {step === 2 && (
             <div className="flex flex-col gap-4">
+              <div>
+                <p className="text-sm font-semibold">Quand souhaitez-vous être consulté ?</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Choisissez un jour puis un créneau disponible.
+                </p>
+              </div>
               <div className="flex flex-col gap-2">
                 <Label htmlFor="rdv-zone" className="text-sm font-semibold">
                   Zone
@@ -596,6 +627,12 @@ export function BookAppointmentDialog({ open, onClose, onBooked, zone }: Props) 
           {/* ——— Étape 4 · Motif + récapitulatif ——— */}
           {step === 3 && (
             <div className="flex flex-col gap-4">
+              <div>
+                <p className="text-sm font-semibold">Vérifiez votre rendez-vous</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Ajoutez un motif si nécessaire, puis confirmez votre demande.
+                </p>
+              </div>
               <div className="flex flex-col gap-2">
                 <Label htmlFor="rdv-reason" className="text-sm font-semibold">
                   Motif de consultation{" "}
@@ -678,16 +715,18 @@ export function BookAppointmentDialog({ open, onClose, onBooked, zone }: Props) 
           )}
           {/* Étape 4 · Solde insuffisant — blocage explicite AVANT envoi */}
           {step === 3 && !hasBalance && costTokens !== null && (
-            <p
+            <div
               role="alert"
-              className="rounded-xl border border-destructive/30 bg-destructive/5 p-3 text-xs font-medium text-destructive"
+              className="flex items-center justify-between gap-3 rounded-xl border border-destructive/30 bg-destructive/5 p-3 text-xs font-medium text-destructive"
             >
-              Solde insuffisant — cette consultation coûte {costTokens} Token
-              {costTokens > 1 ? "s" : ""} et votre portefeuille en contient
-              {" "}
-              {balanceTokens ?? 0}. Rechargez-le depuis votre profil puis
-              revenez confirmer votre demande.
-            </p>
+              <span>
+                Solde insuffisant — cette consultation coûte {costTokens} Token
+                {costTokens > 1 ? "s" : ""} et votre portefeuille en contient {balanceTokens ?? 0}.
+              </span>
+              <Button type="button" size="sm" onClick={onRecharge} className="h-8 shrink-0 rounded-lg text-xs">
+                Recharger
+              </Button>
+            </div>
           )}
         </div>
 

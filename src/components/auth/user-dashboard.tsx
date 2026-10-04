@@ -189,7 +189,6 @@ const PATIENT_TABS: { id: DashboardTab; label: string; icon: LucideIcon }[] = [
     { id: "accueil", label: "Accueil", icon: Home },
     { id: "rdv", label: "RDV", icon: CalendarCheck },
     { id: "wallet", label: "Wallet", icon: Wallet },
-    { id: "profil", label: "Profil", icon: UserRound },
 ]
 
 const BASE_TABS: { id: DashboardTab; label: string; icon: LucideIcon }[] = [
@@ -1056,6 +1055,11 @@ export function UserDashboard() {
                     open={bookingOpen}
                     onClose={() => setBookingOpen(false)}
                     onBooked={() => void patientData.refresh()}
+                    onRecharge={() => {
+                        setBookingOpen(false)
+                        setRechargeRequested(true)
+                        setTab("wallet")
+                    }}
                     zone={user.zone}
                 />
             )}

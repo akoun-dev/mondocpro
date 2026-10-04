@@ -18,6 +18,8 @@ import {
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Dialog,
   DialogContent,
@@ -33,6 +35,7 @@ import {
   TOKEN_STATUS_LABELS,
   TOKEN_TYPE_LABELS,
   TOKEN_VALUE_FCFA,
+  PAYMENT_METHOD_LABELS,
   tokensToFcfa,
   type PaymentMethod,
 } from "@/lib/token-schemas";
@@ -70,6 +73,8 @@ export function WalletSection({ openRecharge = false, onRechargeOpened }: Props)
   const [selectedFcfa, setSelectedFcfa] = useState<number | null>(null);
   const [selectedPaymentMethod, setSelectedPaymentMethod] =
     useState<PaymentMethod | null>(null);
+  const [customTokens, setCustomTokens] = useState("");
+  const [customTokensOpen, setCustomTokensOpen] = useState(false);
   const [rechargeStep, setRechargeStep] = useState<1 | 2 | 3>(1);
   const [historyFilter, setHistoryFilter] = useState<"ALL" | "RECHARGE" | "SPEND">("ALL");
   const [submitting, setSubmitting] = useState(false);
@@ -93,6 +98,8 @@ export function WalletSection({ openRecharge = false, onRechargeOpened }: Props)
     if (!openRecharge) return;
     setSelectedFcfa(null);
     setSelectedPaymentMethod(null);
+    setCustomTokens("");
+    setCustomTokensOpen(false);
     setRechargeStep(1);
     setRechargeOpen(true);
     onRechargeOpened?.();
@@ -119,6 +126,8 @@ export function WalletSection({ openRecharge = false, onRechargeOpened }: Props)
         setRechargeOpen(false);
         setSelectedFcfa(null);
         setSelectedPaymentMethod(null);
+        setCustomTokens("");
+        setCustomTokensOpen(false);
         await loadWallet();
         return;
       }
@@ -187,9 +196,19 @@ export function WalletSection({ openRecharge = false, onRechargeOpened }: Props)
               </Button>
             </div>
           ) : (
-            <div className="flex items-center gap-2 text-sm" aria-busy="true">
-              <Loader2 className="size-4 animate-spin" aria-hidden="true" />
-              Chargement du portefeuille…
+            <div className="space-y-4 p-5" aria-busy="true" aria-label="Chargement du portefeuille">
+              <div className="flex items-start justify-between gap-3">
+                <div className="space-y-2">
+                  <Skeleton className="h-3 w-28 bg-white/20" />
+                  <Skeleton className="h-9 w-24 bg-white/25" />
+                  <Skeleton className="h-3 w-32 bg-white/15" />
+                </div>
+                <Skeleton className="h-10 w-28 rounded-xl bg-white/25" />
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <Skeleton className="h-14 rounded-xl bg-white/10" />
+                <Skeleton className="h-14 rounded-xl bg-white/10" />
+              </div>
             </div>
           )
         ) : (
@@ -216,6 +235,8 @@ export function WalletSection({ openRecharge = false, onRechargeOpened }: Props)
                 onClick={() => {
                    setSelectedFcfa(null);
                    setSelectedPaymentMethod(null);
+                   setCustomTokens("");
+                   setCustomTokensOpen(false);
                    setRechargeStep(1);
                    setRechargeOpen(true);
                 }}
@@ -262,6 +283,9 @@ export function WalletSection({ openRecharge = false, onRechargeOpened }: Props)
           <ul className="flex flex-col gap-1.5">
             {filteredTransactions.slice(0, 8).map(tx => {
               const display = movementDisplay(tx);
+              const paymentLabel = tx.providerRef
+                ? PAYMENT_METHOD_LABELS[tx.providerRef as PaymentMethod] ?? tx.providerRef
+                : null;
               return (
                 <li
                   key={tx.id}
@@ -273,6 +297,14 @@ export function WalletSection({ openRecharge = false, onRechargeOpened }: Props)
                   <span className="min-w-0 flex-1">
                     <span className="flex items-center gap-1.5 text-sm font-semibold">
                       {TOKEN_TYPE_LABELS[tx.type] ?? tx.type}
+                      {paymentLabel && (
+                        <Badge
+                          variant="outline"
+                          className="border-primary/20 bg-primary/5 px-1.5 py-0 text-[10px] font-semibold text-primary"
+                        >
+                          {paymentLabel}
+                        </Badge>
+                      )}
                       {tx.status !== "CONFIRMED" && (
                         <Badge
                           variant={tx.status === "PENDING" ? "secondary" : "outline"}
@@ -286,10 +318,15 @@ export function WalletSection({ openRecharge = false, onRechargeOpened }: Props)
                       {relativePublishedLabel(tx.createdAt)}
                     </span>
                   </span>
-                  <span
-                    className={`shrink-0 text-sm font-bold ${display.positive ? "text-success" : "text-primary"}`}
-                  >
-                    {display.amount}
+                  <span className="shrink-0 text-right">
+                    <span className={`block text-sm font-bold ${display.positive ? "text-success" : "text-primary"}`}>
+                      {display.amount} Token{Math.abs(tx.tokens) > 1 ? "s" : ""}
+                    </span>
+                    {tx.amountFcfa !== null && (
+                      <span className={`block text-[10px] ${display.positive ? "text-success/80" : "text-destructive/80"}`}>
+                        {display.positive ? "+" : "−"}{tx.amountFcfa.toLocaleString("fr-FR")} FCFA
+                      </span>
+                    )}
                   </span>
                 </li>
               );
@@ -325,12 +362,44 @@ export function WalletSection({ openRecharge = false, onRechargeOpened }: Props)
             })}
           </div>
           {rechargeStep === 1 && (
-          <div
+          <div className="space-y-3">
+            {customTokensOpen && (
+            <>
+            <div className="relative">
+              <Coins className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-primary" aria-hidden="true" />
+              <Input
+                type="number"
+                min={1}
+                max={100}
+                step={1}
+                inputMode="numeric"
+                value={customTokens}
+                onChange={event => {
+                  const value = event.target.value;
+                  setCustomTokens(value);
+                  const tokens = Number(value);
+                  if (Number.isInteger(tokens) && tokens > 0 && tokens <= 100) {
+                    setSelectedFcfa(tokens * TOKEN_VALUE_FCFA);
+                  } else {
+                    setSelectedFcfa(null);
+                  }
+                }}
+                placeholder="Saisir le nombre de Tokens"
+                aria-label="Nombre de Tokens personnalisé"
+                className="h-11 rounded-xl pl-10"
+              />
+            </div>
+            <p className="text-xs text-muted-foreground">
+              1 Token = {TOKEN_VALUE_FCFA.toLocaleString("fr-FR")} FCFA · maximum 100 Tokens
+            </p>
+            </>
+            )}
+            <div
             role="radiogroup"
-            aria-label="Choisir le montant de la recharge"
+            aria-label="Choisir un montant prédéfini"
             className="grid grid-cols-2 gap-2.5"
           >
-            {RECHARGE_PRESETS_FCFA.map(amount => {
+           {RECHARGE_PRESETS_FCFA.map(amount => {
               const selected = selectedFcfa === amount;
               return (
                 <button
@@ -340,6 +409,7 @@ export function WalletSection({ openRecharge = false, onRechargeOpened }: Props)
                   aria-checked={selected}
                    onClick={() => {
                      setSelectedFcfa(amount);
+                     setCustomTokens(String(amount / TOKEN_VALUE_FCFA));
                      setRechargeStep(2);
                    }}
                   className={`flex flex-col items-center gap-0.5 rounded-xl border p-3.5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
@@ -357,7 +427,16 @@ export function WalletSection({ openRecharge = false, onRechargeOpened }: Props)
                   </span>
                 </button>
               );
-            })}
+           })}
+          </div>
+            <button
+              type="button"
+              onClick={() => setCustomTokensOpen(value => !value)}
+              className="mx-auto flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold text-primary hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <Coins className="size-4" aria-hidden="true" />
+              {customTokensOpen ? "Masquer la saisie" : "Saisir un autre nombre de Tokens"}
+            </button>
           </div>
           )}
           {rechargeStep === 2 && (

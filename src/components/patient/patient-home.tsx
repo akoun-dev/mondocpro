@@ -7,7 +7,7 @@
 // (wallet réel du profil, FEATURE-TOKENS) sont portées par UserDashboard.
 import { useState } from "react"
 import { motion } from "framer-motion"
-import { CalendarCheck, ChevronRight, MapPin } from "lucide-react"
+import { CalendarCheck, ChevronRight, Coins } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import type { PatientData } from "@/hooks/use-patient-data"
 import type { AppointmentDto } from "@/lib/appointments"
@@ -87,12 +87,16 @@ export function PatientHome({
                         className="flex items-center justify-between gap-3"
                     >
                         <span className="inline-flex min-w-0 items-center gap-1.5 rounded-full bg-muted/70 px-3 py-1.5 text-xs font-medium text-foreground">
-                            <MapPin
+                            <Coins
                                 className="size-3.5 shrink-0 text-primary"
                                 aria-hidden="true"
                             />
                             <span className="truncate">
-                                {ZONE_LABELS[user.zone]}, Abidjan
+                                {data.walletLoading
+                                    ? "Chargement du solde…"
+                                    : data.wallet
+                                      ? `${data.wallet.balanceTokens} Token${data.wallet.balanceTokens === 1 ? "" : "s"} disponible${data.wallet.balanceTokens === 1 ? "" : "s"}`
+                                      : "Solde indisponible"}
                             </span>
                         </span>
                         <span
