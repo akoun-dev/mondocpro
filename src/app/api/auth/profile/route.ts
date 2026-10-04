@@ -50,6 +50,7 @@ export async function PATCH(request: Request) {
         zone?: (typeof ZONES)[number];
         appointmentReminders?: boolean;
         healthAlerts?: boolean;
+        theme?: "SYSTEM" | "LIGHT" | "DARK";
     } = {};
     if (parsed.data.fullName !== undefined) data.fullName = parsed.data.fullName;
     if (parsed.data.zone !== undefined) data.zone = parsed.data.zone;
@@ -63,6 +64,9 @@ export async function PATCH(request: Request) {
     }
     if (parsed.data.healthAlerts !== undefined) {
         data.healthAlerts = parsed.data.healthAlerts;
+    }
+    if (parsed.data.theme !== undefined) {
+        data.theme = parsed.data.theme;
     }
 
     try {

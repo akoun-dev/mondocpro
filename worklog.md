@@ -1105,3 +1105,23 @@ Stage Summary:
 - APK debug signé (keystore debug) prêt à installer : download/MondocPro-debug.apk — WebView distante vers https://mondocpro.vercel.app, 13 plugins natifs actifs, icônes+splash au logo
 - Push FCM : à activer par le PO (google-services.json dans android/app/ + FIREBASE_SERVICE_ACCOUNT_JSON sur Vercel, guide .ai/APK_BUILD.md §4) — sans quoi dégradation gracieuse
 - Outils de build reproductibles consignés dans .gitignore (.android-sdk/, .jdk21/) + APK_BUILD.md
+
+---
+Task ID: 37
+Agent: Super Z (principal)
+Task: « Développe le mode sombre, pour chaque utilisateur » (PO)
+
+Work Log:
+- Schéma : enum ThemeMode (SYSTEM/LIGHT/DARK) + User.theme @default(SYSTEM) (supabase/schema.prisma, section FEATURE-PROFIL)
+- Migration 20261005200000_add_user_theme.sql : le DDL direct a heurté 3 obstacles sandbox (db execute --url XOR --schema ; pooler session 5432 saturé EMAXCONNSESSION pool_size 15 — dev server + instances Vercel ; transaction 6543 en stall + direct IPv6 non routé) → contournement : route temporaire /api/dev-migrate (jeton one-time) exécutant le DDL VIA le pool Prisma déjà établi du serveur dev, supprimée aussitôt ; correction clé : table users en snake_case (@@map) — tracking supabase_migrations inséré (le migrate-deploy du PO ne la rejouera pas) ; script scripts/apply-user-theme-migration.ts consigné pour reproductibilité
+- Client Prisma régénéré (theme présent dans le type User)
+- Serveur : toPublicUser + PublicUser.theme (src/lib/auth.ts), updateProfileSchema.theme enum (auth-schemas.ts), PATCH /api/auth/profile → data.theme (route profil) — thème = préférence PAR UTILISATEUR persistée en base
+- Client : src/lib/theme.ts (moteur — localStorage instantané, serveur source de vérité, classe .dark sur <html>, meta theme-color, StatusBar native Capacitor synchronisée, événement mondocpro:theme) ; ThemeInit (layout, boot + sync me() + listener matchMedia pour SYSTEM) ; ThemeToggle (bouton lune/soleil en-tête dashboard, les 2 branches du ternaire) ; ThemeChoice (segmented Système/Clair/Sombre, section « Apparence » des 3 vues profil : patient/infirmier/admin) ; useSyncExternalStore partout (zéro setState-in-effect, zéro mismatch d'hydratation)
+- Palette : .dark déjà complète dans globals.css (dérivations médicales ADR-002) — audit couleurs en dur : seules surblanches volontaires (cartes bleues, drapeau CI) → aucune régression
+- Contrats : API_CONTRACTS.md — theme ajouté au user object (register/login/me) + PATCH profile
+- Validation : eslint 0, tsc src 0 ; E2E PATCH complet à rejouer après redémarrage du serveur dev (le process en cours a un client Prisma périmé sans le champ theme — touch/Turbopack n'invalide pas node_modules, et les démons meurent entre tool-calls : redémarrage impossible sans casser la preview) ; la prod Vercel (build frais, postinstall prisma generate) sera conforme dès le push
+
+Stage Summary:
+- Mode sombre PAR UTILISATEUR complet : User.theme (SYSTEM/LIGHT/DARK), PATCH /api/auth/profile, toggle en-tête + « Apparence » en profil, boot sans flash (localStorage) puis sync serveur, barre de statut native APK synchronisée
+- Limite preview connue : persistance PATCH inactive tant que le serveur dev n'est pas redémarré (client Prisma périmé) — le visuel localStorage fonctionne ; prod OK dès déploiement
+- Découverte infra : pool session Supabase 5432 saturable (pool_size 15) par Vercel en session mode — candidat à un passage prod en Option B (6543 + pgbouncer) et à connection_limit=1 (DEPLOY_VERCEL.md §3)

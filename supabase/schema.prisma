@@ -17,6 +17,15 @@ enum Role {
   ADMIN
 }
 
+// Préférence de thème — FEATURE-DARK-MODE (Task 37).
+// SYSTEM : suit le réglage de l'appareil (prefers-color-scheme) ; LIGHT/DARK :
+// choix explicite de l'utilisateur, persisté en base (pour chaque utilisateur).
+enum ThemeMode {
+  SYSTEM
+  LIGHT
+  DARK
+}
+
 // Zones de couverture (liste fermée définie par le PO)
 enum Zone {
   YOPOUGON
@@ -39,6 +48,10 @@ model User {
   birthDate             DateTime?
   appointmentReminders  Boolean              @default(true)
   healthAlerts          Boolean              @default(true)
+  // FEATURE-DARK-MODE (Task 37) : thème préféré de CET utilisateur, éditable
+  // via PATCH /api/auth/profile (toggle en-tête + section « Apparence » du
+  // profil) et appliqué par ThemeInit (boot localStorage puis sync serveur).
+  theme                 ThemeMode            @default(SYSTEM)
   createdAt           DateTime             @default(now())
   updatedAt           DateTime             @updatedAt
   sessions            Session[]

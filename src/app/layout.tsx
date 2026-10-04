@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google"
 import "./globals.css"
 import { Toaster } from "@/components/ui/toaster"
 import { NativeBootstrap } from "@/components/native/native-bootstrap"
+import { ThemeInit } from "@/components/theme/theme-init"
 
 const geistSans = Geist({
     variable: "--font-geist-sans",
@@ -44,6 +45,8 @@ export default function RootLayout({
                 className={`${geistSans.variable} ${geistMono.variable} antialiased bg-background text-foreground`}
             >
                 {children}
+                {/* FEATURE-DARK-MODE (Task 37) — thème par utilisateur */}
+                <ThemeInit />
                 {/* Task 36 — shell natif Capacitor (no-op dans le navigateur) */}
                 <NativeBootstrap />
                 <Toaster />

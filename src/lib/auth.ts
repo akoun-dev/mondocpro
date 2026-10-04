@@ -5,7 +5,7 @@ import { cookies, headers } from "next/headers"
 import { NextResponse } from "next/server"
 import bcrypt from "bcryptjs"
 import { db } from "@/lib/db"
-import type { Role, Zone } from "@prisma/client"
+import type { Role, ThemeMode, Zone } from "@prisma/client"
 
 // RFC 6265 §4.1.1 : cookie-name est une suite de tokens — ni espace, ni
 // accent, ni « # », ni « / ». Le nom historique « Mon doc Pro_session » était
@@ -22,6 +22,8 @@ const BCRYPT_ROUNDS = 10
 // Profil exposé au client — JAMAIS de passwordHash ni de session interne.
 // FEATURE-PROFIL (Task 22) : birthDate + préférences de notification éditables
 // via PATCH /api/auth/profile (birthDate = Date minuit UTC, sérialisée ISO).
+// FEATURE-DARK-MODE (Task 37) : theme = préférence par utilisateur (SYSTEM,
+// LIGHT ou DARK) appliquée par ThemeInit et persistée en base.
 export type PublicUser = {
     id: string
     fullName: string
@@ -31,6 +33,7 @@ export type PublicUser = {
     birthDate: Date | null
     appointmentReminders: boolean
     healthAlerts: boolean
+    theme: ThemeMode
     createdAt: Date
 }
 
@@ -43,6 +46,7 @@ export function toPublicUser(user: {
     birthDate: Date | null
     appointmentReminders: boolean
     healthAlerts: boolean
+    theme: ThemeMode
     createdAt: Date
 }): PublicUser {
     return {
@@ -54,6 +58,7 @@ export function toPublicUser(user: {
         birthDate: user.birthDate,
         appointmentReminders: user.appointmentReminders,
         healthAlerts: user.healthAlerts,
+        theme: user.theme,
         createdAt: user.createdAt,
     }
 }

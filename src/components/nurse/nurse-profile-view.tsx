@@ -38,6 +38,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { FlagCI } from "@/components/auth/ci-flag";
 import { PasswordChangeDialog } from "@/components/auth/password-change-dialog";
+import { ThemeChoice } from "@/components/theme/theme-choice";
 import {
   ProfileIdentityDialog,
   ProfileZoneDialog,
@@ -348,6 +349,16 @@ export function NurseProfileView({ user, onLogout }: Props) {
               </p>
             </div>
           </div>
+        </div>
+      </section>
+
+      {/* Apparence — FEATURE-DARK-MODE (Task 37) : thème par utilisateur */}
+      <section aria-labelledby="profil-apparence-nurse">
+        <ProfileSectionTitle id="profil-apparence-nurse">
+          Apparence
+        </ProfileSectionTitle>
+        <div className="rounded-xl bg-muted/60 p-4">
+          <ThemeChoice />
         </div>
       </section>
 

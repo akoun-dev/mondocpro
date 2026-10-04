@@ -109,7 +109,7 @@ Validation: schéma zod de référence (src/lib/<domaine>.ts)
 
 - Feature: FEATURE-AUTH (SYS-010) | Owner: Backend | Statut: **VALIDÉ** (ADR-004, maj PO 2026-10)
 - Request: `{ "fullName": string(2..80), "phone": string(regex ^\+?[0-9]{8,15}$), "password": string(8..72), "confirmPassword": string, "zone": "YOPOUGON"|"SONGON"|"PK22"|"NDOTRE" }`
-- Response: 201 `{ "user": { "id": string, "fullName": string, "phone": string, "role": string, "zone": string, "birthDate": string|null, "appointmentReminders": boolean, "healthAlerts": boolean, "createdAt": string } }` — cookie de session posé
+- Response: 201 `{ "user": { "id": string, "fullName": string, "phone": string, "role": string, "zone": string, "birthDate": string|null, "appointmentReminders": boolean, "healthAlerts": boolean, "theme": "SYSTEM"|"LIGHT"|"DARK", "createdAt": string } }` — cookie de session posé
 - Errors: 400 `{ error, details }` (zod) · 409 `{ error }` numéro déjà inscrit · 500
 - Notes: **rôle `PATIENT` forcé côté serveur** (décision PO 2026-10 : pas de choix de rôle à l'inscription ; toute valeur `role` cliente est ignorée) ; `NURSE`/`ADMIN` créés par l'administration ; `confirmPassword` validé = `password` ; jamais de retour de `passwordHash`.
 
@@ -130,7 +130,7 @@ Validation: schéma zod de référence (src/lib/<domaine>.ts)
 ### [PATCH] /api/auth/profile — Éditer son profil (FEATURE-PROFIL, Task 22/23)
 
 - Feature: FEATURE-PROFIL | Owner: Backend | Statut: **IMPLÉMENTÉ** (Task 22/23, 2026-10-03)
-- Request: `{ "fullName"?: string(2..80), "birthDate"?: string("AAAA-MM-JJ", passée) | null, "zone"?: "YOPOUGON" | "SONGON" | "PK22" | "NDOTRE", "appointmentReminders"?: boolean, "healthAlerts"?: boolean }` — delta sémantique : seuls les champs fournis sont modifiés ; `birthDate: null` efface (« Non renseignée ») ; au moins un champ requis. **`phone`/`role` absents du contrat Zod** → stripped : un corps qui ne contient qu'eux est refusé 400 (le user ciblé = session, jamais le corps). `zone` éditable depuis la Task 23 (secteur d'habitation, même liste fermée que l'inscription)
+- Request: `{ "fullName"?: string(2..80), "birthDate"?: string("AAAA-MM-JJ", passée) | null, "zone"?: "YOPOUGON" | "SONGON" | "PK22" | "NDOTRE", "appointmentReminders"?: boolean, "healthAlerts"?: boolean, "theme"?: "SYSTEM" | "LIGHT" | "DARK" }` — delta sémantique : seuls les champs fournis sont modifiés ; `birthDate: null` efface (« Non renseignée ») ; au moins un champ requis. **`phone`/`role` absents du contrat Zod** → stripped : un corps qui ne contient qu'eux est refusé 400 (le user ciblé = session, jamais le corps). `zone` éditable depuis la Task 23 (secteur d'habitation, même liste fermée que l'inscription). `theme` éditable depuis la Task 37 (FEATURE-DARK-MODE : préférence de thème par utilisateur — toggle en-tête dashboard LIGHT/DARK + sélecteur « Apparence » du profil SYSTEM/LIGHT/DARK ; appliqué par ThemeInit qui privilégie le serveur au boot)
 - Response: 200 `{ "user": { ...idem register } }` — vérité serveur renvoyée (le front réaligne son store dessus)
 - Errors: 400 `{ error, details }` (zod : nom, format/passage de la date, « Aucune modification fournie ») · 401 `{ error }` non authentifié · 500
 - Notes: tous rôles authentifiés (chacun édite SON profil) ; naissance stockée à minuit UTC (Afrique/Abidjan = UTC+0) ; préférences = opt-out par défaut `true` (rappels RDV **SMS** 24 h avant · alertes de santé locales) ; schéma Zod partagé front/back (`updateProfileSchema`, src/lib/auth-schemas.ts) ; E2E `scripts/e2e-profile-edit.sh` + `scripts/e2e-sector-reminders.sh`.

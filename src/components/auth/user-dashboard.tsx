@@ -34,6 +34,7 @@ import {
     type LucideIcon,
 } from "lucide-react"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { ThemeToggle } from "@/components/theme/theme-toggle"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -561,6 +562,8 @@ export function UserDashboard() {
                     </div>
                     {isNotificationUser ? (
                         <div className="flex items-center gap-1 sm:gap-1.5">
+                            {/* FEATURE-DARK-MODE (Task 37) — bascule clair/sombre */}
+                            <ThemeToggle />
                             <Popover
                                 open={notifOpen}
                                 onOpenChange={open => {
@@ -779,6 +782,8 @@ export function UserDashboard() {
                         </div>
                     ) : (
                         <div className="flex items-center gap-2">
+                            {/* FEATURE-DARK-MODE (Task 37) */}
+                            <ThemeToggle />
                             <div className="flex flex-col items-end gap-0.5">
                                 <span className="max-w-[10rem] truncate text-sm font-medium sm:max-w-none">
                                     {user.fullName}

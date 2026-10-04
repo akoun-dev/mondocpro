@@ -134,6 +134,9 @@ export const updateProfileSchema = z
     zone: z.enum(ZONES, { message: "Zone invalide" }).optional(),
     appointmentReminders: z.boolean().optional(),
     healthAlerts: z.boolean().optional(),
+    // FEATURE-DARK-MODE (Task 37) : préférence de thème par utilisateur —
+    // SYSTEM suit le réglage de l'appareil, LIGHT/DARK sont explicites.
+    theme: z.enum(["SYSTEM", "LIGHT", "DARK"], { message: "Thème invalide" }).optional(),
   })
   .refine((d) => Object.values(d).some((v) => v !== undefined), {
     message: "Aucune modification fournie",

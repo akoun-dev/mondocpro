@@ -38,6 +38,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { FlagCI } from "@/components/auth/ci-flag";
 import { PasswordChangeDialog } from "@/components/auth/password-change-dialog";
+import { ThemeChoice } from "@/components/theme/theme-choice";
 import { ProfileIdentityDialog, ProfileZoneDialog } from "@/components/profile/profile-edit-dialogs";
 import {
   InfoRow,
@@ -332,6 +333,16 @@ export function AdminProfileView({ user, onLogout }: Props) {
               </p>
             </div>
           </div>
+        </div>
+      </section>
+
+      {/* Apparence — FEATURE-DARK-MODE (Task 37) : thème par utilisateur */}
+      <section aria-labelledby="profil-apparence-admin">
+        <ProfileSectionTitle id="profil-apparence-admin">
+          Apparence
+        </ProfileSectionTitle>
+        <div className="rounded-xl bg-muted/60 p-4">
+          <ThemeChoice />
         </div>
       </section>
 

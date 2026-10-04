@@ -56,6 +56,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { FlagCI } from "@/components/auth/ci-flag";
+import { ThemeChoice } from "@/components/theme/theme-choice";
 import {
   InfoRow,
   PreferenceRow,
@@ -404,6 +405,19 @@ export function ProfileView({ user, onLogout }: Props) {
               </p>
             </div>
           </div>
+        </div>
+      </section>
+
+      {/* Apparence — FEATURE-DARK-MODE (Task 37) : thème par utilisateur */}
+      <section aria-labelledby="profil-apparence">
+        <h3
+          id="profil-apparence"
+          className="mb-2.5 text-[15px] font-bold tracking-tight"
+        >
+          Apparence
+        </h3>
+        <div className="rounded-xl bg-muted/60 p-4">
+          <ThemeChoice />
         </div>
       </section>
 
