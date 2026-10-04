@@ -73,6 +73,7 @@ import { RechargesView } from "@/components/admin/recharges-view"
 import { WalletSection } from "@/components/patient/wallet-section"
 import { TariffsView } from "@/components/admin/tariffs-view"
 import { NurseMissionsView } from "@/components/nurse/nurse-missions-view"
+import { NurseProfileView } from "@/components/nurse/nurse-profile-view"
 import {
     AdminMenuButton,
     AdminSidebar,
@@ -1046,6 +1047,14 @@ export function UserDashboard() {
                                 // Profil patient — maquette PO 2026-10-03
                                 // (héro, infos, sécurité RGPD, préférences, urgences)
                                 <ProfileView
+                                    user={user}
+                                    onLogout={handleLogout}
+                                />
+                            ) : user.role === "NURSE" ? (
+                                // Profil infirmier complet — Task 34 : activité
+                                // missions réelle, infos éditables, mot de passe
+                                // fonctionnel, préférences persistées.
+                                <NurseProfileView
                                     user={user}
                                     onLogout={handleLogout}
                                 />

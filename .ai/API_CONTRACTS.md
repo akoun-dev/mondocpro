@@ -227,6 +227,14 @@ Validation: schéma zod de référence (src/lib/<domaine>.ts)
 - Response: 200 `{ "ok": true }` — mot de passe mis à jour (bcrypt), **toutes les sessions du compte révoquées**
 - Errors: 400 `{ error: "Code invalide ou expiré — demandez un nouveau code" }` (générique : code faux/expiré/utilisé/compte absent indistinguables) · 400 `{ error, details }` (zod) · 500
 
+### [POST] /api/auth/change-password — Changement de mot de passe (session active)
+
+- Feature: FEATURE-NURSE-PROFIL (Task 34, réutilisable tous rôles) | Owner: Backend | Statut: **IMPLÉMENTÉ** (2026-10-04)
+- Request: `{ "currentPassword": string, "password": string(8..72), "confirmPassword": string }` (cookie de session)
+- Response: 200 `{ "ok": true }` — mot de passe mis à jour (bcrypt) ; **les autres sessions du compte sont révoquées**, la session courante est préservée
+- Errors: 400 `{ error, details: [{ field: "currentPassword", message: "Mot de passe actuel incorrect" }] }` · 400 `{ error, details: [{ field: "password", message: "Le nouveau mot de passe doit être différent de l'actuel" }] }` · 400 `{ error, details }` (zod : robustesse 8..72, confirmation) · 401 non authentifié · 500
+- Notes: l'utilisateur ciblé est toujours celui de la session (jamais pris du corps) ; comparaison anti timing-attack (hash factice) ; diffère du flux forgot/reset (US-AUTH-5) qui reste la voie hors session / code SMS (ADR-006). Branché sur la vue profil infirmier (Task 34) ; disponible pour patient/admin à l'avenir.
+
 ### [POST] /api/auth/logout — Déconnexion
 
 - Feature: FEATURE-AUTH (SYS-010) | Owner: Backend | Statut: **VALIDÉ** (ADR-004)

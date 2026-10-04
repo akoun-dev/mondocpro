@@ -87,6 +87,28 @@ export const resetPasswordSchema = z
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
 
+// ——— FEATURE-NURSE-PROFIL (Task 34) — changement de mot de passe authentifié ———
+// Mêmes règles de robustesse que l'inscription (source unique : registerBase).
+// currentPassword : requise (preuve de possession avant modification) ;
+// le refus d'un nouveau mot de passe identique à l'actuel est vérifié côté
+// serveur (comparaison bcrypt), pas ici (le hash actuel n'existe pas côté
+// client).
+export const changePasswordSchema = z
+  .object({
+    currentPassword: z.string().min(1, "Mot de passe actuel requis"),
+    password: z
+      .string()
+      .min(8, "Le mot de passe doit contenir au moins 8 caractères")
+      .max(72, "Le mot de passe ne peut pas dépasser 72 caractères"),
+    confirmPassword: z.string(),
+  })
+  .refine((d) => d.password === d.confirmPassword, {
+    message: "Les mots de passe ne correspondent pas",
+    path: ["confirmPassword"],
+  });
+
+export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
+
 // ——— FEATURE-PROFIL (Task 22/23) — édition du profil (PATCH /api/auth/profile) ———
 // Champs modifiables : nom complet, date de naissance, secteur d'habitation
 // (zone — Task 23, « sur le même modèle » que nom/naissance) et préférences de

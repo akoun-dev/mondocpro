@@ -30,3 +30,14 @@ Le schéma Prisma est `supabase/schema.prisma`. La migration additive est `supab
 Le rôle `NURSE` dispose d'une navigation Accueil / Missions / Profil. La vue Missions charge les missions appartenant à la session, expose les transitions autorisées et permet de soumettre un compte-rendu avant la clôture.
 
 Le rôle `ADMIN` peut lire la file via `GET /api/admin/missions`, affecter une mission via `POST /api/admin/missions` et réaffecter via `PATCH /api/admin/missions/:id`.
+
+## Profil infirmier (Task 34 — FEATURE-NURSE-PROFIL)
+
+La vue Profil infirmier reprend le langage visuel du profil patient (héro avatar + badge « Infirmier », sections en lignes, bandeau RGPD, urgences Abidjan) et ajoute :
+
+- **Activité de terrain** : statistiques réelles calculées depuis `GET /api/nurse/missions` (missions reçues, en cours, terminées, comptes rendus rédigés). Échec de chargement ⇒ section masquée, le profil reste utilisable.
+- **Informations professionnelles éditables** : nom complet, date de naissance, secteur d'intervention (zone) — via `PATCH /api/auth/profile` (cible = session, jamais le corps).
+- **Sécurité & Accès** : changement de mot de passe **fonctionnel** via `POST /api/auth/change-password` (preuve par le mot de passe actuel ; les autres sessions sont révoquées, la session courante est préservée). Le flux code SMS (US-AUTH-5) reste la voie hors session (ADR-006).
+- **Préférences persistées** : rappels de missions/RDV et alertes de santé (mêmes champs User que le patient).
+
+Les primitives présentationnelles (InfoRow, PreferenceRow) sont partagées avec le profil patient dans `src/components/profile/profile-primitives.tsx`.

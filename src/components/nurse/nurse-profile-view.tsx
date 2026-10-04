@@ -1,23 +1,19 @@
 "use client";
 
-// Vue « Profil » patient — maquette PO 2026-10-03 (pastedImage 1790992312025.png) :
-// héro avatar + nom + pastille zone, « Informations Personnelles » (naissance /
-// mobile actif / secteur), « Sécurité & Accès » (mot de passe + bandeau RGPD loi
-// ivoirienne 2013-430), « Préférences & Alertes » (rappels RDV, alertes locales,
-// langue), « Urgences Médicales Abidjan » (SAMU 185 / Pompiers 180, liens tel:)
-// et « Centre d'aide & Assistance ».
-// Task 22 : le nom et la date de naissance sont ÉDITABLES (dialog → PATCH
-// /api/auth/profile, mise à jour du store auth) et les préférences « Rappels
-// de rendez-vous » / « Alertes de santé locales » sont PERSISTÉES (maj
-// optimiste + revert en cas d'échec).
-// Task 23 : le secteur d'habitation devient éditable « sur le même modèle »
-// (dialog dédié → PATCH zone → store) ; les rappels RDV sont précisés PO :
-// UNIQUEMENT avant les RDV. Restent en état « Bientôt » honnête : mot de
-// passe (code SMS), centre d'aide.
-// Task 24 : les rappels RDV arrivent aussi EN APP (centre de notifications,
-// cloche du header) dès aujourd'hui ; le canal SMS reste en attente de la
-// décision A10 (ADR-006 : comparatif des passerelles).
-import { useState } from "react";
+// Vue « Profil » infirmier — FEATURE-NURSE-PROFIL (Task 34).
+// Même langage visuel que la vue profil patient (maquette PO 2026-10-03) :
+// héro avatar + nom + pastille zone, sections en lignes InfoRow, bandeau RGPD,
+// urgences Abidjan. Spécifique infirmier :
+//   - carte « Activité » : statistiques RÉELLES issues de /api/nurse/missions
+//     (missions actives, terminées, comptes rendus rédigés) ;
+//   - « Informations professionnelles » : nom, mobile actif, secteur
+//     d'intervention (zone), date de naissance — éditables (PATCH profil) ;
+//   - « Sécurité & Accès » : changement de mot de passe FONCTIONNEL
+//     (POST /api/auth/change-password — dialogue PasswordChangeDialog), la
+//     voie par code SMS restant l'option de secours hors session (ADR-006).
+// Préférences : interrupteurs persistés (maj optimiste + revert), comme côté
+// patient (Task 22/23) — primitives partagées components/profile/.
+import { useEffect, useState } from "react";
 import {
   Ambulance,
   BellRing,
@@ -35,6 +31,7 @@ import {
   Pencil,
   ShieldCheck,
   Smartphone,
+  Stethoscope,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -56,9 +53,11 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { FlagCI } from "@/components/auth/ci-flag";
+import { PasswordChangeDialog } from "@/components/auth/password-change-dialog";
 import {
   InfoRow,
   PreferenceRow,
+  ProfileSectionTitle,
   soonToast,
 } from "@/components/profile/profile-primitives";
 import { toast } from "@/hooks/use-toast";
@@ -78,27 +77,87 @@ type Props = {
   onLogout: () => void;
 };
 
-// InfoRow / PreferenceRow / soonToast : primitives partagées avec la vue
-// profil infirmier (Task 34) — extraites dans components/profile/.
+// Statistiques d'activité — contrats repris de NurseMissionsView (FEATURE-
+// NURSE) : statut COMPLETED ⇔ mission terminée, report présent ⇔ compte
+// rendu rédigé. Échec de chargement = carte masquée (le profil reste utilisable).
+type MissionLite = {
+  status:
+    | "ASSIGNED"
+    | "ACCEPTED"
+    | "IN_PROGRESS"
+    | "COMPLETED"
+    | "CANCELLED";
+  report?: { observations?: string } | null;
+};
 
-export function ProfileView({ user, onLogout }: Props) {
+type MissionStats = {
+  total: number;
+  active: number;
+  completed: number;
+  reports: number;
+};
+
+function useMissionStats(enabled: boolean): MissionStats | null {
+  const [stats, setStats] = useState<MissionStats | null>(null);
+
+  useEffect(() => {
+    if (!enabled) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/nurse/missions", { cache: "no-store" });
+        if (!res.ok) return;
+        const payload = (await res.json()) as
+          | { missions?: MissionLite[] }
+          | MissionLite[];
+        const missions = Array.isArray(payload)
+          ? payload
+          : payload.missions ?? [];
+        if (cancelled) return;
+        setStats({
+          total: missions.length,
+          active: missions.filter((m) =>
+            ["ASSIGNED", "ACCEPTED", "IN_PROGRESS"].includes(m.status)
+          ).length,
+          completed: missions.filter((m) => m.status === "COMPLETED").length,
+          reports: missions.filter((m) => m.report).length,
+        });
+      } catch {
+        // silencieux : la carte activité n'est pas critique
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [enabled]);
+
+  return stats;
+}
+
+export function NurseProfileView({ user, onLogout }: Props) {
   const setUser = useAuthStore((s) => s.setUser);
+  const stats = useMissionStats(true);
 
-  // — Édition des informations (nom + date de naissance) — dialog dédié.
+  // — Édition des informations (nom + date de naissance) — même modèle que
+  // le profil patient : dialog dédié → PATCH /api/auth/profile → store.
   const [editOpen, setEditOpen] = useState(false);
   const [fullName, setFullName] = useState(user.fullName);
-  const [birthDate, setBirthDate] = useState(user.birthDate?.slice(0, 10) ?? "");
+  const [birthDate, setBirthDate] = useState(
+    user.birthDate?.slice(0, 10) ?? ""
+  );
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
 
-  // — Édition du secteur d'habitation (Task 23) — même modèle : dialog →
-  // PATCH { zone } → store. Brouillon réinitialisé à chaque ouverture.
+  // — Édition du secteur d'intervention — même modèle.
   const [zoneOpen, setZoneOpen] = useState(false);
   const [zoneDraft, setZoneDraft] = useState<AppUser["zone"]>(user.zone);
   const [zoneError, setZoneError] = useState<string | undefined>(undefined);
   const [zoneSaving, setZoneSaving] = useState(false);
 
-  // — Préférences (rappels RDV / alertes locales) — maj optimiste persistée.
+  // — Mot de passe (fonctionnel, Task 34).
+  const [passwordOpen, setPasswordOpen] = useState(false);
+
+  // — Préférences — maj optimiste persistée.
   const [prefSaving, setPrefSaving] = useState<
     "appointmentReminders" | "healthAlerts" | null
   >(null);
@@ -106,8 +165,6 @@ export function ProfileView({ user, onLogout }: Props) {
   const memberSince = `Membre · ${relativePublishedLabel(user.createdAt)}`;
 
   function openEdit() {
-    // Réinitialise le brouillon depuis l'état courant à chaque ouverture
-    // (annulation = aucune trace, erreurs effacées).
     setFullName(user.fullName);
     setBirthDate(user.birthDate?.slice(0, 10) ?? "");
     setFieldErrors({});
@@ -120,10 +177,65 @@ export function ProfileView({ user, onLogout }: Props) {
     setZoneOpen(true);
   }
 
+  async function handleSave(event: React.FormEvent) {
+    event.preventDefault();
+    const parsed = updateProfileSchema.safeParse({
+      fullName: fullName.trim(),
+      birthDate: birthDate === "" ? null : birthDate,
+    });
+    if (!parsed.success) {
+      setFieldErrors(zodIssuesToFieldErrors(parsed.error));
+      return;
+    }
+    setFieldErrors({});
+    setSaving(true);
+    try {
+      const res = await fetch("/api/auth/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(parsed.data),
+      });
+      if (res.ok) {
+        const data = (await res.json()) as { user: AppUser };
+        setUser(data.user);
+        toast({
+          title: "Profil mis à jour",
+          description: "Vos informations ont bien été enregistrées.",
+        });
+        setEditOpen(false);
+        return;
+      }
+      const body = (await res.json().catch(() => ({}))) as {
+        error?: string;
+        details?: Array<{ field: string; message: string }>;
+      };
+      const errors: Record<string, string> = {};
+      for (const detail of body.details ?? []) {
+        if (detail?.field && detail?.message && !(detail.field in errors)) {
+          errors[detail.field] = detail.message;
+        }
+      }
+      setFieldErrors(errors);
+      toast({
+        variant: "destructive",
+        title: "Modification impossible",
+        description:
+          body.error ?? "Veuillez corriger les champs signalés puis réessayez.",
+      });
+    } catch {
+      toast({
+        variant: "destructive",
+        title: "Modification impossible",
+        description:
+          "Impossible de contacter le serveur. Vérifiez votre connexion internet puis réessayez.",
+      });
+    } finally {
+      setSaving(false);
+    }
+  }
+
   async function handleZoneSave(event: React.FormEvent) {
     event.preventDefault();
-    // Même schéma Zod que le serveur (source unique des règles) — la liste
-    // fermée des zones est celle de l'inscription.
     const parsed = updateProfileSchema.safeParse({ zone: zoneDraft });
     if (!parsed.success) {
       setZoneError(zodIssuesToFieldErrors(parsed.error).zone ?? "Zone invalide");
@@ -139,10 +251,10 @@ export function ProfileView({ user, onLogout }: Props) {
       });
       if (res.ok) {
         const data = (await res.json()) as { user: AppUser };
-        setUser(data.user); // héro + ligne secteur se re-rendent avec la zone
+        setUser(data.user);
         toast({
           title: "Secteur mis à jour",
-          description: `Votre secteur d'habitation est désormais ${ZONE_LABELS[data.user.zone]}.`,
+          description: `Votre secteur d'intervention est désormais ${ZONE_LABELS[data.user.zone]}.`,
         });
         setZoneOpen(false);
         return;
@@ -167,72 +279,9 @@ export function ProfileView({ user, onLogout }: Props) {
     }
   }
 
-  async function handleSave(event: React.FormEvent) {
-    event.preventDefault();
-    // Même schéma Zod que le serveur (source unique des règles) : nom 2-80,
-    // naissance AAAA-MM-JJ passée — vide = effacer la valeur.
-    const parsed = updateProfileSchema.safeParse({
-      fullName: fullName.trim(),
-      birthDate: birthDate === "" ? null : birthDate,
-    });
-    if (!parsed.success) {
-      setFieldErrors(zodIssuesToFieldErrors(parsed.error));
-      return;
-    }
-    setFieldErrors({});
-    setSaving(true);
-    try {
-      const res = await fetch("/api/auth/profile", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(parsed.data),
-      });
-      if (res.ok) {
-        const data = (await res.json()) as { user: AppUser };
-        setUser(data.user); // héro + lignes se re-rendent avec les nouvelles valeurs
-        toast({
-          title: "Profil mis à jour",
-          description: "Vos informations ont bien été enregistrées.",
-        });
-        setEditOpen(false);
-        return;
-      }
-      const body = (await res.json().catch(() => ({}))) as {
-        error?: string;
-        details?: Array<{ field: string; message: string }>;
-      };
-      const errors: Record<string, string> = {};
-      for (const detail of body.details ?? []) {
-        if (
-          detail?.field &&
-          detail?.message &&
-          !(detail.field in errors)
-        ) {
-          errors[detail.field] = detail.message;
-        }
-      }
-      setFieldErrors(errors);
-      toast({
-        variant: "destructive",
-        title: "Modification impossible",
-        description:
-          body.error ?? "Veuillez corriger les champs signalés puis réessayez.",
-      });
-    } catch {
-      toast({
-        variant: "destructive",
-        title: "Modification impossible",
-        description:
-          "Impossible de contacter le serveur. Vérifiez votre connexion internet puis réessayez.",
-      });
-    } finally {
-      setSaving(false);
-    }
-  }
-
   async function updatePreference(
     key: "appointmentReminders" | "healthAlerts",
-    value: boolean,
+    value: boolean
   ) {
     const previous = user[key];
     const label =
@@ -240,7 +289,7 @@ export function ProfileView({ user, onLogout }: Props) {
         ? "Rappels de rendez-vous"
         : "Alertes de santé locales";
     setPrefSaving(key);
-    setUser({ ...user, [key]: value }); // retour immédiat (interrupteur)
+    setUser({ ...user, [key]: value });
     try {
       const res = await fetch("/api/auth/profile", {
         method: "PATCH",
@@ -249,7 +298,7 @@ export function ProfileView({ user, onLogout }: Props) {
       });
       if (!res.ok) throw new Error(`PATCH ${key} → ${res.status}`);
       const data = (await res.json()) as { user: AppUser };
-      setUser(data.user); // réaligne sur la vérité serveur
+      setUser(data.user);
       toast({
         title: value ? `${label} activés` : `${label} désactivés`,
         description: value
@@ -257,7 +306,7 @@ export function ProfileView({ user, onLogout }: Props) {
           : "Vous ne recevrez plus ces notifications.",
       });
     } catch {
-      setUser({ ...user, [key]: previous }); // revert visuel
+      setUser({ ...user, [key]: previous });
       toast({
         variant: "destructive",
         title: "Modification impossible",
@@ -270,7 +319,7 @@ export function ProfileView({ user, onLogout }: Props) {
 
   return (
     <div className="flex flex-col gap-6">
-      {/* Héro : avatar + nom + pastille zone (maquette, centré) */}
+      {/* Héro : avatar + nom + badge rôle + pastille zone (style patient) */}
       <div className="flex flex-col items-center gap-2.5 pt-1 text-center">
         <div className="relative">
           <span
@@ -287,9 +336,18 @@ export function ProfileView({ user, onLogout }: Props) {
           </span>
         </div>
         <div>
-          <h2 className="text-lg font-bold tracking-tight">{user.fullName}</h2>
-          {/* Zone + ancienneté : l'ancienneté dépend de l'horloge du device
-              (relatif) → suppressHydrationWarning comme ailleurs dans l'app. */}
+          <div className="flex flex-wrap items-center justify-center gap-2">
+            <h2 className="text-lg font-bold tracking-tight">
+              {user.fullName}
+            </h2>
+            <Badge
+              className="bg-success text-success-foreground"
+              aria-label="Rôle : Infirmier"
+            >
+              <Stethoscope className="size-3" aria-hidden="true" />
+              Infirmier
+            </Badge>
+          </div>
           <p className="mt-1 flex flex-wrap items-center justify-center gap-1 text-xs text-muted-foreground">
             <MapPin className="size-3" aria-hidden="true" />
             {ZONE_LABELS[user.zone]}
@@ -299,25 +357,53 @@ export function ProfileView({ user, onLogout }: Props) {
         </div>
       </div>
 
-      {/* Informations Personnelles — nom + naissance éditables (dialog) */}
-      <section aria-labelledby="profil-infos">
-        <div className="mb-2.5 flex items-center justify-between gap-2">
-          <h3
-            id="profil-infos"
-            className="text-[15px] font-bold tracking-tight"
-          >
-            Informations Personnelles
-          </h3>
-          <button
-            type="button"
-            onClick={openEdit}
-            aria-label="Modifier mes informations personnelles"
-            className="flex shrink-0 items-center gap-1 rounded-full px-2 py-1 text-xs font-semibold text-primary transition-colors hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            <Pencil className="size-3.5" aria-hidden="true" />
-            Modifier
-          </button>
-        </div>
+      {/* Activité — statistiques réelles des missions (masquée si échec API) */}
+      {stats ? (
+        <section aria-labelledby="profil-activite">
+          <ProfileSectionTitle id="profil-activite">
+            Activité de terrain
+          </ProfileSectionTitle>
+          <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
+            {[
+              { value: stats.total, label: "Missions reçues" },
+              { value: stats.active, label: "En cours" },
+              { value: stats.completed, label: "Terminées" },
+              { value: stats.reports, label: "Comptes rendus" },
+            ].map((tile) => (
+              <div
+                key={tile.label}
+                className="flex flex-col items-center gap-0.5 rounded-xl bg-muted/60 p-4 text-center"
+              >
+                <span className="text-xl font-extrabold tracking-tight text-primary">
+                  {tile.value}
+                </span>
+                <span className="text-xs text-muted-foreground">
+                  {tile.label}
+                </span>
+              </div>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
+      {/* Informations professionnelles — nom + naissance éditables (dialog) */}
+      <section aria-labelledby="profil-infos-nurse">
+        <ProfileSectionTitle
+          id="profil-infos-nurse"
+          action={
+            <button
+              type="button"
+              onClick={openEdit}
+              aria-label="Modifier mes informations professionnelles"
+              className="flex shrink-0 items-center gap-1 rounded-full px-2 py-1 text-xs font-semibold text-primary transition-colors hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <Pencil className="size-3.5" aria-hidden="true" />
+              Modifier
+            </button>
+          }
+        >
+          Informations professionnelles
+        </ProfileSectionTitle>
         <div className="flex flex-col gap-2.5">
           <InfoRow
             icon={Cake}
@@ -333,7 +419,7 @@ export function ProfileView({ user, onLogout }: Props) {
               />
             }
             onClick={openEdit}
-            actionLabel="Modifier mes informations personnelles (nom et date de naissance)"
+            actionLabel="Modifier mes informations professionnelles (nom et date de naissance)"
           />
           <InfoRow
             icon={Smartphone}
@@ -353,7 +439,7 @@ export function ProfileView({ user, onLogout }: Props) {
           />
           <InfoRow
             icon={MapPin}
-            label="Secteur d'habitation"
+            label="Secteur d'intervention"
             value={ZONE_LABELS[user.zone]}
             accessory={
               <Pencil
@@ -362,32 +448,30 @@ export function ProfileView({ user, onLogout }: Props) {
               />
             }
             onClick={openZoneEdit}
-            actionLabel="Modifier le secteur d'habitation"
+            actionLabel="Modifier le secteur d'intervention"
           />
         </div>
       </section>
 
-      {/* Sécurité & Accès */}
-      <section aria-labelledby="profil-securite">
-        <h3 id="profil-securite" className="mb-2.5 text-[15px] font-bold tracking-tight">
+      {/* Sécurité & Accès — mot de passe FONCTIONNEL (Task 34) */}
+      <section aria-labelledby="profil-securite-nurse">
+        <ProfileSectionTitle id="profil-securite-nurse">
           Sécurité &amp; Accès
-        </h3>
+        </ProfileSectionTitle>
         <div className="flex flex-col gap-2.5">
           <InfoRow
             icon={LockKeyhole}
             label="Modifier le mot de passe"
-            value="Par code SMS — à venir"
-            valueMuted
+            value="Par vérification du mot de passe actuel"
             accessory={
               <ChevronRight
                 className="size-4 shrink-0 text-muted-foreground"
                 aria-hidden="true"
               />
             }
-            onClick={() => soonToast("Le changement de mot de passe")}
-            actionLabel="Modifier le mot de passe (bientôt disponible)"
+            onClick={() => setPasswordOpen(true)}
+            actionLabel="Modifier le mot de passe"
           />
-          {/* Bandeau conformité — loi ivoirienne sur les données personnelles */}
           <div className="flex items-start gap-3 rounded-xl bg-success-light p-4">
             <ShieldCheck
               className="mt-0.5 size-5 shrink-0 text-success-foreground"
@@ -398,28 +482,26 @@ export function ProfileView({ user, onLogout }: Props) {
                 Conformité de bout en bout
               </p>
               <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                Vos données médicales sont protégées selon la loi ivoirienne
-                n°&nbsp;2013-430 du 14 mai 2013 relative à la protection des
-                données à caractère personnel.
+                Les données patients confiées lors de vos missions sont
+                protégées selon la loi ivoirienne n°&nbsp;2013-430 du 14 mai
+                2013 relative à la protection des données à caractère
+                personnel.
               </p>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Préférences & Alertes */}
-      <section aria-labelledby="profil-preferences">
-        <h3
-          id="profil-preferences"
-          className="mb-2.5 text-[15px] font-bold tracking-tight"
-        >
+      {/* Préférences & Alertes — interrupteurs persistés (PATCH profil) */}
+      <section aria-labelledby="profil-preferences-nurse">
+        <ProfileSectionTitle id="profil-preferences-nurse">
           Préférences &amp; Alertes
-        </h3>
+        </ProfileSectionTitle>
         <div className="flex flex-col gap-2.5">
           <PreferenceRow
             icon={BellRing}
             title="Rappels de rendez-vous"
-            description="Un rappel 24 h avant chacun de vos rendez-vous — notification dans l'app active ; SMS dès le choix de la passerelle."
+            description="Un rappel avant chacune de vos missions affectées — notification dans l'app ; SMS dès le choix de la passerelle."
             switchLabel="Rappels de rendez-vous"
             checked={user.appointmentReminders}
             disabled={prefSaving !== null}
@@ -459,11 +541,14 @@ export function ProfileView({ user, onLogout }: Props) {
 
       {/* Urgences Médicales Abidjan — numéros réels, appel direct */}
       <section
-        aria-labelledby="profil-urgences"
+        aria-labelledby="profil-urgences-nurse"
         className="rounded-2xl border border-destructive/20 bg-destructive/5 p-4"
       >
         <div className="flex items-center justify-between gap-2">
-          <h3 id="profil-urgences" className="text-sm font-bold text-destructive">
+          <h3
+            id="profil-urgences-nurse"
+            className="text-sm font-bold text-destructive"
+          >
             Urgences Médicales Abidjan
           </h3>
           <span className="shrink-0 rounded-full bg-destructive/10 px-2 py-0.5 text-[10px] font-semibold text-destructive">
@@ -520,7 +605,7 @@ export function ProfileView({ user, onLogout }: Props) {
             <DialogTitle>Modifier mes informations</DialogTitle>
             <DialogDescription>
               Votre nom et votre date de naissance complètent votre dossier
-              patient.
+              professionnel.
             </DialogDescription>
           </DialogHeader>
           <form
@@ -529,9 +614,9 @@ export function ProfileView({ user, onLogout }: Props) {
             className="flex flex-col gap-4"
           >
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="profile-fullname">Nom complet</Label>
+              <Label htmlFor="nurse-profile-fullname">Nom complet</Label>
               <Input
-                id="profile-fullname"
+                id="nurse-profile-fullname"
                 name="fullName"
                 autoComplete="name"
                 value={fullName}
@@ -547,9 +632,11 @@ export function ProfileView({ user, onLogout }: Props) {
               ) : null}
             </div>
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="profile-birthdate">Date de naissance</Label>
+              <Label htmlFor="nurse-profile-birthdate">
+                Date de naissance
+              </Label>
               <Input
-                id="profile-birthdate"
+                id="nurse-profile-birthdate"
                 name="birthDate"
                 type="date"
                 value={birthDate}
@@ -593,15 +680,15 @@ export function ProfileView({ user, onLogout }: Props) {
         </DialogContent>
       </Dialog>
 
-      {/* Dialog d'édition du secteur d'habitation (Task 23 — même modèle que
-          nom/naissance : Zod partagé → PATCH { zone } → store) */}
+      {/* Dialog d'édition du secteur d'intervention (même modèle que le
+          profil patient — Zod partagé → PATCH { zone } → store) */}
       <Dialog open={zoneOpen} onOpenChange={setZoneOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Modifier mon secteur</DialogTitle>
             <DialogDescription>
-              Votre secteur d&apos;habitation détermine les équipes soignantes
-              et les alertes qui vous sont proposées.
+              Votre secteur d&apos;intervention détermine les missions qui
+              vous sont affectées.
             </DialogDescription>
           </DialogHeader>
           <form
@@ -610,13 +697,17 @@ export function ProfileView({ user, onLogout }: Props) {
             className="flex flex-col gap-4"
           >
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="profile-zone">Secteur d&apos;habitation</Label>
+              <Label htmlFor="nurse-profile-zone">
+                Secteur d&apos;intervention
+              </Label>
               <Select
                 value={zoneDraft}
-                onValueChange={(value) => setZoneDraft(value as AppUser["zone"])}
+                onValueChange={(value) =>
+                  setZoneDraft(value as AppUser["zone"])
+                }
               >
                 <SelectTrigger
-                  id="profile-zone"
+                  id="nurse-profile-zone"
                   aria-invalid={zoneError ? true : undefined}
                   className="w-full"
                 >
@@ -662,6 +753,13 @@ export function ProfileView({ user, onLogout }: Props) {
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* Dialog de changement de mot de passe (POST /api/auth/change-password,
+          preuve par le mot de passe actuel — Task 34) */}
+      <PasswordChangeDialog
+        open={passwordOpen}
+        onOpenChange={setPasswordOpen}
+      />
     </div>
   );
 }
