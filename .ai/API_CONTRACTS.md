@@ -238,6 +238,59 @@ Validation: schéma zod de référence (src/lib/<domaine>.ts)
 
 ## Contrats à venir
 
+### [GET] /api/nurse/missions — Missions de l'infirmier connecté
+
+- Feature: FEATURE-NURSE | Owner: Backend | Statut: **IMPLÉMENTÉ**
+- Auth: rôle `NURSE` uniquement ; la requête est toujours filtrée par `nurseId = session.user.id`.
+- Response: 200 `{ "missions": Mission[] }`, triées de la plus récente affectation à la plus ancienne.
+- Errors: 401 · 403 hors NURSE · 500
+
+### [GET] /api/nurse/missions/:id — Détail d'une mission
+
+- Feature: FEATURE-NURSE | Statut: **IMPLÉMENTÉ**
+- Response: 200 `{ "mission": Mission }` avec rendez-vous, patient, infirmier et compte-rendu éventuel.
+- Errors: 401 · 403 · 404 mission absente ou appartenant à un autre infirmier · 500
+
+### [PATCH] /api/nurse/missions/:id — Changer le statut
+
+- Request: `{ "status": "ACCEPTED" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED" }` (Zod)
+- Feature: FEATURE-NURSE | Statut: **IMPLÉMENTÉ**
+- Notes: transitions strictes `ASSIGNED→ACCEPTED→IN_PROGRESS→COMPLETED`; annulation possible avant clôture. Propriété vérifiée côté serveur.
+- Errors: 400 validation · 401 · 403 · 404 · 409 transition illégale · 500
+
+`PATCH /api/nurse/missions/:id/status` expose le même contrat explicite pour les clients qui séparent le sous-ressource statut.
+
+### [POST] /api/nurse/missions/:id/report — Créer le compte-rendu de visite
+
+- Request: `{ observations: string, actionsTaken?: string, recommendations?: string, vitalSigns?: Record<string,string|number> }` (Zod)
+- Feature: FEATURE-NURSE | Statut: **IMPLÉMENTÉ**
+- Notes: infirmier propriétaire uniquement ; mission obligatoirement `IN_PROGRESS` ; un seul rapport par mission.
+- Response: 201 `{ "report": VisitReport }`
+- Errors: 400 · 401 · 403 · 404 · 409 mission non démarrée ou rapport déjà présent · 500
+
+### [POST] /api/admin/missions — Affecter une mission
+
+- Request: `{ "appointmentId": string, "nurseId": string }` (Zod)
+- Feature: FEATURE-NURSE | Statut: **IMPLÉMENTÉ**
+- Notes: ADMIN uniquement ; l'infirmier doit avoir le rôle NURSE et couvrir la zone du rendez-vous. Un rendez-vous ne possède qu'une mission.
+- Response: 201 `{ "mission": Mission }`
+- Errors: 400 · 401 · 403 · 404 · 409 déjà dispatché · 500
+
+### [GET] /api/admin/missions — File de supervision des missions
+
+- Feature: FEATURE-NURSE | Statut: **IMPLÉMENTÉ**
+- Auth: rôle `ADMIN` uniquement.
+- Response: 200 `{ "missions": Mission[] }`, triées par date d'affectation décroissante.
+- Errors: 401 · 403 · 500
+
+### [PATCH] /api/admin/missions/:id — Réaffecter une mission
+
+- Request: `{ "nurseId": string }` (Zod)
+- Feature: FEATURE-NURSE | Statut: **IMPLÉMENTÉ**
+- Notes: ADMIN uniquement ; la réaffectation remet le statut à `ASSIGNED`, réinitialise les timestamps de progression et crée une notification `MISSION_ASSIGNED`.
+- Response: 200 `{ "mission": Mission }`
+- Errors: 400 · 401 · 403 · 404 · 500
+
 _(Le tableau se remplira au fil des features. Format exigé ci-dessus.)_
 
 | Endpoint                           | Feature               | Statut                                                                            |

@@ -72,6 +72,12 @@ import { SpecialtiesView } from "@/components/admin/specialties-view"
 import { RechargesView } from "@/components/admin/recharges-view"
 import { WalletSection } from "@/components/patient/wallet-section"
 import { TariffsView } from "@/components/admin/tariffs-view"
+import { NurseMissionsView } from "@/components/nurse/nurse-missions-view"
+import {
+    AdminMenuButton,
+    AdminSidebar,
+    type AdminTab,
+} from "@/components/admin/admin-sidebar"
 
 const ROLE_LABELS: Record<AppRole, string> = {
     PATIENT: "Patient",
@@ -179,6 +185,7 @@ const ROLE_SPACE: Record<
 type DashboardTab =
     | "accueil"
     | "rdv"
+    | "missions"
     | "wallet"
     | "senso"
     | "specialties"
@@ -194,6 +201,12 @@ const PATIENT_TABS: { id: DashboardTab; label: string; icon: LucideIcon }[] = [
 
 const BASE_TABS: { id: DashboardTab; label: string; icon: LucideIcon }[] = [
     { id: "accueil", label: "Accueil", icon: Home },
+    { id: "profil", label: "Profil", icon: UserRound },
+]
+
+const NURSE_TABS: { id: DashboardTab; label: string; icon: LucideIcon }[] = [
+    { id: "accueil", label: "Accueil", icon: Home },
+    { id: "missions", label: "Missions", icon: ClipboardCheck },
     { id: "profil", label: "Profil", icon: UserRound },
 ]
 
@@ -247,10 +260,18 @@ export function UserDashboard() {
     const [notifOpen, setNotifOpen] = useState(false)
     const [bookingOpen, setBookingOpen] = useState(false)
     const [rechargeRequested, setRechargeRequested] = useState(false)
+    const [adminSidebarOpen, setAdminSidebarOpen] = useState(false)
 
     // Espace patient : RDV + sensibilisations partagés par le header (cloche),
     // l'accueil et la vue « Mes rendez-vous » (une annulation rafraîchit tout).
     const isPatient = user?.role === "PATIENT"
+    const isAdmin = user?.role === "ADMIN"
+    // Les missions produisent aussi des notifications pour l'ADMIN (supervision)
+    // et pour l'infirmier affecté. La cloche doit donc être disponible pour les
+    // trois rôles, même si les notifications de rendez-vous restent patient.
+    // UserDashboard est monté uniquement pour un utilisateur authentifié ; la
+    // garde reste dans l'effet pour couvrir le premier rendu de transition.
+    const isNotificationUser = true
     const patientData: PatientData = usePatientData(isPatient)
 
     // ——— Notifications InApp (Task 24) — rappels de RDV persistés ———
@@ -273,11 +294,11 @@ export function UserDashboard() {
     }, [])
 
     useEffect(() => {
-        if (!isPatient) return
+        if (!isNotificationUser) return
         void refreshNotifications()
         const interval = setInterval(() => void refreshNotifications(), 60_000)
         return () => clearInterval(interval)
-    }, [isPatient, refreshNotifications])
+    }, [isNotificationUser, refreshNotifications])
 
     if (!user) return null
 
@@ -376,11 +397,25 @@ export function UserDashboard() {
         ]
 
     return (
-        <div className="flex w-full flex-col">
+        <div className={user.role === "ADMIN" ? "flex min-h-screen w-full" : "flex w-full flex-col"}>
+            {user.role === "ADMIN" && (
+                <AdminSidebar
+                    user={user}
+                    activeTab={tab as AdminTab}
+                    open={adminSidebarOpen}
+                    onOpenChange={setAdminSidebarOpen}
+                    onSelect={setTab}
+                    onLogout={handleLogout}
+                />
+            )}
+            <div className="flex min-w-0 flex-1 flex-col">
             {/* Barre d'app — sticky avec flou en verre dépoli */}
             <header className="sticky top-0 z-20 border-b bg-card/80 backdrop-blur-md">
-                <div className="mx-auto flex w-full max-w-3xl items-center justify-between gap-3 px-4 py-3">
+                <div className="mx-auto flex w-full max-w-5xl items-center justify-between gap-3 px-4 py-3">
                     <div className="flex items-center gap-2.5">
+                        {user.role === "ADMIN" && (
+                            <AdminMenuButton onClick={() => setAdminSidebarOpen(true)} />
+                        )}
                         {/* Maquette PO 2026-10 v2 : logo + « Mon doc » + badge PRO. */}
                         <Image
                             src="/img/logo.png"
@@ -403,7 +438,7 @@ export function UserDashboard() {
                             </span>
                         </div>
                     </div>
-                    {isPatient ? (
+                    {isNotificationUser ? (
                         <div className="flex items-center gap-1 sm:gap-1.5">
                             <Popover
                                 open={notifOpen}
@@ -474,7 +509,15 @@ export function UserDashboard() {
                                                                 n.id
                                                             )
                                                         }
-                                                        setTab("rdv")
+                                                         if (isPatient && n.type === "APPOINTMENT_REMINDER") {
+                                                             setTab("rdv")
+                                                         } else if (user.role === "NURSE") {
+                                                             setTab("missions")
+                                                         } else {
+                                                             // L'admin revient à son accueil : le dispatch admin sera une
+                                                             // destination dédiée lorsqu'il sera exposé dans le menu.
+                                                             setTab("accueil")
+                                                         }
                                                     }}
                                                     className="flex w-full items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/60"
                                                 >
@@ -631,7 +674,7 @@ export function UserDashboard() {
           un seul élément <main> par page). */}
             <h1 className="sr-only">Mon espace Mon doc Pro</h1>
 
-            <div className="mx-auto w-full max-w-3xl px-4 py-6 pb-32 sm:py-8">
+            <div className={`mx-auto w-full px-4 py-6 sm:py-8 ${user.role === "ADMIN" ? "max-w-5xl pb-8" : "max-w-3xl pb-32"}`}>
                 <AnimatePresence mode="wait" initial={false}>
                     {tab === "accueil" && (
                         <motion.section
@@ -734,6 +777,23 @@ export function UserDashboard() {
                                                 className="size-5 shrink-0 text-muted-foreground"
                                                 aria-hidden="true"
                                             />
+                                        </button>
+                                    )}
+
+                                    {user.role === "NURSE" && (
+                                        <button
+                                            type="button"
+                                            onClick={() => setTab("missions")}
+                                            className="mb-6 flex w-full items-center gap-3 rounded-2xl border bg-card p-4 text-left shadow-sm transition-colors hover:border-primary/40 hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:p-5"
+                                        >
+                                            <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                                                <ClipboardCheck className="size-5" aria-hidden="true" />
+                                            </span>
+                                            <span className="min-w-0 flex-1">
+                                                <span className="block text-sm font-bold">Mes missions</span>
+                                                <span className="block text-xs text-muted-foreground">Consultez vos interventions et comptes rendus</span>
+                                            </span>
+                                            <ChevronRight className="size-5 shrink-0 text-muted-foreground" aria-hidden="true" />
                                         </button>
                                     )}
 
@@ -879,6 +939,19 @@ export function UserDashboard() {
                                 data={patientData}
                                 onBook={() => setBookingOpen(true)}
                             />
+                        </motion.section>
+                    )}
+
+                    {tab === "missions" && user.role === "NURSE" && (
+                        <motion.section
+                            key="missions"
+                            variants={tabVariants}
+                            initial="enter"
+                            animate="center"
+                            exit="exit"
+                            aria-label="Mes missions"
+                        >
+                            <NurseMissionsView />
                         </motion.section>
                     )}
 
@@ -1033,6 +1106,7 @@ export function UserDashboard() {
                     )}
                 </AnimatePresence>
             </div>
+            </div>
 
             {/* Article sensibilisation — dialog partagé accueil / vues / notifications */}
             {isPatient && (
@@ -1058,7 +1132,7 @@ export function UserDashboard() {
             )}
 
             {/* Navigation basse flottante — style app native, safe-area iOS respectée */}
-            <nav
+            {!isAdmin && <nav
                 aria-label="Navigation principale"
                 className="fixed inset-x-0 bottom-0 z-20 px-4 pb-[max(env(safe-area-inset-bottom),1rem)]"
             >
@@ -1067,7 +1141,9 @@ export function UserDashboard() {
                         ? PATIENT_TABS
                         : user.role === "ADMIN"
                           ? ADMIN_TABS
-                          : BASE_TABS
+                          : user.role === "NURSE"
+                            ? NURSE_TABS
+                            : BASE_TABS
                     ).map(item => {
                         const isActive = tab === item.id
                         return (
@@ -1092,7 +1168,7 @@ export function UserDashboard() {
                         )
                     })}
                 </ul>
-            </nav>
+            </nav>}
         </div>
     )
 }

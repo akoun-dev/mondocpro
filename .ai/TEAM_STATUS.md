@@ -3,7 +3,7 @@
 > **Registre de répartition des tâches.** Mis à jour à chaque handoff, à chaque démarrage de tâche et à chaque changement de statut.
 > **Légende statuts :** ⏳ En attente · 🔄 En cours · ✅ Terminé · ❌ Bloqué · 🔁 À refaire
 
-**Dernière mise à jour :** 2026-09-30
+**Dernière mise à jour :** 2026-10-04
 **Projet :** Next.js 16.1.1 (App Router) + React 19 + TS 5 — **design fondé** (palette médicale ADR-002) ; backlog features en attente PO.
 
 ---
@@ -15,6 +15,7 @@
 | AUTH-T01 — Schéma Prisma auth (User métier + Session, enums Role/Zone) + seed Dr Kadjane (ADR-004) | prisma/schema.prisma, .zscripts/seed_admin.ts                   | ✅ Terminé (2026-09-30, db push + seed vérifiés)                 |
 | AUTH-T02 — Service auth + routes /api/auth/register·login·me·logout (9/9 tests contrats PASS)      | src/lib/auth.ts, src/lib/auth-schemas.ts, src/app/api/auth/\*\* | ✅ Terminé (2026-09-30, revue Tech Lead)                         |
 | —                                                                                                  | —                                                               | En attente de prochaine feature (RDV, Tokens, sensibilisations…) |
+| NURSE-T02..T05 — Missions, comptes rendus, dispatch et notifications | src/lib/nurse.ts, src/app/api/nurse/**, src/app/api/admin/missions/**, supabase/schema.prisma | ✅ Implémenté (2026-10-04, validation Prisma + lint) |
 
 ## 🔵 FRONTEND
 
@@ -23,6 +24,7 @@
 | DESIGN-T01 — Implémentation palette médicale (tokens)                                                  | src/app/globals.css                                                                                | ✅ Terminé (vérifié navigateur + CSS servi)                        |
 | AUTH-T03 — Écran auth complet + espace connecté (store zustand + hook useAuth, a11y AA, footer sticky) | src/app/layout.tsx, src/app/page.tsx, src/components/auth/**, src/stores/**, src/hooks/use-auth.ts | ✅ Terminé (2026-09-30, 10/10 étapes agent-browser)                |
 | —                                                                                                      | —                                                                                                  | Composants PO (admin/nurses/users) prêts pour les espaces complets |
+| NURSE-T07..T10 — Dashboard, missions et compte rendu infirmier | src/components/nurse/**, src/components/auth/user-dashboard.tsx | ✅ Implémenté (2026-10-04, responsive/a11y de base) |
 
 ## 🟣 DEVOPS/DATA
 

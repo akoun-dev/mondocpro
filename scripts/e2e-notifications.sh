@@ -12,7 +12,7 @@
 #      rappel non lu visible (pastille + gras), « Tout marquer comme lu » →
 #      badge disparaît, PERSISTANCE après reload, clic item → vue RDV.
 #   3. Mobile 390×844 — panneau utilisable + zéro débordement horizontal.
-#   4. Régression NURSE — nav 2 onglets, PAS de cloche patient.
+#   4. Régression NURSE — nav 3 onglets, cloche InApp isolée par utilisateur.
 # Pièges plateforme intégrés : DATABASE_URL exportée avant boot (sinon login
 # 500), CRON_SECRET exporté avant boot (sinon scheduler 503), serveur + parcours
 # en un seul appel, login par refs snapshot, evals strip des quotes.
@@ -219,8 +219,8 @@ $AB set viewport 1440 900 >/dev/null; sleep 1
 nav_click 3 >/dev/null; sleep 2   # « Se déconnecter » vit sur la vue Profil
 $AB eval "Array.from(document.querySelectorAll('button')).find(b=>b.textContent.includes('Se déconnecter'))?.click(); 'ok'" >/dev/null; sleep 4
 echo "== login infirmier: $(login "0755666777" "TestInfirmier2026!")"
-check "Infirmier — nav inchangée (2 onglets)" "Accueil | Profil" "$(nav_labels)"
-check "Infirmier — PAS de cloche patient" "no" "$($AB eval "Array.from(document.querySelectorAll('button')).some(function(b){return (b.getAttribute('aria-label')||'').indexOf('Notifications')===0}) ? 'yes' : 'no'" 2>/dev/null | tail -1 | tr -d '"')"
+check "Infirmier — navigation missions" "Accueil | Missions | Profil" "$(nav_labels)"
+check "Infirmier — cloche InApp disponible" "yes" "$($AB eval "Array.from(document.querySelectorAll('button')).some(function(b){return (b.getAttribute('aria-label')||'').indexOf('Notifications')===0}) ? 'yes' : 'no'" 2>/dev/null | tail -1 | tr -d '"')"
 $AB screenshot $SHOT/notifications-infirmier.png >/dev/null
 
 # ── 5. Console / erreurs page ────────────────────────────────────────────────

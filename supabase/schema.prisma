@@ -47,6 +47,10 @@ model User {
   notifications       Notification[]
   tokenTransactions   TokenTransaction[]
   updatedTariffs      TariffConfig[]
+  nurseMissions       NurseMission[]       @relation("NurseMissions")
+  patientMissions     NurseMission[]       @relation("PatientMissions")
+  assignedMissions    NurseMission[]       @relation("AssignedBy")
+  visitReports        VisitReport[]
 
   @@map("users")
 }
@@ -124,6 +128,7 @@ model Appointment {
   tokensReserved Int                 @default(0)
   // Mouvements de Tokens liés à ce RDV (réservation/consommation/libération).
   tokenTransactions TokenTransaction[]
+  nurseMission NurseMission?
   createdAt   DateTime          @default(now())
   updatedAt   DateTime          @updatedAt
 
@@ -245,6 +250,9 @@ model TokenTransaction {
 // confirmation/annulation de RDV — l'enum NotificationType est fait pour ça.
 enum NotificationType {
   APPOINTMENT_REMINDER
+  MISSION_ASSIGNED
+  MISSION_STATUS_CHANGED
+  VISIT_REPORT_SUBMITTED
 }
 
 model Notification {
@@ -268,6 +276,57 @@ model Notification {
   @@unique([userId, type, entityId])
   @@index([userId, createdAt])
   @@map("notifications")
+}
+
+// ——— FEATURE-NURSE — Missions de soins à domicile ———
+enum MissionStatus {
+  ASSIGNED
+  ACCEPTED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+model NurseMission {
+  id             String        @id @default(cuid())
+  appointmentId  String        @unique
+  appointment    Appointment   @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+  nurseId        String
+  nurse          User          @relation("NurseMissions", fields: [nurseId], references: [id], onDelete: Restrict)
+  patientId      String
+  patient        User          @relation("PatientMissions", fields: [patientId], references: [id], onDelete: Restrict)
+  assignedById   String
+  assignedBy     User          @relation("AssignedBy", fields: [assignedById], references: [id], onDelete: Restrict)
+  status         MissionStatus @default(ASSIGNED)
+  assignedAt     DateTime      @default(now())
+  acceptedAt     DateTime?
+  startedAt      DateTime?
+  completedAt    DateTime?
+  cancelledAt    DateTime?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  visitReport    VisitReport?
+
+  @@index([nurseId, status, assignedAt])
+  @@index([patientId, assignedAt])
+  @@map("nurse_missions")
+}
+
+model VisitReport {
+  id             String       @id @default(cuid())
+  missionId      String       @unique
+  mission        NurseMission @relation(fields: [missionId], references: [id], onDelete: Cascade)
+  nurseId        String
+  nurse          User         @relation(fields: [nurseId], references: [id], onDelete: Restrict)
+  observations   String       @db.Text
+  actionsTaken   String?      @db.Text
+  recommendations String?     @db.Text
+  vitalSigns     Json?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@index([nurseId, createdAt])
+  @@map("visit_reports")
 }
 
 // ——— FEATURE-TOKENS (ADR-007) — Grille tarifaire configurable par l'ADMIN ———

@@ -47,3 +47,9 @@ Priorité: P2 (lot P2 roadmap audit 2026-10-03) | Statut: **ACCEPTÉ** (contrats
 Source: demande PO — audit fonctionnalités patients du 2026-10-03, GO lot P0/P1
 Description: le patient crédite un compte d'épargne santé (jetons) et paie ses consultations par débit de jetons. Critères d'acceptation : ledger immuable `TokenAccount` + `TokenTransaction` (DEPOSIT/DEBIT/REFUND, soldes dérivés des transactions) ; crédit manuel par l'ADMIN au MVP ; paiement Mobile Money suspendu à l'ADR-005 (fournisseur à arbitrer) ; valeur du jeton (1 token = ? FCFA) à arbitrer par le PO avant tout développement.
 Feature liée: FEATURE-TOKENS | Specs: .ai/SPECS/FEATURE-PATIENT.md | Contrats: à venir (GET /api/tokens, POST /api/tokens/topup)
+
+### REQ-004 — Missions infirmières et comptes-rendus (FEATURE-NURSE)
+Priorité: P1 | Statut: **IMPLÉMENTÉ** (backend + API ; UI hors périmètre)
+Source: demande utilisateur du 2026-10-04
+Description: l'ADMIN affecte ou réaffecte un rendez-vous à un infirmier de la même zone ; l'infirmier consulte uniquement ses missions, fait progresser leur statut et dépose un compte-rendu unique. Critères d'acceptation : garde de rôle sur chaque route ; cloisonnement par propriétaire côté serveur ; transitions de statut strictes ; un rapport ne peut être créé qu'en mission `IN_PROGRESS` et ne peut être dupliqué ; affectation notifiée en in-app.
+Feature liée: FEATURE-NURSE | Specs: .ai/SPECS/FEATURE-NURSE.md | Contrats: GET/PATCH /api/nurse/missions, POST /api/nurse/missions/:id/report, POST/PATCH /api/admin/missions

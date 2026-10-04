@@ -1,7 +1,7 @@
 // GET /api/notifications — fil InApp de l'utilisateur connecté (Task 24).
 // Chacun ne voit JAMAIS que ses propres notifications (filtrage serveur par
-// la session) ; les rappels de RDV sont la première source câblée (scheduler
-// src/lib/reminders.ts), le fil alimentera ensuite les alertes de santé etc.
+// la session) ; les rappels de RDV et les événements de missions infirmières
+// alimentent le fil, avec isolation stricte par utilisateur.
 // Réponse : les 50 plus récentes + nombre de non-lues (badge de la cloche).
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
