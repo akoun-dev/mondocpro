@@ -7,7 +7,7 @@
 // Architecture « WebView distante » (ADR-007) : le pont natif window.Capacitor
 // est injecté par le WebView dans les pages chargées depuis server.url ;
 // les plugins JS ci-dessous se connectent automatiquement à ce pont.
-import { Capacitor } from "@capacitor/core";
+import { Capacitor, registerPlugin } from "@capacitor/core";
 import { App } from "@capacitor/app";
 import { Device } from "@capacitor/device";
 import { Haptics, NotificationType, ImpactStyle } from "@capacitor/haptics";
@@ -99,6 +99,38 @@ export function initNativeShell(): void {
 
 // ——— Push FCM ———
 
+// Garde anti-crash (Task 38) : le plugin push natif 8.x appelle
+// FirebaseMessaging.getInstance() SANS vérifier que Firebase est initialisé.
+// Sur un build sans google-services.json (FirebaseInitProvider inactif),
+// register() lève une IllegalStateException que le bridge Capacitor
+// re-propage en RuntimeException non interceptée → l'app se ferme au moment
+// où l'utilisateur accepte la permission notifications. Le plugin natif
+// local « Diagnostics » (DiagnosticsPlugin.java, APK ≥ v2) teste la
+// disponibilité Firebase par réflexion ; sur un APK plus ancien il n'existe
+// pas → l'appel échoue → on considère le push indisponible (jamais de
+// register() = jamais de crash).
+const Diagnostics = registerPlugin<{
+    firebaseAvailable: () => Promise<{ available: boolean; reason: string }>;
+}>("Diagnostics");
+
+let pushCapability: Promise<boolean> | null = null;
+
+async function isPushCapable(): Promise<boolean> {
+    if (pushCapability === null) {
+        pushCapability = (async () => {
+            try {
+                const { available } = await Diagnostics.firebaseAvailable();
+                return available;
+            } catch {
+                // APK v1 sans plugin Diagnostics : register() y est garanti
+                // crash → canal push bloqué préventivement.
+                return false;
+            }
+        })();
+    }
+    return pushCapability;
+}
+
 const PUSH_TOKEN_KEY = "push.fcm.token";
 
 async function deviceName(): Promise<string | null> {
@@ -151,6 +183,16 @@ let pushListenersRegistered = false;
 export async function registerPush(): Promise<void> {
     if (!isNative()) return;
     try {
+        // Garde anti-crash (Task 38) : jamais de dialogue ni de register()
+        // tant que Firebase n'est pas initialisé dans le process. Le canal
+        // InApp et les rappels locaux de RDV restent 100 % fonctionnels.
+        if (!(await isPushCapable())) {
+            console.info(
+                "[native] push FCM indisponible sur ce build (Firebase non configuré — google-services.json absent) : canal push ignoré",
+            );
+            return;
+        }
+
         let permission = (await PushNotifications.checkPermissions()).receive;
         if (permission === "prompt") {
             permission = (await PushNotifications.requestPermissions()).receive;

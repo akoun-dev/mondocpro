@@ -7,8 +7,8 @@ android {
         applicationId "ci.mondopro.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "1.0"
+        versionCode 2
+        versionName "1.0.1"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -16,10 +16,29 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    signingConfigs {
+        debug {
+            // Keystore debug VERSIONNÉ (android/keys/debug.keystore, alias
+            // androiddebugkey / mot de passe standard « android ») — Task 38.
+            // Signature STABLE d'un build à l'autre : chaque APK debug signe
+            // avec la MÊME clé que le v1 livré (SHA-256 05:09:93:FE:…), les
+            // mises à jour s'installent par-dessus sans désinstallation,
+            // même si ~/.android/debug.keystore est régénéré (recyclage de
+            // sandbox). Un keystore debug ne signe que des builds de test :
+            // le versionner n'a aucun impact de sécurité.
+            storeFile file("../keys/debug.keystore")
+            storePassword "android"
+            keyAlias "androiddebugkey"
+            keyPassword "android"
+        }
+    }
     buildTypes {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+        debug {
+            signingConfig signingConfigs.debug
         }
     }
 }

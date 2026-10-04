@@ -70,3 +70,7 @@ android/app/google-services.json
 *.jks
 .android-sdk/
 .jdk21/
+# Exception volontaire (Task 38) : keystore DEBUG versionné — signature
+# stable des APK de test d'un build à l'autre (mises à jour installables
+# par-dessus sans désinstallation). Ne JAMAIS y placer un keystore release.
+!android/keys/debug.keystore

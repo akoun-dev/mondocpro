@@ -60,6 +60,18 @@ npx capacitor-assets generate --android --assetPath assets
 Le canal push est **optionnel au build** mais requis pour la mise en production
 (les notifications InApp + rappels locaux marchent sans lui).
 
+> **⚠️ Incident du 2026-10-05 (Task 38)** — sur un APK **sans** `google-services.json`,
+> accepter la permission notifications **fermait l'app** : le plugin
+> `@capacitor/push-notifications` 8.x appelle `FirebaseMessaging.getInstance()` sans
+> garde et l'`IllegalStateException` (Firebase non initialisé) est re-propagée par le
+> bridge → crash. Depuis, `src/lib/native.ts` interroge le plugin natif local
+> **Diagnostics** (`DiagnosticsPlugin.java`) AVANT toute demande de permission :
+> sans Firebase initialisé, le canal push est silencieusement ignoré (plus de dialogue,
+> plus de crash) — InApp et rappels locaux restent fonctionnels. **Un APK livré sans
+> `google-services.json` ne doit donc jamais afficher le dialogue notifications.**
+> `Diagnostics.lastCrash()` renvoie aussi le stack trace du dernier crash (journal
+> `files/last_crash.txt` écrit par `MainActivity`) — utile sans accès adb.
+
 1. Console Firebase → « Ajouter un projet » → ex. `mondocpro`.
 2. Ajouter une app **Android** avec le package `ci.mondopro.app` (identique au `appId`).
 3. Télécharger `google-services.json` → le déposer dans **`android/app/`** (gitigné — ne jamais le commiter).
@@ -97,6 +109,7 @@ cd android && ./gradlew assembleRelease   # APK signé
 |---|---|---|
 | Splash figé sur « Chargement » | serveur injoignable (avion, DNS) | le shell bascule sur le message hors-ligne ; vérifier https://mondocpro.vercel.app/api/health |
 | Aucune push reçue | `google-services.json` absent du build, ou FIREBASE_* absentes de Vercel | §4 (les logs affichent `[native] registration FCM` / `[push] Firebase non configuré`) |
-| Permission notifications jamais demandée | Android 13+ : demandée à la 1re ouverture après connexion | se déconnecter/reconnecter, ou réinstaller |
+| L'app se ferme à l'acceptation des notifications | APK v1 sans `google-services.json` : crash `IllegalStateException: Default FirebaseApp is not initialized` via le bridge | Installer un APK ≥ v2 (garde `Diagnostics.firebaseAvailable()`) ; pour activer le push, suivre §4 puis rebuilder |
+| Permission notifications jamais demandée | Android 13+ : demandée à la 1re ouverture après connexion ; sur un build sans Firebase, elle n'est **jamais** demandée (garde anti-crash) | se déconnecter/reconnecter, ou réinstaller ; si push attendu → §4 d'abord |
 | Rappels RDV avec quelques minutes de retard | alarmes inexactes (politique Play, pas de SCHEDULE_EXACT_ALARM) | comportement documenté (ADR-008) — le pipeline serveur 24 h double le rappel |
 | `cap sync` échoue | dépendances natives désynchronisées | `bun install` puis `npx cap sync android` |
