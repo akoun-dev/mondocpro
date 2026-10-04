@@ -25,9 +25,9 @@ Validation: schéma zod de référence (src/lib/<domaine>.ts)
 
 ### [GET] /api/health — Sonde de vie + base de données
 
-- Feature: SYS-001 (système) | Owner: Backend | Statut: **VALIDÉ** (v2, lot P0 2026-10-03 : ajout probe DB)
-- Response: 200 `{ "status": "ok" | "degraded", "database": "up" | "down", "timestamp": string }`
-- Notes: remplace le hello-world scaffold comme vérification de santé lors des tests E2E et du monitoring. La sonde exécute `SELECT 1` via Prisma — toujours HTTP 200 (l'état porté par le corps permet à l'app de répondre même en cas d'incident DB) ; `status: "degraded"` ⇔ `database: "down"`.
+- Feature: SYS-001 (système) | Owner: Backend | Statut: **VALIDÉ** (v2, lot P0 2026-10-03 : ajout probe DB ; v3 2026-10-04 : bloc `diagnostic` déploiement)
+- Response: 200 `{ "status": "ok" | "degraded", "database": "up" | "down", "timestamp": string, "diagnostic": { "hasDatabaseUrl": boolean, "dbErrorCode": string | null, "dbHint": string | null } }`
+- Notes: remplace le hello-world scaffold comme vérification de santé lors des tests E2E et du monitoring. La sonde exécute `SELECT 1` via Prisma — toujours HTTP 200 (l'état porté par le corps permet à l'app de répondre même en cas d'incident DB) ; `status: "degraded"` ⇔ `database: "down"`. v3 : `diagnostic` distingue sans logs plateforme une `DATABASE_URL` absente (`hasDatabaseUrl: false`) d'une base injoignable (`dbErrorCode` P1001/P1010/…, hints dans `.ai/DEPLOY_VERCEL.md`) — aucun secret exposé (codes courts uniquement, jamais le message Prisma brut).
 
 ### [GET] /api/appointments — Mes rendez-vous
 
