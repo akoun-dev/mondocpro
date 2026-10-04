@@ -1070,3 +1070,19 @@ Stage Summary:
 - Cause racine prod : DATABASE_URL sur Vercel = host DIRECT Supabase (IPv6-only) incompatible fonctions Vercel (IPv4)
 - Correction PO : remplacer par l'URL pooler (copier la valeur .env locale sans guillemets) → Redeploy
 - Le diagnostic v4 rend ce cas auto-diagnostiquable via /api/health sans accès aux logs
+
+---
+Task ID: 33-clôture (incident prod résolu)
+Agent: Super Z (principal)
+Task: Résolution complète « Erreur interne — réessayez » sur https://mondocpro.vercel.app
+
+Work Log:
+- health v4 déployé (f6d1898) : hostKind="supabase-direct" → cause = URL DIRECTE (db.<ref>.supabase.co, IPv6-only) collée sur Vercel par le PO depuis son propre .env régénéré via Supabase → Connect (onglet direct par défaut)
+- PO guidé pas à pas : remplacer DATABASE_URL par la forme POOLER (host aws-0-eu-west-1.pooler.supabase.com, user postgres.<REF>, port 5432, sslmode=require) + Redeploy obligatoire
+- Poll automatique /api/health : bascule confirmée à 19:28:29 UTC+0 → hostKind="supabase-pooler", database="up", status="ok"
+- Validation E2E prod : POST /api/auth/login (patient test +2250709229992) → HTTP 200 + user object ; GET /api/auth/me avec cookie → HTTP 200 (session OK)
+
+Stage Summary:
+- INCIDENT CLÔTURÉ : prod pleinement opérationnelle (health ok/up, login 200, session persistante)
+- Rôle du health v4 : auto-diagnostic de la cause exacte sans accès logs Vercel (hostKind, dbErrorKind, hints)
+- Leçon PO : Supabase → Connect affiche l'URL DIRECTE par défaut (IPv6-only, incompatible Vercel) — toujours prendre l'onglet Connection pooling
