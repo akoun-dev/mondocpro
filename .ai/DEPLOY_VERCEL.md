@@ -107,6 +107,8 @@ doute, commencer par l'option A (même chaîne que le local, déjà validée).
 | Symptôme (`/api/health`) | Cause probable | Correction |
 |---|---|---|
 | `diagnostic.hasDatabaseUrl: false` | `DATABASE_URL` non définie sur Vercel | Section 2 → ajouter la variable → Redeploy |
+| `dbUrl.hostKind: "supabase-direct"` | URL **directe** collée (`db.<ref>.supabase.co`) — host IPv6-only, injoignable depuis les fonctions Vercel (IPv4) | Remplacer par l'URL **pooler** : `aws-<N>-<REGION>.pooler.supabase.com:5432/postgres` (Supabase → Connect → Connection pooling) — incident du 2026-10-04 |
+| `dbUrl.parseable: false` ou `atSymbolCount > 1` | Chaîne mal formée : guillemets `"` collés, mot de passe avec `@` non encodé (`%40`), troncature au collage | Recoller la valeur exacte du `.env` local SANS les guillemets ; encoder les caractères spéciaux du mot de passe |
 | `dbErrorCode: "P1001"` | Host/port/région du pooler erronés, base en pause | Vérifier la chaîne (Supabase → Connect → Connection pooling) ; réveiller le projet |
 | `dbErrorCode: "P1010"` ou `28P01` | Mot de passe DB faux / allowlist IP active | Réinitialiser le mot de passe (Settings → Database) ; vérifier Network restrictions Supabase |
 | `dbErrorCode: "P2021"` / `42P01` | Base vierge : migrations non appliquées | Depuis le local : `bun run db:migrate-deploy` (+ seeds `.zscripts/`) |

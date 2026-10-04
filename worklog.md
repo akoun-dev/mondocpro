@@ -1053,3 +1053,20 @@ Stage Summary:
 - Le canal push est complet de bout en bout côté serveur (10 déclencheurs métier, double canal InApp+push, jetons device_tokens gérés upsert/révocation/purge automatique) — activable en production par la seule injection FIREBASE_SERVICE_ACCOUNT_JSON sur Vercel (guide APK_BUILD.md §4) ; sans elle, dégradation gracieuse sans aucune régression
 - Déconnexion = révocation du jeton de l'appareil ; reconnexion d'un autre compte sur le même appareil = réattribution du jeton ; tap sur push = lien profond vers l'outil d'action du bon rôle (miroir serveur/client du routage Task 35)
 - Actions PO : ① valider appId ci.mondopro.app avant publication ; ② créer le projet Firebase + google-services.json (build) + FIREBASE_SERVICE_ACCOUNT_JSON sur Vercel (push) ; ③ Android Studio + JDK 21 pour assembler la release signée (APK_BUILD.md §5)
+
+---
+Task ID: 33-suite (diagnostic v4)
+Agent: Super Z (principal)
+Task: Résoudre « Erreur interne — réessayez » persistant sur Vercel — user demande le format de DATABASE_URL
+
+Work Log:
+- Sonde /api/health prod : hasDatabaseUrl=true mais erreur SANS code (v3 aveugle sur la cause)
+- Health route v4 (commit f6d1898) : analyse structurelle dbUrl (parseable, scheme, hostKind, port, hasUsername/hasPassword, atSymbolCount, queryKeys) + classification dbErrorKind (url-malformed, auth, dns-network, timeout, tls, too-many-connections, prepared-statements) — zéro secret exposé
+- Test local E2E : status ok / database up — identifiants .env locaux VALIDES (host pooler aws-0-eu-west-1, port 5432, sslmode=require)
+- Redéploiement Vercel + sonde v4 prod : hostKind="supabase-direct", dbErrorKind="dns-network" → CAUSE TROUVÉE : user a collé l'URL directe db.<ref>.supabase.co (IPv6-only) au lieu du pooler
+- DEPLOY_VERCEL.md §4 : 2 nouvelles lignes de dépannage (supabase-direct, parseable/atSymbolCount)
+
+Stage Summary:
+- Cause racine prod : DATABASE_URL sur Vercel = host DIRECT Supabase (IPv6-only) incompatible fonctions Vercel (IPv4)
+- Correction PO : remplacer par l'URL pooler (copier la valeur .env locale sans guillemets) → Redeploy
+- Le diagnostic v4 rend ce cas auto-diagnostiquable via /api/health sans accès aux logs
