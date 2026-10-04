@@ -16,6 +16,7 @@ import {
     BellRing,
     CalendarCheck,
     ChevronRight,
+    CircleCheck,
     ClipboardCheck,
     Clock,
     HeartPulse,
@@ -58,9 +59,10 @@ import type { AppRole, AppUser } from "@/stores/auth-store"
 import type { PatientData } from "@/hooks/use-patient-data"
 import type { SensibilisationDto } from "@/lib/sensibilisations"
 import type { AppointmentDto } from "@/lib/appointments"
-import type {
-    NotificationDto,
-    NotificationsResponse,
+import {
+    notificationFamily,
+    type NotificationDto,
+    type NotificationsResponse,
 } from "@/lib/notifications"
 import { PatientHome } from "@/components/patient/patient-home"
 import { AppointmentsView } from "@/components/patient/appointments-view"
@@ -72,8 +74,10 @@ import { SpecialtiesView } from "@/components/admin/specialties-view"
 import { RechargesView } from "@/components/admin/recharges-view"
 import { WalletSection } from "@/components/patient/wallet-section"
 import { TariffsView } from "@/components/admin/tariffs-view"
+import { AdminMissionsView } from "@/components/admin/missions-view"
 import { NurseMissionsView } from "@/components/nurse/nurse-missions-view"
 import { NurseProfileView } from "@/components/nurse/nurse-profile-view"
+import { AdminProfileView } from "@/components/profile/admin-profile-view"
 import {
     AdminMenuButton,
     AdminSidebar,
@@ -104,6 +108,11 @@ interface SpaceFeature {
     icon: LucideIcon
     title: string
     description: string
+    // Task 35 : une fonctionnalité passée en live reste dans la carte mais
+    // devient un raccourci cliquable (badge vert « Disponible ») — plus de
+    // carte mentalement obsolète à côté de raccourcis déjà actifs.
+    live?: boolean
+    tab?: DashboardTab
 }
 
 const ROLE_SPACE: Record<
@@ -141,6 +150,8 @@ const ROLE_SPACE: Record<
                 icon: BellRing,
                 title: "Missions en direct",
                 description: "Recevez les missions en temps réel.",
+                live: true,
+                tab: "missions",
             },
             {
                 icon: MapPinned,
@@ -151,22 +162,28 @@ const ROLE_SPACE: Record<
                 icon: ClipboardCheck,
                 title: "Comptes rendus",
                 description: "Documentez chaque visite effectuée.",
+                live: true,
+                tab: "missions",
             },
         ],
     },
     ADMIN: {
         title: "Espace Médecin Chef",
-        description: "Supervision et dispatch des équipes — à venir",
+        description: "Supervision et dispatch des équipes",
         features: [
             {
                 icon: Activity,
                 title: "Supervision",
                 description: "Suivez l'activité des équipes soignantes.",
+                live: true,
+                tab: "missions",
             },
             {
                 icon: UsersRound,
                 title: "Dispatch",
                 description: "Affectez les missions entre infirmiers.",
+                live: true,
+                tab: "missions",
             },
             {
                 icon: BarChart3,
@@ -180,9 +197,8 @@ const ROLE_SPACE: Record<
 // Onglets de la navigation basse (style app mobile), par rôle : le patient a
 // « Rendez-vous » en accès direct (menu de 1er niveau) ; les autres rôles
 // conservent Accueil / Profil. Sous-vues hors navigation basse : patient
-// « senso » (entrée « Tout voir ») ; admin « specialties » (entrée « Gérer
-// les spécialités ») et « recharges » (FEATURE-TOKENS — rapprochement des
-// paiements patients, Médecin Chef seul).
+// « senso » (entrée « Tout voir ») ; admin « specialties » / « recharges » /
+// « missions » (sidebar latérale — FEATURE-TOKENS et FEATURE-NURSE).
 type DashboardTab =
     | "accueil"
     | "rdv"
@@ -208,14 +224,6 @@ const BASE_TABS: { id: DashboardTab; label: string; icon: LucideIcon }[] = [
 const NURSE_TABS: { id: DashboardTab; label: string; icon: LucideIcon }[] = [
     { id: "accueil", label: "Accueil", icon: Home },
     { id: "missions", label: "Missions", icon: ClipboardCheck },
-    { id: "profil", label: "Profil", icon: UserRound },
-]
-
-// Onglets ADMIN (Médecin Chef) : accueil + recharges de Tokens (FEATURE-
-// TOKENS) + profil — les recharges consomment la navigation basse dédiée.
-const ADMIN_TABS: { id: DashboardTab; label: string; icon: LucideIcon }[] = [
-    { id: "accueil", label: "Accueil", icon: Home },
-    { id: "recharges", label: "Recharges", icon: Wallet },
     { id: "profil", label: "Profil", icon: UserRound },
 ]
 
@@ -252,6 +260,93 @@ const tabVariants = {
     },
 }
 
+// ——— Task 35 — Routage du clic notification ———
+// Chaque type de notification mène à la vue qui permet d'AGIR : patient →
+// Wallet pour les recharges, Mes rendez-vous pour tout le cycle RDV/missions ;
+// infirmier → Missions ; Médecin Chef → Recharges (cycle financier) ou
+// Missions & Dispatch (file à affecter, suivi). Source unique, testée dans
+// scripts/audit-e2e-admin-notifications.sh.
+function notificationDestination(
+    type: string,
+    role: AppRole,
+): DashboardTab {
+    const family = notificationFamily(type)
+    if (role === "PATIENT") {
+        return family === "recharge" ? "wallet" : "rdv"
+    }
+    if (role === "NURSE") return "missions"
+    // ADMIN — le Médecin Chef est orienté vers l'outil d'action.
+    return family === "recharge" ? "recharges" : "missions"
+}
+
+// Icône + couleur par FAMILLE (lecture instantanée du fil) : Coins pour le
+// cycle financier, CalendarCheck pour le cycle RDV, ClipboardCheck pour le
+// cycle missions — le BellRing générique ne reste que pour les futurs types.
+function notificationVisual(type: string): {
+    Icon: LucideIcon
+    classes: string
+} {
+    const family = notificationFamily(type)
+    if (family === "recharge")
+        return { Icon: Wallet, classes: "bg-warning/15 text-warning-foreground" }
+    if (family === "appointment")
+        return { Icon: CalendarCheck, classes: "bg-primary/10 text-primary" }
+    return {
+        Icon: ClipboardCheck,
+        classes: "bg-success/15 text-success-foreground",
+    }
+}
+
+// Compteurs de travail du Médecin Chef (accueil admin) — files RÉELLES des
+// deux piliers opérationnels : recharges à valider (GET /api/admin/recharges)
+// et consultations à domicile à affecter (GET /api/admin/missions —
+// dispatchQueue, Task 35). Chargement une fois au montage ; les vues
+// elles-mêmes rechargent à l'ouverture (source de vérité fraîche). Échec =
+// compteurs absents (les raccourcis restent utilisables).
+type AdminCounters = {
+    rechargesPending: number
+    toDispatch: number
+    activeMissions: number
+} | null
+
+function useAdminCounters(enabled: boolean): AdminCounters {
+    const [counters, setCounters] = useState<AdminCounters>(null)
+    useEffect(() => {
+        if (!enabled) return
+        let cancelled = false
+        ;(async () => {
+            try {
+                const [rechargesRes, missionsRes] = await Promise.all([
+                    fetch("/api/admin/recharges", { cache: "no-store" }),
+                    fetch("/api/admin/missions", { cache: "no-store" }),
+                ])
+                if (!rechargesRes.ok || !missionsRes.ok) return
+                const recharges = (await rechargesRes.json()) as {
+                    pending?: unknown[]
+                }
+                const board = (await missionsRes.json()) as {
+                    dispatchQueue?: unknown[]
+                    missions?: Array<{ status: string }>
+                }
+                if (cancelled) return
+                setCounters({
+                    rechargesPending: recharges.pending?.length ?? 0,
+                    toDispatch: board.dispatchQueue?.length ?? 0,
+                    activeMissions: (board.missions ?? []).filter(m =>
+                        ["ASSIGNED", "ACCEPTED", "IN_PROGRESS"].includes(m.status)
+                    ).length,
+                })
+            } catch {
+                // silencieux — compteurs non critiques
+            }
+        })()
+        return () => {
+            cancelled = true
+        }
+    }, [enabled])
+    return counters
+}
+
 export function UserDashboard() {
     const { user, logout } = useAuth()
     const [tab, setTab] = useState<DashboardTab>("accueil")
@@ -262,7 +357,6 @@ export function UserDashboard() {
     const [bookingOpen, setBookingOpen] = useState(false)
     const [rechargeRequested, setRechargeRequested] = useState(false)
     const [adminSidebarOpen, setAdminSidebarOpen] = useState(false)
-
     // Espace patient : RDV + sensibilisations partagés par le header (cloche),
     // l'accueil et la vue « Mes rendez-vous » (une annulation rafraîchit tout).
     const isPatient = user?.role === "PATIENT"
@@ -274,6 +368,8 @@ export function UserDashboard() {
     // garde reste dans l'effet pour couvrir le premier rendu de transition.
     const isNotificationUser = true
     const patientData: PatientData = usePatientData(isPatient)
+    // Task 35 — compteurs de travail du Médecin Chef (files réelles, accueil).
+    const adminCounters = useAdminCounters(isAdmin)
 
     // ——— Notifications InApp (Task 24) — rappels de RDV persistés ———
     // Fetch au montage (badge visible sans ouvrir le panneau), toutes les
@@ -382,21 +478,6 @@ export function UserDashboard() {
             .catch(() => undefined)
     }
 
-    const profileFields: { icon: LucideIcon; label: string; value: string }[] =
-        [
-            { icon: UserRound, label: "Nom complet", value: user.fullName },
-            {
-                icon: Phone,
-                label: "Téléphone",
-                value: formatPhoneDisplay(user.phone),
-            },
-            {
-                icon: MapPin,
-                label: "Zone de résidence",
-                value: ZONE_LABELS[user.zone],
-            },
-        ]
-
     return (
         <div className={user.role === "ADMIN" ? "flex min-h-screen w-full" : "flex w-full flex-col"}>
             {user.role === "ADMIN" && (
@@ -499,7 +580,10 @@ export function UserDashboard() {
                                             persistées (Task 24) : pastille + titre
                                             gras tant que non lues, horodatage
                                             relatif, clic → « Mes rendez-vous ». */}
-                                        {notifications.map(n => (
+                                        {notifications.map(n => {
+                                            const visual = notificationVisual(n.type)
+                                            const NotifIcon = visual.Icon
+                                            return (
                                             <li key={n.id}>
                                                 <button
                                                     type="button"
@@ -510,20 +594,23 @@ export function UserDashboard() {
                                                                 n.id
                                                             )
                                                         }
-                                                         if (isPatient && n.type === "APPOINTMENT_REMINDER") {
-                                                             setTab("rdv")
-                                                         } else if (user.role === "NURSE") {
-                                                             setTab("missions")
-                                                         } else {
-                                                             // L'admin revient à son accueil : le dispatch admin sera une
-                                                             // destination dédiée lorsqu'il sera exposé dans le menu.
-                                                             setTab("accueil")
-                                                         }
+                                                        // Task 35 — destination
+                                                        // par rôle + famille :
+                                                        // la notification mène
+                                                        // à l'outil d'action.
+                                                        setTab(
+                                                            notificationDestination(
+                                                                n.type,
+                                                                user.role
+                                                            )
+                                                        )
                                                     }}
                                                     className="flex w-full items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/60"
                                                 >
-                                                    <span className="relative mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                                                        <BellRing
+                                                    <span
+                                                        className={`relative mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg ${visual.classes}`}
+                                                    >
+                                                        <NotifIcon
                                                             className="size-4"
                                                             aria-hidden="true"
                                                         />
@@ -554,7 +641,8 @@ export function UserDashboard() {
                                                     </span>
                                                 </button>
                                             </li>
-                                        ))}
+                                            )
+                                        })}
                                         {nextPatientAppointment && (
                                             <li>
                                                 <button
@@ -750,8 +838,45 @@ export function UserDashboard() {
                                         </div>
                                     </div>
 
-                                    {/* Raccourci ADMIN — validation des recharges de Tokens
-                                (FEATURE-TOKENS : cycle financier de la consultation) */}
+                                    {/* Raccourci ADMIN — Missions & Dispatch (Task 35 :
+                                FEATURE-NURSE exposée au Médecin Chef) + validation des
+                                recharges de Tokens (FEATURE-TOKENS) — les deux piliers
+                                opérationnels, avec compteurs de file RÉELS. */}
+                                    {user.role === "ADMIN" && (
+                                        <button
+                                            type="button"
+                                            onClick={() => setTab("missions")}
+                                            className="mb-6 flex w-full items-center gap-3 rounded-2xl border bg-card p-4 text-left shadow-sm transition-colors hover:border-primary/40 hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:p-5"
+                                        >
+                                            <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                                                <ClipboardCheck
+                                                    className="size-5"
+                                                    aria-hidden="true"
+                                                />
+                                            </span>
+                                            <span className="min-w-0 flex-1">
+                                                <span className="block text-sm font-bold">
+                                                    Missions &amp; Dispatch
+                                                </span>
+                                                <span className="block text-xs text-muted-foreground">
+                                                    Affectez les consultations à
+                                                    domicile et suivez les équipes
+                                                </span>
+                                                {adminCounters &&
+                                                    adminCounters.toDispatch > 0 && (
+                                                        <Badge className="mt-1.5 bg-warning text-warning-foreground">
+                                                            {adminCounters.toDispatch} à
+                                                            affecter
+                                                        </Badge>
+                                                    )}
+                                            </span>
+                                            <ChevronRight
+                                                className="size-5 shrink-0 text-muted-foreground"
+                                                aria-hidden="true"
+                                            />
+                                        </button>
+                                    )}
+
                                     {user.role === "ADMIN" && (
                                         <button
                                             type="button"
@@ -773,6 +898,13 @@ export function UserDashboard() {
                                                     patients (Wave, OM, MTN,
                                                     Visa)
                                                 </span>
+                                                {adminCounters &&
+                                                    adminCounters.rechargesPending > 0 && (
+                                                        <Badge className="mt-1.5 bg-warning text-warning-foreground">
+                                                            {adminCounters.rechargesPending} en
+                                                            attente
+                                                        </Badge>
+                                                    )}
                                             </span>
                                             <ChevronRight
                                                 className="size-5 shrink-0 text-muted-foreground"
@@ -868,7 +1000,9 @@ export function UserDashboard() {
                                         </button>
                                     )}
 
-                                    {/* Espace par rôle — cartes fonctionnalités avec badges « à venir » */}
+                                    {/* Espace par rôle — cartes fonctionnalités : passées en
+                                live = raccourcis cliquables (badge vert), les autres
+                                restent annoncées « à venir » */}
                                     <Card className="rounded-2xl">
                                         <CardHeader>
                                             <CardTitle className="flex items-center gap-2.5">
@@ -907,16 +1041,33 @@ export function UserDashboard() {
                                                                 }
                                                             </span>
                                                         </span>
-                                                        <Badge
-                                                            variant="secondary"
-                                                            className="mt-auto w-fit gap-1"
-                                                        >
-                                                            <Clock
-                                                                className="size-3"
-                                                                aria-hidden="true"
-                                                            />
-                                                            Bientôt disponible
-                                                        </Badge>
+                                                        {feature.live && feature.tab ? (
+                                                            <button
+                                                                type="button"
+                                                                onClick={() =>
+                                                                    setTab(feature.tab!)
+                                                                }
+                                                                className="mt-auto flex w-fit items-center gap-1 rounded-full bg-success px-2.5 py-1 text-xs font-bold text-success-foreground transition-colors hover:bg-success/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                                                aria-label={`Ouvrir ${feature.title}`}
+                                                            >
+                                                                <CircleCheck
+                                                                    className="size-3"
+                                                                    aria-hidden="true"
+                                                                />
+                                                                Disponible — ouvrir
+                                                            </button>
+                                                        ) : (
+                                                            <Badge
+                                                                variant="secondary"
+                                                                className="mt-auto w-fit gap-1"
+                                                            >
+                                                                <Clock
+                                                                    className="size-3"
+                                                                    aria-hidden="true"
+                                                                />
+                                                                Bientôt disponible
+                                                            </Badge>
+                                                        )}
                                                     </li>
                                                 ))}
                                             </ul>
@@ -953,6 +1104,22 @@ export function UserDashboard() {
                             aria-label="Mes missions"
                         >
                             <NurseMissionsView />
+                        </motion.section>
+                    )}
+
+                    {/* Task 35 — « Missions & Dispatch » du Médecin Chef : file
+                    à affecter + supervision + réaffectation (sidebar latérale
+                    et raccourci accueil, même destination). */}
+                    {tab === "missions" && user.role === "ADMIN" && (
+                        <motion.section
+                            key="missions-admin"
+                            variants={tabVariants}
+                            initial="enter"
+                            animate="center"
+                            exit="exit"
+                            aria-label="Missions et dispatch"
+                        >
+                            <AdminMissionsView onBack={() => setTab("accueil")} />
                         </motion.section>
                     )}
 
@@ -1059,57 +1226,14 @@ export function UserDashboard() {
                                     onLogout={handleLogout}
                                 />
                             ) : (
-                                <>
-                                    <Card className="rounded-2xl">
-                                        <CardHeader>
-                                            <CardTitle className="flex flex-wrap items-center justify-between gap-2">
-                                                <span>Mon profil</span>
-                                                <RoleBadge role={user.role} />
-                                            </CardTitle>
-                                            <CardDescription>
-                                                Vos informations de compte
-                                            </CardDescription>
-                                        </CardHeader>
-                                        <CardContent>
-                                            <ul className="grid gap-3 sm:grid-cols-3">
-                                                {profileFields.map(field => (
-                                                    <li
-                                                        key={field.label}
-                                                        className="flex items-start gap-3 rounded-xl border bg-muted/40 p-3"
-                                                    >
-                                                        <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                                                            <field.icon
-                                                                className="size-4"
-                                                                aria-hidden="true"
-                                                            />
-                                                        </span>
-                                                        <span className="flex min-w-0 flex-col">
-                                                            <span className="text-xs text-muted-foreground">
-                                                                {field.label}
-                                                            </span>
-                                                            <span className="truncate text-sm font-medium">
-                                                                {field.value}
-                                                            </span>
-                                                        </span>
-                                                    </li>
-                                                ))}
-                                            </ul>
-                                        </CardContent>
-                                    </Card>
-
-                                    <Button
-                                        variant="outline"
-                                        onClick={handleLogout}
-                                        disabled={!user}
-                                        className="mt-6 h-11 w-full border-destructive/30 text-destructive hover:bg-destructive/5 hover:text-destructive sm:w-auto"
-                                    >
-                                        <LogOut
-                                            className="size-4"
-                                            aria-hidden="true"
-                                        />
-                                        Se déconnecter
-                                    </Button>
-                                </>
+                                // Profil Médecin Chef complet — Task 35 : activité de
+                                // supervision réelle, infos éditables (dialogs partagés),
+                                // mot de passe fonctionnel (contrat Task 34),
+                                // confidentialité médicale renforcée.
+                                <AdminProfileView
+                                    user={user}
+                                    onLogout={handleLogout}
+                                />
                             )}
                         </motion.section>
                     )}
@@ -1140,20 +1264,15 @@ export function UserDashboard() {
                 />
             )}
 
-            {/* Navigation basse flottante — style app native, safe-area iOS respectée */}
+            {/* Navigation basse flottante — style app native, safe-area iOS respectée.
+                Le Médecin Chef n'en a pas : sa navigation vit dans la sidebar
+                latérale (accueil, missions, recharges, spécialités, tarifs, profil). */}
             {!isAdmin && <nav
                 aria-label="Navigation principale"
                 className="fixed inset-x-0 bottom-0 z-20 px-4 pb-[max(env(safe-area-inset-bottom),1rem)]"
             >
                 <ul className="mx-auto flex max-w-md items-center justify-around gap-1 rounded-2xl border border-border/70 bg-card/95 p-1.5 shadow-lg shadow-primary/[0.08] backdrop-blur-md">
-                    {(isPatient
-                        ? PATIENT_TABS
-                        : user.role === "ADMIN"
-                          ? ADMIN_TABS
-                          : user.role === "NURSE"
-                            ? NURSE_TABS
-                            : BASE_TABS
-                    ).map(item => {
+                    {(isPatient ? PATIENT_TABS : user.role === "NURSE" ? NURSE_TABS : BASE_TABS).map(item => {
                         const isActive = tab === item.id
                         return (
                             <li key={item.id} className="flex-1">

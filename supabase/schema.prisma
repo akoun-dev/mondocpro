@@ -243,16 +243,27 @@ model TokenTransaction {
 }
 
 // ——— FEATURE-RDV / Task 24 — Notifications InApp ———
-// Centre de notifications in-app du patient : le canal qui fonctionne dès
-// aujourd'hui (vs SMS en attente de la décision A10, ADR-006). Premier type
-// câblé : rappel « 24 h avant RDV » créé par le scheduler (src/lib/reminders.ts).
-// Future extension naturelle : alertes de santé locales (healthAlerts),
-// confirmation/annulation de RDV — l'enum NotificationType est fait pour ça.
+// Centre de notifications in-app : le canal qui fonctionne dès aujourd'hui
+// (vs SMS en attente de la décision A10, ADR-006). Task 35 — couverture
+// complète des cycles métier :
+//   - rappels « 24 h avant RDV » (scheduler, reminders.ts) ;
+//   - cycle missions infirmières (nurse.ts : affectation, statut, CR) ;
+//   - cycle recharges de Tokens (tokens.ts : déclaration patient → décision
+//     Médecin Chef) — le patient est informé du crédit/refus, l'ADMIN est
+//     alerté des paiements à rapprocher ;
+//   - cycle RDV (appointments.ts : demande à domicile à affecter pour
+//     l'ADMIN, annulation patient → ADMIN, clôture/annulation ADMIN → patient).
 enum NotificationType {
   APPOINTMENT_REMINDER
   MISSION_ASSIGNED
   MISSION_STATUS_CHANGED
   VISIT_REPORT_SUBMITTED
+  RECHARGE_REQUESTED
+  RECHARGE_CONFIRMED
+  RECHARGE_REJECTED
+  APPOINTMENT_REQUESTED
+  APPOINTMENT_CANCELLED
+  APPOINTMENT_COMPLETED
 }
 
 model Notification {

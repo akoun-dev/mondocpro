@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireRole } from "@/lib/auth";
-import { dispatchMission, listAdminMissions, NurseMissionError } from "@/lib/nurse";
+import { dispatchMission, listAdminMissionBoard, NurseMissionError } from "@/lib/nurse";
 import { dispatchMissionSchema } from "@/lib/nurse-schemas";
 
 export async function POST(request: Request) {
@@ -13,11 +13,14 @@ export async function POST(request: Request) {
   catch (error) { if (error instanceof NurseMissionError) return NextResponse.json({ error: error.message }, { status: error.status }); return NextResponse.json({ error: "Erreur interne — réessayez" }, { status: 500 }); }
 }
 
+// GET — supervision des missions (contrat Task 32 : { missions }) ÉTENDU Task 35
+// par la file de dispatch (RDV à domicile actifs sans mission) et l'annuaire
+// des infirmiers — payload unique consommé par l'interface « Missions & Dispatch ».
 export async function GET() {
   const guard = await requireRole(["ADMIN"]);
   if (!guard.ok) return guard.response;
   try {
-    return NextResponse.json({ missions: await listAdminMissions() });
+    return NextResponse.json(await listAdminMissionBoard());
   } catch {
     return NextResponse.json({ error: "Erreur interne — réessayez" }, { status: 500 });
   }

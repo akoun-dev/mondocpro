@@ -143,13 +143,27 @@ Validation: schéma zod de référence (src/lib/<domaine>.ts)
 - Errors: 401 `{ error }` secret absent/faux (comparaison à temps constant) · 503 `{ error }` **CRON_SECRET non configuré** = scheduler non déployé (passerelle SMS : décision A10 en attente) · 500
 - Notes: périmètre PO — rappels **UNIQUEMENT AVANT les RDV**, fenêtre **24 h** (`REMINDER_LEAD_HOURS`, src/lib/reminders.ts) ; sélection : `status = CONFIRMED` ∧ `scheduledAt ∈ [maintenant, +24 h]` ∧ `reminderSentAt IS NULL` ∧ patient `appointmentReminders = true` ; **anti-doublon** : envoi réussi ⇒ `Appointment.reminderSentAt` marqué (un RDV rappelé n'est jamais repris ; échec ⇒ non marqué ⇒ retenté au tick suivant) ; batch plafonné à 100/tick ; **deux canaux par tick (Task 24)** : notification InApp créée d'abord (upsert idempotent via unique `userId+type+entityId` — jamais de doublon même en cas de retentement SMS) puis SMS via la passerelle **provider-agnostic** (`SmsGateway`) en stub console — brancher le fournisseur choisi à A10 (ADR-006) = 1 seule fonction (`getSmsGateway`) ; message SMS fr-FR ≤ 160 c. (heure locale Afrique/Abidjan = UTC+0).
 
-### [GET] /api/notifications — Fil InApp de l'utilisateur (FEATURE-RDV, Task 24)
+### [GET] /api/notifications — Fil InApp de l'utilisateur (FEATURE-RDV, Task 24 ; étendu Task 35)
 
-- Feature: FEATURE-RDV (canal InApp des rappels) | Owner: Backend | Statut: **IMPLÉMENTÉ** (Task 24, 2026-10-03)
+- Feature: FEATURE-RDV (canal InApp des rappels) | Owner: Backend | Statut: **IMPLÉMENTÉ** (Task 24, 2026-10-03 ; couverture complète des cycles métier Task 35, 2026-10-04)
 - Request: — (cookie de session, tous rôles) — l'utilisateur ne voit JAMAIS que ses propres notifications
-- Response: 200 `{ "notifications": [{ "id": string, "type": "APPOINTMENT_REMINDER", "title": string, "body": string, "entityId": string|null, "readAt": string|null, "createdAt": string }], "unreadCount": number }` — 50 plus récentes, tri décroissant `createdAt` ; `unreadCount` = badge de la cloche
+- Response: 200 `{ "notifications": [{ "id": string, "type": NotificationType, "title": string, "body": string, "entityId": string|null, "readAt": string|null, "createdAt": string }], "unreadCount": number }` — 50 plus récentes, tri décroissant `createdAt` ; `unreadCount` = badge de la cloche
 - Errors: 401 `{ error }` non authentifié · 500
-- Notes: première source câblée = rappel « 24 h avant RDV » créé par le scheduler (type `APPOINTMENT_REMINDER`, `entityId` = appointmentId) ; l'enum DB `NotificationType` est l'autorité — les futurs types (alertes de santé locales, changements de statut RDV) l'étendent en miroir de `src/lib/notifications.ts` ; anti-doublon structurel via index unique `(userId, type, entityId)` (NB Postgres : NULL distincts — dédoublonnage effectif pour les types portant une `entityId`).
+- Notes: **`NotificationType` (Task 35 — enum DB autorité, miroir `src/lib/notifications.ts`) :**
+  | Type | Destinataire | Déclencheur (transaction métier) | `entityId` |
+  |---|---|---|---|
+  | `APPOINTMENT_REMINDER` | patient | scheduler rappels 24 h (reminders.ts, upsert idempotent) | appointmentId |
+  | `APPOINTMENT_REQUESTED` | ADMIN(s) | RDV **DOMICILE** créé (appointments.ts) — file de dispatch | appointmentId |
+  | `APPOINTMENT_CANCELLED` | ADMIN(s) / patient | annulation patient → admins ; annulation équipe → patient | appointmentId |
+  | `APPOINTMENT_COMPLETED` | patient | clôture `DONE` par le Médecin Chef (Tokens consommés) | appointmentId |
+  | `MISSION_ASSIGNED` | infirmier affecté | dispatch / réaffectation (nurse.ts, date en fr-FR) | missionId:assignment:ts |
+  | `MISSION_STATUS_CHANGED` | patient + admin affecteur | transition de statut infirmier | missionId:status |
+  | `VISIT_REPORT_SUBMITTED` | patient + admin affecteur | compte rendu rédigé | missionId:report |
+  | `RECHARGE_REQUESTED` | ADMIN(s) | déclaration de recharge patient (tokens.ts) | rechargeId |
+  | `RECHARGE_CONFIRMED` | patient | décision `CONFIRM` du Médecin Chef | rechargeId |
+  | `RECHARGE_REJECTED` | patient | décision `REJECT` | rechargeId |
+  Anti-doublon structurel via index unique `(userId, type, entityId)` (NB Postgres : NULL distincts — dédoublonnage effectif pour les types portant une `entityId`) ; helpers partagés `notifyUsers` / `notifyAdmins` (server-only) — les notifications naissent DANS la transaction métier (jamais de mutation sans nouvelle).
+- Notes front (Task 35) : routage du clic par **famille** (`notificationFamily`) + rôle — patient : `RECHARGE_*` → Wallet, `APPOINTMENT_*`/missions → Mes rendez-vous ; infirmier → Missions ; admin : `RECHARGE_*` → Recharges, le reste → Missions & Dispatch ; icône/couleur par famille dans le panneau.
 
 ### [POST] /api/notifications/read — Marquer des notifications comme lues (Task 24)
 
@@ -284,12 +298,13 @@ Validation: schéma zod de référence (src/lib/<domaine>.ts)
 - Response: 201 `{ "mission": Mission }`
 - Errors: 400 · 401 · 403 · 404 · 409 déjà dispatché · 500
 
-### [GET] /api/admin/missions — File de supervision des missions
+### [GET] /api/admin/missions — Tableau de bord des missions (supervision + dispatch, Task 35)
 
-- Feature: FEATURE-NURSE | Statut: **IMPLÉMENTÉ**
+- Feature: FEATURE-NURSE | Statut: **IMPLÉMENTÉ** (contrat étendu Task 35, 2026-10-04 — additif, `missions` inchangé)
 - Auth: rôle `ADMIN` uniquement.
-- Response: 200 `{ "missions": Mission[] }`, triées par date d'affectation décroissante.
+- Response: 200 `{ "missions": Mission[], "dispatchQueue": [{ "id": appointmentId, "patientName": string, "patientPhone": string, "zone": string, "type": string, "scheduledAt": string, "specialtyName": string|null, "reason": string|null, "tokensReserved": number }], "nurses": [{ "id": string, "fullName": string, "phone": string, "zone": string }] }` — `missions` triées par date d'affectation décroissante ; `dispatchQueue` = RDV **DOMICILE** actifs (PENDING/CONFIRMED) **sans mission**, tri croissant par créneau, 50 max ; `nurses` = annuaire des comptes NURSE (tri alphabétique). DTO partagés client-safe dans `src/lib/nurse-schemas.ts` (`AdminMissionBoard`).
 - Errors: 401 · 403 · 500
+- Notes: payload unique consommé par la vue admin « Missions & Dispatch » (components/admin/missions-view.tsx) — file à affecter (POST dispatch), suivi des statuts, réaffectation, lecture des comptes rendus ; l'UI guide la contrainte de zone (l'API refuse un infirmier hors zone, 400).
 
 ### [PATCH] /api/admin/missions/:id — Réaffecter une mission
 

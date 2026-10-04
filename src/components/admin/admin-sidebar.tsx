@@ -3,6 +3,7 @@
 import Image from "next/image"
 import {
     Banknote,
+    ClipboardCheck,
     LayoutDashboard,
     LogOut,
     Menu,
@@ -16,10 +17,20 @@ import { Button } from "@/components/ui/button"
 import { getInitials } from "@/lib/utils"
 import type { AppUser } from "@/stores/auth-store"
 
-export type AdminTab = "accueil" | "recharges" | "specialties" | "tarifs" | "profil"
+export type AdminTab =
+    | "accueil"
+    | "missions"
+    | "recharges"
+    | "specialties"
+    | "tarifs"
+    | "profil"
 
+// Navigation latérale du Médecin Chef — Task 35 : « Missions & Dispatch »
+// rejoint la barre (file à affecter + supervision), à côté des recharges de
+// Tokens dont la validation est le second pilier opérationnel.
 const ITEMS: { id: AdminTab; label: string; icon: typeof LayoutDashboard }[] = [
     { id: "accueil", label: "Vue d'ensemble", icon: LayoutDashboard },
+    { id: "missions", label: "Missions & Dispatch", icon: ClipboardCheck },
     { id: "recharges", label: "Recharges Tokens", icon: Banknote },
     { id: "specialties", label: "Spécialités", icon: Stethoscope },
     { id: "tarifs", label: "Tarifs", icon: Tags },

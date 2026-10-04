@@ -6,6 +6,9 @@
 import { db } from "@/lib/db";
 import { Prisma, type Appointment, type AppointmentStatus } from "@prisma/client";
 import type { CreateAppointmentInput } from "@/lib/appointment-schemas";
+import { notifyAdmins, notifyUsers } from "@/lib/notifications";
+import { ZONE_LABELS } from "@/lib/auth-schemas";
+import { formatFullSlotUTC } from "@/lib/datetime";
 import {
   AppointmentError,
   slotToDate,
@@ -186,6 +189,23 @@ export async function createAppointmentForPatient(
         // (aucun RDV sans réservation, aucune réservation orpheline).
         await reserveTokensForAppointment(tx, patientId, created.id, costTokens);
 
+        // Task 35 — une consultation À DOMICILE exige une mission infirmière :
+        // le Médecin Chef est alerté dès la demande (sinon la file de dispatch
+        // reste invisible tant qu'il n'ouvre pas l'interface). Les RDV CABINET
+        // ne requièrent aucune action admin → pas de notification (anti-bruit).
+        if (input.type === "DOMICILE") {
+          const patient = await tx.user.findUnique({
+            where: { id: patientId },
+            select: { fullName: true },
+          });
+          await notifyAdmins(tx, {
+            type: "APPOINTMENT_REQUESTED",
+            title: "Consultation à domicile à affecter",
+            body: `${patient?.fullName ?? "Un patient"} a demandé une consultation à domicile (${ZONE_LABELS[input.zone] ?? input.zone}) le ${formatFullSlotUTC(created.scheduledAt.toISOString())}. Affectez une équipe infirmière.`,
+            entityId: created.id,
+          });
+        }
+
         return created;
       },
       {
@@ -228,6 +248,7 @@ export async function cancelAppointmentForPatient(
 ): Promise<AppointmentDto> {
   const existing = await db.appointment.findUnique({
     where: { id: appointmentId },
+    include: { patient: { select: { fullName: true } } },
   });
 
   if (!existing || existing.patientId !== patientId) {
@@ -252,13 +273,23 @@ export async function cancelAppointmentForPatient(
       },
       include: { specialty: { select: { id: true, name: true } } },
     });
-    if (existing.tokenState === "RESERVED") {
+    const released = existing.tokenState === "RESERVED";
+    if (released) {
       await releaseAppointmentTokens(
         tx,
         existing,
         "Annulation par le patient — libération de la réservation",
       );
     }
+    // Task 35 — le Médecin Chef supervise l'activité : il doit savoir qu'un
+    // créneau vient de se libérer (suivi de charge + ré-affectation éventuelle
+    // d'une équipe). Même transaction : jamais d'annulation sans nouvelle.
+    await notifyAdmins(tx, {
+      type: "APPOINTMENT_CANCELLED",
+      title: "Rendez-vous annulé par le patient",
+      body: `${existing.patient.fullName} a annulé son rendez-vous du ${formatFullSlotUTC(existing.scheduledAt.toISOString())}.${released ? " Les Tokens réservés ont été libérés." : ""}`,
+      entityId: existing.id,
+    });
     return updated;
   });
   return toAppointmentDto(cancelled);
@@ -319,6 +350,32 @@ export async function closeAppointmentByAdmin(
           adminId,
         );
       }
+    }
+    // Task 35 — le patient n'est jamais laissé dans l'incertitude : la clôture
+    // (visite réalisée → Tokens consommés) et l'annulation équipe (Tokens
+    // libérés) arrivent dans son fil InApp, dans la même transaction que la
+    // mutation (jamais de RDV clôturé sans nouvelle).
+    const slot = formatFullSlotUTC(existing.scheduledAt.toISOString());
+    if (action === "DONE") {
+      await notifyUsers(tx, [existing.patientId], {
+        type: "APPOINTMENT_COMPLETED",
+        title: "Consultation réalisée",
+        body:
+          existing.tokensReserved > 0
+            ? `Votre consultation du ${slot} est terminée. ${existing.tokensReserved === 1 ? "1 Token a été débité" : `${existing.tokensReserved} Tokens ont été débités`} de votre portefeuille. Merci de votre confiance.`
+            : `Votre consultation du ${slot} est terminée. Merci de votre confiance.`,
+        entityId: existing.id,
+      });
+    } else {
+      await notifyUsers(tx, [existing.patientId], {
+        type: "APPOINTMENT_CANCELLED",
+        title: "Rendez-vous annulé par l'équipe",
+        body:
+          existing.tokenState === "RESERVED"
+            ? `Votre rendez-vous du ${slot} a été annulé par notre équipe — vos Tokens réservés ont été libérés. Vous pouvez reprendre un nouveau créneau depuis l'app.`
+            : `Votre rendez-vous du ${slot} a été annulé par notre équipe. Vous pouvez reprendre un nouveau créneau depuis l'app.`,
+        entityId: existing.id,
+      });
     }
     return updated;
   });

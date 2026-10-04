@@ -1,47 +1,44 @@
 "use client";
 
-// Vue « Profil » infirmier — FEATURE-NURSE-PROFIL (Task 34, dialogs mutualisés
-// Task 35). Même langage visuel que la vue profil patient (maquette PO
-// 2026-10-03) : héro avatar + nom + pastille zone, sections en lignes InfoRow,
-// bandeau RGPD, urgences Abidjan. Spécifique infirmier :
-//   - carte « Activité » : statistiques RÉELLES issues de /api/nurse/missions
-//     (missions actives, terminées, comptes rendus rédigés) ;
-//   - « Informations professionnelles » : nom, mobile actif, secteur
-//     d'intervention (zone), date de naissance — éditables (dialogs partagés
-//     ProfileIdentityDialog / ProfileZoneDialog, PATCH profil) ;
+// Vue « Profil » du Médecin Chef (ADMIN) — Task 35.
+// Même langage visuel que les vues profil patient (maquette PO 2026-10-03) et
+// infirmier (Task 34) : héro avatar + nom + badge rôle, sections en InfoRow,
+// bandeau conformité, urgences Abidjan. Spécifique Médecin Chef :
+//   - carte « Activité de supervision » : statistiques RÉELLES issues de
+//     /api/admin/recharges (file de validation) et /api/admin/missions
+//     (dispatch + suivi) — carte masquée si les API échouent ;
+//   - « Informations du compte » : nom, date de naissance (dialog partagé
+//     ProfileIdentityDialog), mobile vérifié, secteur d'habitation (dialog
+//     partagé ProfileZoneDialog) — le téléphone n'est JAMAIS éditable
+//     (identifiant de connexion, invariant FEATURE-PROFIL Task 22/23) ;
 //   - « Sécurité & Accès » : changement de mot de passe FONCTIONNEL
-//     (POST /api/auth/change-password — dialogue PasswordChangeDialog), la
-//     voie par code SMS restant l'option de secours hors session (ADR-006).
-// Préférences : interrupteurs persistés (maj optimiste + revert), comme côté
-// patient (Task 22/23) — primitives partagées components/profile/.
+//     (POST /api/auth/change-password — rôle-agnostique Task 34, socle
+//     PasswordChangeDialog réutilisé tel quel) ;
+//   - confidentialité médicale renforcée : accès supervisé aux dossiers
+//     patients (loi n° 2013-430).
 import { useEffect, useState } from "react";
 import {
   Ambulance,
-  BellRing,
   Cake,
   ChevronRight,
   CircleCheck,
+  Coins,
   ExternalLink,
   Flame,
   Globe,
   LifeBuoy,
-  Loader2,
   LockKeyhole,
   MapPin,
   Megaphone,
   Pencil,
   ShieldCheck,
   Smartphone,
-  Stethoscope,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { FlagCI } from "@/components/auth/ci-flag";
 import { PasswordChangeDialog } from "@/components/auth/password-change-dialog";
-import {
-  ProfileIdentityDialog,
-  ProfileZoneDialog,
-} from "@/components/profile/profile-edit-dialogs";
+import { ProfileIdentityDialog, ProfileZoneDialog } from "@/components/profile/profile-edit-dialogs";
 import {
   InfoRow,
   PreferenceRow,
@@ -60,50 +57,47 @@ type Props = {
   onLogout: () => void;
 };
 
-// Statistiques d'activité — contrats repris de NurseMissionsView (FEATURE-
-// NURSE) : statut COMPLETED ⇔ mission terminée, report présent ⇔ compte
-// rendu rédigé. Échec de chargement = carte masquée (le profil reste utilisable).
-type MissionLite = {
-  status:
-    | "ASSIGNED"
-    | "ACCEPTED"
-    | "IN_PROGRESS"
-    | "COMPLETED"
-    | "CANCELLED";
-  report?: { observations?: string } | null;
+// Statistiques de supervision — contrats GET /api/admin/recharges (pending /
+// processed) et GET /api/admin/missions (dispatchQueue / missions, Task 35).
+type AdminStats = {
+  rechargesPending: number;
+  rechargesProcessed: number;
+  toDispatch: number;
+  activeMissions: number;
+  completedMissions: number;
 };
 
-type MissionStats = {
-  total: number;
-  active: number;
-  completed: number;
-  reports: number;
-};
-
-function useMissionStats(enabled: boolean): MissionStats | null {
-  const [stats, setStats] = useState<MissionStats | null>(null);
+function useAdminStats(): AdminStats | null {
+  const [stats, setStats] = useState<AdminStats | null>(null);
 
   useEffect(() => {
-    if (!enabled) return;
     let cancelled = false;
     (async () => {
       try {
-        const res = await fetch("/api/nurse/missions", { cache: "no-store" });
-        if (!res.ok) return;
-        const payload = (await res.json()) as
-          | { missions?: MissionLite[] }
-          | MissionLite[];
-        const missions = Array.isArray(payload)
-          ? payload
-          : payload.missions ?? [];
+        const [rechargesRes, missionsRes] = await Promise.all([
+          fetch("/api/admin/recharges", { cache: "no-store" }),
+          fetch("/api/admin/missions", { cache: "no-store" }),
+        ]);
+        if (!rechargesRes.ok || !missionsRes.ok) return;
+        const recharges = (await rechargesRes.json()) as {
+          pending?: unknown[];
+          processed?: unknown[];
+        };
+        const board = (await missionsRes.json()) as {
+          dispatchQueue?: unknown[];
+          missions?: Array<{ status: string }>;
+        };
         if (cancelled) return;
+        const missions = board.missions ?? [];
         setStats({
-          total: missions.length,
-          active: missions.filter((m) =>
-            ["ASSIGNED", "ACCEPTED", "IN_PROGRESS"].includes(m.status)
+          rechargesPending: recharges.pending?.length ?? 0,
+          rechargesProcessed: recharges.processed?.length ?? 0,
+          toDispatch: board.dispatchQueue?.length ?? 0,
+          activeMissions: missions.filter((m) =>
+            ["ASSIGNED", "ACCEPTED", "IN_PROGRESS"].includes(m.status),
           ).length,
-          completed: missions.filter((m) => m.status === "COMPLETED").length,
-          reports: missions.filter((m) => m.report).length,
+          completedMissions: missions.filter((m) => m.status === "COMPLETED")
+            .length,
         });
       } catch {
         // silencieux : la carte activité n'est pas critique
@@ -112,41 +106,29 @@ function useMissionStats(enabled: boolean): MissionStats | null {
     return () => {
       cancelled = true;
     };
-  }, [enabled]);
+  }, []);
 
   return stats;
 }
 
-export function NurseProfileView({ user, onLogout }: Props) {
+export function AdminProfileView({ user, onLogout }: Props) {
   const setUser = useAuthStore((s) => s.setUser);
-  const stats = useMissionStats(true);
+  const stats = useAdminStats();
 
-  // — Édition des informations (nom + date de naissance) et du secteur —
-  // dialogs PARTAGÉS patient/infirmier/admin (components/profile/
-  // profile-edit-dialogs) : brouillon, Zod, PATCH et toasts sont portés par
-  // le dialog lui-même ; la vue ne gère que l'ouverture.
   const [editOpen, setEditOpen] = useState(false);
   const [zoneOpen, setZoneOpen] = useState(false);
-
-  // — Mot de passe (fonctionnel, Task 34).
   const [passwordOpen, setPasswordOpen] = useState(false);
-
-  // — Préférences — maj optimiste persistée.
-  const [prefSaving, setPrefSaving] = useState<
-    "appointmentReminders" | "healthAlerts" | null
-  >(null);
+  const [prefSaving, setPrefSaving] = useState<"healthAlerts" | null>(null);
 
   const memberSince = `Membre · ${relativePublishedLabel(user.createdAt)}`;
 
-  async function updatePreference(
-    key: "appointmentReminders" | "healthAlerts",
-    value: boolean
-  ) {
+  // Préférences — maj optimiste persistée (même modèle que patient/infirmier).
+  // Seule « Alertes de santé locales » est proposée au Médecin Chef : les
+  // rappels de RDV (appointmentReminders) ciblent les patients, un
+  // interrupteur inerte serait trompeur ici.
+  async function updatePreference(key: "healthAlerts", value: boolean) {
     const previous = user[key];
-    const label =
-      key === "appointmentReminders"
-        ? "Rappels de rendez-vous"
-        : "Alertes de santé locales";
+    const label = "Alertes de santé locales";
     setPrefSaving(key);
     setUser({ ...user, [key]: value });
     try {
@@ -159,7 +141,7 @@ export function NurseProfileView({ user, onLogout }: Props) {
       const data = (await res.json()) as { user: AppUser };
       setUser(data.user);
       toast({
-        title: value ? `${label} activés` : `${label} désactivés`,
+        title: value ? `${label} activées` : `${label} désactivées`,
         description: value
           ? "Vous recevrez les notifications correspondantes."
           : "Vous ne recevrez plus ces notifications.",
@@ -200,11 +182,11 @@ export function NurseProfileView({ user, onLogout }: Props) {
               {user.fullName}
             </h2>
             <Badge
-              className="bg-success text-success-foreground"
-              aria-label="Rôle : Infirmier"
+              className="bg-warning text-warning-foreground"
+              aria-label="Rôle : Médecin Chef"
             >
-              <Stethoscope className="size-3" aria-hidden="true" />
-              Infirmier
+              <ShieldCheck className="size-3" aria-hidden="true" />
+              Médecin Chef
             </Badge>
           </div>
           <p className="mt-1 flex flex-wrap items-center justify-center gap-1 text-xs text-muted-foreground">
@@ -216,18 +198,18 @@ export function NurseProfileView({ user, onLogout }: Props) {
         </div>
       </div>
 
-      {/* Activité — statistiques réelles des missions (masquée si échec API) */}
+      {/* Activité de supervision — statistiques réelles (masquée si échec API) */}
       {stats ? (
-        <section aria-labelledby="profil-activite">
-          <ProfileSectionTitle id="profil-activite">
-            Activité de terrain
+        <section aria-labelledby="profil-activite-admin">
+          <ProfileSectionTitle id="profil-activite-admin">
+            Activité de supervision
           </ProfileSectionTitle>
           <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
             {[
-              { value: stats.total, label: "Missions reçues" },
-              { value: stats.active, label: "En cours" },
-              { value: stats.completed, label: "Terminées" },
-              { value: stats.reports, label: "Comptes rendus" },
+              { value: stats.rechargesPending, label: "Recharges à valider" },
+              { value: stats.toDispatch, label: "RDV à affecter" },
+              { value: stats.activeMissions, label: "Missions actives" },
+              { value: stats.rechargesProcessed, label: "Recharges traitées" },
             ].map((tile) => (
               <div
                 key={tile.label}
@@ -245,15 +227,15 @@ export function NurseProfileView({ user, onLogout }: Props) {
         </section>
       ) : null}
 
-      {/* Informations professionnelles — nom + naissance éditables (dialog) */}
-      <section aria-labelledby="profil-infos-nurse">
+      {/* Informations du compte — nom + naissance éditables (dialogs partagés) */}
+      <section aria-labelledby="profil-infos-admin">
         <ProfileSectionTitle
-          id="profil-infos-nurse"
+          id="profil-infos-admin"
           action={
             <button
               type="button"
               onClick={() => setEditOpen(true)}
-              aria-label="Modifier mes informations professionnelles"
+              aria-label="Modifier mes informations"
               className="flex shrink-0 items-center gap-1 rounded-full px-2 py-1 text-xs font-semibold text-primary transition-colors hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               <Pencil className="size-3.5" aria-hidden="true" />
@@ -261,7 +243,7 @@ export function NurseProfileView({ user, onLogout }: Props) {
             </button>
           }
         >
-          Informations professionnelles
+          Informations du compte
         </ProfileSectionTitle>
         <div className="flex flex-col gap-2.5">
           <InfoRow
@@ -272,13 +254,10 @@ export function NurseProfileView({ user, onLogout }: Props) {
             }
             valueMuted={!user.birthDate}
             accessory={
-              <Pencil
-                className="size-4 shrink-0 text-muted-foreground"
-                aria-hidden="true"
-              />
+              <Pencil className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
             }
             onClick={() => setEditOpen(true)}
-            actionLabel="Modifier mes informations professionnelles (nom et date de naissance)"
+            actionLabel="Modifier mes informations (nom et date de naissance)"
           />
           <InfoRow
             icon={Smartphone}
@@ -298,23 +277,30 @@ export function NurseProfileView({ user, onLogout }: Props) {
           />
           <InfoRow
             icon={MapPin}
-            label="Secteur d'intervention"
+            label="Secteur d'habitation"
             value={ZONE_LABELS[user.zone]}
             accessory={
-              <Pencil
-                className="size-4 shrink-0 text-muted-foreground"
-                aria-hidden="true"
-              />
+              <Pencil className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
             }
             onClick={() => setZoneOpen(true)}
-            actionLabel="Modifier le secteur d'intervention"
+            actionLabel="Modifier le secteur d'habitation"
+          />
+          <InfoRow
+            icon={Coins}
+            label="Portefeuille central des recharges"
+            value="Rapprochement des paiements patients"
+            accessory={
+              <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+            }
+            onClick={() => soonToast("Le raccourci portefeuille")}
+            actionLabel="Rappel du circuit des recharges (à venir)"
           />
         </div>
       </section>
 
-      {/* Sécurité & Accès — mot de passe FONCTIONNEL (Task 34) */}
-      <section aria-labelledby="profil-securite-nurse">
-        <ProfileSectionTitle id="profil-securite-nurse">
+      {/* Sécurité & Accès — mot de passe FONCTIONNEL (contrat Task 34, rôle-agnostique) */}
+      <section aria-labelledby="profil-securite-admin">
+        <ProfileSectionTitle id="profil-securite-admin">
           Sécurité &amp; Accès
         </ProfileSectionTitle>
         <div className="flex flex-col gap-2.5">
@@ -323,10 +309,7 @@ export function NurseProfileView({ user, onLogout }: Props) {
             label="Modifier le mot de passe"
             value="Par vérification du mot de passe actuel"
             accessory={
-              <ChevronRight
-                className="size-4 shrink-0 text-muted-foreground"
-                aria-hidden="true"
-              />
+              <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
             }
             onClick={() => setPasswordOpen(true)}
             actionLabel="Modifier le mot de passe"
@@ -338,36 +321,26 @@ export function NurseProfileView({ user, onLogout }: Props) {
             />
             <div>
               <p className="text-sm font-bold text-success-foreground">
-                Conformité de bout en bout
+                Confidentialité médicale
               </p>
               <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                Les données patients confiées lors de vos missions sont
-                protégées selon la loi ivoirienne n°&nbsp;2013-430 du 14 mai
-                2013 relative à la protection des données à caractère
-                personnel.
+                En tant que Médecin Chef, vous accédez aux dossiers et
+                paiements des patients dans le seul intérêt de leur suivi.
+                Cette accès est protégé selon la loi ivoirienne
+                n°&nbsp;2013-430 du 14 mai 2013 relative à la protection des
+                données à caractère personnel.
               </p>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Préférences & Alertes — interrupteurs persistés (PATCH profil) */}
-      <section aria-labelledby="profil-preferences-nurse">
-        <ProfileSectionTitle id="profil-preferences-nurse">
+      {/* Préférences & Alertes — interrupteur persisté (PATCH profil) */}
+      <section aria-labelledby="profil-preferences-admin">
+        <ProfileSectionTitle id="profil-preferences-admin">
           Préférences &amp; Alertes
         </ProfileSectionTitle>
         <div className="flex flex-col gap-2.5">
-          <PreferenceRow
-            icon={BellRing}
-            title="Rappels de rendez-vous"
-            description="Un rappel avant chacune de vos missions affectées — notification dans l'app ; SMS dès le choix de la passerelle."
-            switchLabel="Rappels de rendez-vous"
-            checked={user.appointmentReminders}
-            disabled={prefSaving !== null}
-            onCheckedChange={(checked) =>
-              updatePreference("appointmentReminders", checked)
-            }
-          />
           <PreferenceRow
             icon={Megaphone}
             title="Alertes de santé locales"
@@ -400,12 +373,12 @@ export function NurseProfileView({ user, onLogout }: Props) {
 
       {/* Urgences Médicales Abidjan — numéros réels, appel direct */}
       <section
-        aria-labelledby="profil-urgences-nurse"
+        aria-labelledby="profil-urgences-admin"
         className="rounded-2xl border border-destructive/20 bg-destructive/5 p-4"
       >
         <div className="flex items-center justify-between gap-2">
           <h3
-            id="profil-urgences-nurse"
+            id="profil-urgences-admin"
             className="text-sm font-bold text-destructive"
           >
             Urgences Médicales Abidjan
@@ -440,10 +413,7 @@ export function NurseProfileView({ user, onLogout }: Props) {
         label="Centre d'aide & Assistance Mondoc"
         value="FAQ, contact et signalements"
         accessory={
-          <ExternalLink
-            className="size-4 shrink-0 text-muted-foreground"
-            aria-hidden="true"
-          />
+          <ExternalLink className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
         }
         onClick={() => soonToast("Le centre d'aide")}
         actionLabel="Centre d'aide et assistance (bientôt disponible)"
@@ -457,8 +427,7 @@ export function NurseProfileView({ user, onLogout }: Props) {
         Se déconnecter
       </Button>
 
-      {/* Dialogs d'édition — socle partagé patient/infirmier/admin (Task 35) :
-          brouillon + Zod + PATCH + toasts portés par les dialogs eux-mêmes */}
+      {/* Dialogs d'édition — socle partagé patient/infirmier/admin */}
       <ProfileIdentityDialog
         open={editOpen}
         onOpenChange={setEditOpen}
@@ -468,18 +437,8 @@ export function NurseProfileView({ user, onLogout }: Props) {
         open={zoneOpen}
         onOpenChange={setZoneOpen}
         user={user}
-        description="Votre secteur d'intervention détermine les missions qui vous sont affectées."
-        fieldLabel="Secteur d'intervention"
-        successTitle="Secteur mis à jour"
-        successDescription={(zone) => `Votre secteur d'intervention est désormais ${ZONE_LABELS[zone]}.`}
       />
-
-      {/* Dialog de changement de mot de passe (POST /api/auth/change-password,
-          preuve par le mot de passe actuel — Task 34) */}
-      <PasswordChangeDialog
-        open={passwordOpen}
-        onOpenChange={setPasswordOpen}
-      />
+      <PasswordChangeDialog open={passwordOpen} onOpenChange={setPasswordOpen} />
     </div>
   );
 }

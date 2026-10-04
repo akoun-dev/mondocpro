@@ -5,6 +5,7 @@
 // autorisée sur une ligne : le statut d'une recharge PENDING (garde
 // updateMany — une double confirmation reste sans effet).
 import { db } from "@/lib/db";
+import { notifyAdmins, notifyUsers } from "@/lib/notifications";
 import { Prisma, type TokenTransaction } from "@prisma/client";
 import type { AppointmentTypeValue } from "@/lib/appointment-schemas";
 import {
@@ -377,16 +378,28 @@ export async function requestRecharge(
       400,
     );
   }
-  const created = await db.tokenTransaction.create({
-    data: {
-      userId,
-      type: "RECHARGE",
-      status: "PENDING",
-      tokens,
-      amountFcfa,
-      providerRef: paymentMethod,
-      note: "Recharge déclarée — paiement à rapprocher par le Médecin Chef",
-    },
+  // Transaction unique : la déclaration ET l'alerte du Médecin Chef naissent
+  // ensemble (Task 35) — sans elle, la file PENDING resterait invisible pour
+  // l'ADMIN qui ne surveille pas l'interface en continu.
+  const created = await db.$transaction(async (tx) => {
+    const row = await tx.tokenTransaction.create({
+      data: {
+        userId,
+        type: "RECHARGE",
+        status: "PENDING",
+        tokens,
+        amountFcfa,
+        providerRef: paymentMethod,
+        note: "Recharge déclarée — paiement à rapprocher par le Médecin Chef",
+      },
+    });
+    await notifyAdmins(tx, {
+      type: "RECHARGE_REQUESTED",
+      title: "Recharge de Tokens à valider",
+      body: `Un patient a déclaré un paiement de ${amountFcfa.toLocaleString("fr-FR")} FCFA (${tokens} Token${tokens > 1 ? "s" : ""}) — à rapprocher dans les recharges.`,
+      entityId: row.id,
+    });
+    return row;
   });
   return toTransactionDto(created);
 }
@@ -452,24 +465,46 @@ export async function decideRecharge(
     );
   }
 
-  const updated = await db.tokenTransaction.updateMany({
-    where: { id: rechargeId, type: "RECHARGE", status: "PENDING" },
-    data: {
-      status: decision === "CONFIRM" ? "CONFIRMED" : "REJECTED",
-      processedById: adminId,
-      note:
-        note?.slice(0, 300) ??
-        (decision === "CONFIRM"
-          ? "Paiement rapproché par le Médecin Chef"
-          : "Paiement non rapproché"),
-    },
-  });
-  if (updated.count === 0) {
-    throw new TokenError("Cette recharge a déjà été traitée", 409);
-  }
+  // Transaction unique : la décision ET la notification patient (Task 35)
+  // sont indissociables — le patient apprend le crédit/refus via son fil
+  // InApp, la garde updateMany conditionnelle reste la barrière anti
+  // double-crédit ET anti double-notification.
+  const fresh = await db.$transaction(async (tx) => {
+    const updated = await tx.tokenTransaction.updateMany({
+      where: { id: rechargeId, type: "RECHARGE", status: "PENDING" },
+      data: {
+        status: decision === "CONFIRM" ? "CONFIRMED" : "REJECTED",
+        processedById: adminId,
+        note:
+          note?.slice(0, 300) ??
+          (decision === "CONFIRM"
+            ? "Paiement rapproché par le Médecin Chef"
+            : "Paiement non rapproché"),
+      },
+    });
+    if (updated.count === 0) {
+      throw new TokenError("Cette recharge a déjà été traitée", 409);
+    }
 
-  const fresh = await db.tokenTransaction.findUniqueOrThrow({
-    where: { id: rechargeId },
+    if (decision === "CONFIRM") {
+      await notifyUsers(tx, [existing.userId], {
+        type: "RECHARGE_CONFIRMED",
+        title: "Recharge validée",
+        body: `Votre recharge de ${existing.amountFcfa?.toLocaleString("fr-FR") ?? "—"} FCFA est confirmée : ${existing.tokens} Token${existing.tokens > 1 ? "s" : ""} disponibles dans votre portefeuille.`,
+        entityId: rechargeId,
+      });
+    } else {
+      await notifyUsers(tx, [existing.userId], {
+        type: "RECHARGE_REJECTED",
+        title: "Recharge non validée",
+        body: `Votre déclaration de ${existing.amountFcfa?.toLocaleString("fr-FR") ?? "—"} FCFA n'a pas pu être rapprochée d'un paiement. Contactez le support si vous pensez qu'il s'agit d'une erreur.`,
+        entityId: rechargeId,
+      });
+    }
+
+    return tx.tokenTransaction.findUniqueOrThrow({
+      where: { id: rechargeId },
+    });
   });
   return toTransactionDto(fresh);
 }

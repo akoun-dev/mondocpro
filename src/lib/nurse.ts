@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import type { MissionStatus } from "@prisma/client";
-import type { DispatchMissionInput, VisitReportInput } from "@/lib/nurse-schemas";
+import { ZONE_LABELS } from "@/lib/auth-schemas";
+import type { AdminMissionBoard, DispatchMissionInput, VisitReportInput } from "@/lib/nurse-schemas";
 
 export class NurseMissionError extends Error {
   constructor(public readonly status: number, message: string) {
@@ -45,6 +46,51 @@ export async function listNurseMissions(nurseId: string) {
 export async function listAdminMissions() {
   const rows = await db.nurseMission.findMany({ orderBy: { assignedAt: "desc" }, include: missionInclude });
   return rows.map(serializeMission);
+}
+
+// ——— Tableau de bord dispatch (ADMIN, Task 35) ———
+// GET /api/admin/missions renvoie AUSSI la file « à affecter » (RDV à
+// domicile actifs sans mission) et l'annuaire des infirmiers — un seul appel
+// suffit à l'interface de dispatch. Additif : `missions` reste inchangé
+// (contrat Task 32, scripts d'audit préservés). Les DTO vivent dans
+// nurse-schemas.ts (client-safe) pour être consommés par la vue admin.
+export async function listAdminMissionBoard(): Promise<AdminMissionBoard> {
+  const [missions, queueRows, nurses] = await Promise.all([
+    listAdminMissions(),
+    db.appointment.findMany({
+      where: {
+        type: "DOMICILE",
+        status: { in: ["PENDING", "CONFIRMED"] },
+        nurseMission: { is: null },
+      },
+      orderBy: { scheduledAt: "asc" },
+      take: 50,
+      include: {
+        patient: { select: { fullName: true, phone: true } },
+        specialty: { select: { name: true } },
+      },
+    }),
+    db.user.findMany({
+      where: { role: "NURSE" },
+      orderBy: { fullName: "asc" },
+      select: { id: true, fullName: true, phone: true, zone: true },
+    }),
+  ]);
+  return {
+    missions,
+    dispatchQueue: queueRows.map((a) => ({
+      id: a.id,
+      patientName: a.patient.fullName,
+      patientPhone: a.patient.phone,
+      zone: a.zone,
+      type: a.type,
+      scheduledAt: a.scheduledAt.toISOString(),
+      specialtyName: a.specialty?.name ?? null,
+      reason: a.reason,
+      tokensReserved: a.tokensReserved,
+    })),
+    nurses,
+  };
 }
 
 export async function getNurseMission(nurseId: string, id: string) {
@@ -94,6 +140,19 @@ function statusLabel(status: MissionStatus) {
   return { ASSIGNED: "à traiter", ACCEPTED: "acceptée", IN_PROGRESS: "en cours", COMPLETED: "terminée", CANCELLED: "annulée" }[status];
 }
 
+// « le vendredi 9 octobre à 10:00 » — heure Abidjan = UTC+0, même convention
+// que reminders.ts (l'heure affichée est l'heure locale du patient).
+function formatSlotFr(date: Date) {
+  return new Intl.DateTimeFormat("fr-FR", {
+    timeZone: "Africa/Abidjan",
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date);
+}
+
 export async function createVisitReport(nurseId: string, id: string, input: VisitReportInput) {
   const mission = await db.nurseMission.findFirst({ where: { id, nurseId }, include: { visitReport: true } });
   if (!mission) throw new NurseMissionError(404, "Mission introuvable");
@@ -132,7 +191,7 @@ export async function dispatchMission(adminId: string, input: DispatchMissionInp
     const next = missionId
       ? await tx.nurseMission.update({ where: { id: missionId }, data: { nurseId: input.nurseId, assignedById: adminId, assignedAt: new Date(), status: "ASSIGNED", acceptedAt: null, startedAt: null, completedAt: null, cancelledAt: null }, include: missionInclude })
       : await tx.nurseMission.create({ data: { appointmentId: appointmentId!, patientId: appointment.patientId, nurseId: input.nurseId, assignedById: adminId }, include: missionInclude });
-    await tx.notification.create({ data: { userId: input.nurseId, type: "MISSION_ASSIGNED", title: "Nouvelle mission", body: `Une mission de soins vous a été attribuée à ${appointment.scheduledAt.toISOString()}.`, entityId: `${next.id}:assignment:${next.assignedAt.getTime()}` } });
+    await tx.notification.create({ data: { userId: input.nurseId, type: "MISSION_ASSIGNED", title: "Nouvelle mission", body: `Une mission de soins à ${ZONE_LABELS[appointment.zone] ?? appointment.zone} vous a été attribuée pour le ${formatSlotFr(appointment.scheduledAt)}. Consultez l'onglet Missions pour l'accepter.`, entityId: `${next.id}:assignment:${next.assignedAt.getTime()}` } });
     return next;
   });
   return serializeMission(mission);

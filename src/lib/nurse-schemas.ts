@@ -40,9 +40,24 @@ export type MissionDto = {
   appointmentId: string;
   status: MissionStatus;
   assignedAt: string;
+  acceptedAt?: string | null;
+  startedAt?: string | null;
+  completedAt?: string | null;
+  cancelledAt?: string | null;
   nurse: { id: string; fullName: string; phone: string; zone: string };
   patient: { id: string; fullName: string; phone: string; zone: string };
-  appointment: { scheduledAt: string; type: string; zone: string; reason: string | null };
+  // Champs APLATIS par serializeMission (lib/nurse.ts) au premier niveau —
+  // accès direct sans passer par `appointment` (fix BUG-003, audit 2026-10).
+  scheduledAt: string;
+  zone: string;
+  type: string;
+  appointment: {
+    scheduledAt: string;
+    type: string;
+    zone: string;
+    reason: string | null;
+    specialty: { name: string } | null;
+  };
   report: {
     id: string;
     observations: string;
@@ -51,4 +66,53 @@ export type MissionDto = {
     vitalSigns: unknown;
     createdAt: string;
   } | null;
+  visitReport?: undefined;
+};
+
+// ——— Task 35 — Supervision ADMIN (client-safe) ———
+// File « à affecter » : RDV à domicile actifs sans mission — payload
+// sérialisé par GET /api/admin/missions (contrat étendu, additif).
+export type DispatchQueueItem = {
+  /** appointmentId — clé du POST /api/admin/missions. */
+  id: string;
+  patientName: string;
+  patientPhone: string;
+  zone: string;
+  type: string;
+  scheduledAt: string;
+  specialtyName: string | null;
+  reason: string | null;
+  tokensReserved: number;
+};
+
+/** Annuaire des infirmiers (affectation / réaffectation, filtré par zone). */
+export type NurseDirectoryItem = {
+  id: string;
+  fullName: string;
+  phone: string;
+  zone: string;
+};
+
+export type AdminMissionBoard = {
+  missions: MissionDto[];
+  dispatchQueue: DispatchQueueItem[];
+  nurses: NurseDirectoryItem[];
+};
+
+// Libellés et classes de badge des statuts — source unique partagée par la
+// vue infirmier (nurse-missions-view) et la vue admin (missions-view).
+export const MISSION_STATUS_LABELS: Record<MissionStatus, string> = {
+  ASSIGNED: "À traiter",
+  ACCEPTED: "Acceptée",
+  IN_PROGRESS: "En cours",
+  COMPLETED: "Terminée",
+  CANCELLED: "Annulée",
+};
+
+export const MISSION_STATUS_CLASSES: Record<MissionStatus, string> = {
+  ASSIGNED: "bg-primary/10 text-primary",
+  ACCEPTED: "bg-success/15 text-success-foreground",
+  IN_PROGRESS: "bg-warning/20 text-warning-foreground",
+  COMPLETED: "bg-success/15 text-success-foreground",
+  CANCELLED: "bg-muted text-muted-foreground",
 };
