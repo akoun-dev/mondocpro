@@ -74,3 +74,4 @@ android/app/google-services.json
 # stable des APK de test d'un build à l'autre (mises à jour installables
 # par-dessus sans désinstallation). Ne JAMAIS y placer un keystore release.
 !android/keys/debug.keystore
+.zshots/
