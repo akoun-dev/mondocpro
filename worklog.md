@@ -939,6 +939,7 @@ Agent: ORCHESTRATEUR (Super Z) — exécution directe
 Task: « Récupère les derniers commits et fais un audit complet » (PO, 2026-10-04)
 
 Work Log:
+
 - Remote re-poussé en force (ff24eaa, feature missions infirmiers) ; fix boot 1b8dc8e absent du nouvel historique → sauvegarde backup/local-diverged-20261003-v2, reset --hard, cherry-pick du fix, push (38a2a5c)
 - Audit statique : eslint 0 erreur ; tsc src : 2 erreurs (register-form ref union) ; 1 console.log assumé (TODO INT-SMS) ; secrets uniquement dans fixtures scripts/ ; dangerouslySetInnerHTML unique et canonique (chart.tsx)
 - Découverte piège outils : grep/sed/Read divergeaient sur schema.prisma ligne 318 — fausse « coquille issionId » (sous-chaîne de [missionId] + sanitize ANSI avalant [m) ; tranché via od -c et prisma validate → schéma TOUJOURS valide, aucune modification
@@ -949,20 +950,23 @@ Work Log:
 - Registres : .ai/AUDITS/AUDIT-001-2026-10-04.md créé (84/100), BUGS.md BUG-002/003/004, AUDIT_REPORT.md indexé
 
 Stage Summary:
+
 - Workspace = ff24eaa + 38a2a5c (boot résilient) + 2570e76 (generate au boot + ref) + 83aec56 (contrat missions)
 - FEATURE-NURSE fonctionnelle de bout en bout (API + UI infirmier), mission de test en base (IN_PROGRESS, CR rédigé)
 - Scripts d'audit réutilisables : scripts/audit-e2e-missions.sh, audit-missions-probe.ts, audit-migrations-state.ts
 - Leçon consignée : sortie outils potentiellement tronquée ([m) et vue FS incohérente entre appels → od -c + mêmes-commande pour écriture/lecture
 
 ---
+
 Task ID: 33
 Agent: ORCHESTRATEUR (Super Z) — exécution directe
 Task: « J'ai déployé sur https://mondocpro.vercel.app/ mais j'ai cette erreur quand je veux me connecter : Erreur interne — réessayez » (PO, 2026-10-04)
 
 Work Log:
+
 - Reproduction externe : /api/health 200 mais {status:degraded, database:down} ; login 500 {error:"Erreur interne — réessayez"} = catch générique de la route (aucune fuite d'info) ; register passe la validation 400 (route exécutée)
 - Arborescence : /api/health attrape l'erreur DB et reste 200 (contrat) → health 200 ne prouvait PAS une DB saine ; JSON structuré renvoyé ⇒ client Prisma généré et chargé sur Vercel (sinon l'import planterait avant tout try/catch)
-- Cause racine : DATABASE_URL absente/injoignable dans les variables Vercel (.env gitignore n'arrive jamais en déploiement) — aucune variable Supabase NEXT_PUBLIC_* n'est utilisée dans src/ (app 100% Prisma)
+- Cause racine : DATABASE*URL absente/injoignable dans les variables Vercel (.env gitignore n'arrive jamais en déploiement) — aucune variable Supabase NEXT_PUBLIC*\* n'est utilisée dans src/ (app 100% Prisma)
 - Schéma supabase/schema.prisma localisé par prisma.config.ts COMMITE (découverte CLI OK partout) — pas de clé package.json#prisma ajoutée (redondante)
 - /api/health v3 : bloc additif diagnostic {hasDatabaseUrl, dbErrorCode (P1xxx/pg 5 chiffres uniquement), dbHint FR} — jamais le message Prisma brut (fuite potentielle de la chaîne de connexion) ; fix au passage prefix log hérité « ealth] » → « [health] »
 - package.json : postinstall prisma generate (génération client garantie npm/bun sur Vercel, schéma via prisma.config.ts)
@@ -972,15 +976,18 @@ Work Log:
 - Commit 7cbeea8 poussé (b7a7853..7cbeea8) → redeploy Vercel auto ; la CORRECTION finale exige l'action PO : ajouter DATABASE_URL sur Vercel puis Redeploy (non automatisable depuis le repo)
 
 Stage Summary:
+
 - Diagnostic péremptoire : la prod Vercel ne joint pas la base (database:down) ; l'app elle-même est saine (login/me 200 local, client Prisma généré sur Vercel)
 - Le PO doit ajouter DATABASE_URL (pooler Supabase, voir .ai/DEPLOY_VERCEL.md §2-3) dans Vercel puis redéployer ; le nouveau bloc diagnostic de /api/health identifiera immédiatement toute erreur résiduelle (P1001/P1010/...) sans accès aux logs
 
 ---
+
 Task ID: 34
 Agent: ORCHESTRATEUR (Super Z) — exécution directe
 Task: « Développe le profil complet des Nurse, avec modifications de mot de passe et autre » (PO, 2026-10-04)
 
 Work Log:
+
 - Constat initial : onglet Profil NURSE rendait une carte générique dépouillée ; AUCUN endpoint de changement de mot de passe authentifié (seul forgot/reset par code SMS, US-AUTH-5, en attente ADR-006)
 - POST /api/auth/change-password (nouveau, requireRole 3 rôles) : user = session (jamais le corps), bcrypt + DUMMY_HASH anti timing-attack (constante alignée login), refus nouveau == actuel (comparaison bcrypt), révocation des AUTRES sessions (deleteMany NOT tokenHash courant), session courante préservée ; changePasswordSchema Zod dans auth-schemas (règles 8..72 identiques register)
 - Components/profile/profile-primitives.tsx : InfoRow/PreferenceRow/soonToast/ProfileSectionTitle EXTRAITS de profile-view.tsx (partage patient/infirmier, zéro duplication) ; Switch import nettoyé du profil patient
@@ -994,16 +1001,19 @@ Work Log:
 - Commit b41551f poussé (7cbeea8..b41551f) ; captures tool-results/nurse-profile-{mobile,desktop}.png + nurse-password-error.png
 
 Stage Summary:
+
 - L'infirmier dispose d'un profil complet fonctionnel : édition nom/naissance/secteur, préférences persistées, stats missions réelles, et changement de mot de passe sécurisé par preuve du mot de passe actuel (révocation des autres sessions)
 - L'endpoint change-password est rôle-agnostique : branchable côté patient en un dialog quand la décision PO sera prise (le profil patient garde « code SMS — à venir » pour l'instant)
 - Primitives de profil mutualisées patient/infirmier — prochaine vue profil (admin) réutilisera le même socle
 
 ---
+
 Task ID: 35
 Agent: ORCHESTRATEUR (Super Z) — exécution directe
 Task: « Passons à l'interface admin, assure toi que tout est bon. Ensuite assure toi que les notifications InApp sont parfaitement intégrées et complètes » (PO, 2026-10-04)
 
 Work Log:
+
 - Audit de l'existant : interface admin = sidebar (accueil/recharges/specialties/tarifs/profil) dans user-dashboard ; APIs admin complètes (missions/recharges/specialties/tariffs) MAIS deux trous majeurs : (1) AUCUNE UI missions — le dispatch (cœur FEATURE-NURSE) n'était faisable qu'en script, le clic notification admin retombait sur « accueil » avec un TODO dans le code ; (2) profil admin = carte générique sans mot de passe ni préférences (Task 34 avait livré le socle réutilisable exprès). Notifications : seul le cycle missions était câblé — aucune notification sur les recharges (déclaration/décision) ni sur les RDV (demande domicile/annulations/clôture).
 - Migration `20261005100000_add_notification_types_admin_recharge.sql` : 6 nouvelles valeurs enum NotificationType (RECHARGE_REQUESTED/CONFIRMED/REJECTED, APPOINTMENT_REQUESTED/CANCELLED/COMPLETED) ; miroir supabase/schema.prisma + NOTIFICATION_TYPES ; appliquée en local via `supabase db push --db-url` (convention projet : prisma db push interdit par prisma.config.ts).
 - lib/notifications.ts : helpers server-only `notifyUsers` (dédupliqué, vides ignorés) + `notifyAdmins` (tous comptes ADMIN) + `notificationFamily` (client-safe, routage clic) — notifications créées DANS la transaction métier (jamais de mutation sans nouvelle).
@@ -1014,28 +1024,31 @@ Work Log:
 - UI admin — components/admin/missions-view.tsx (nouveau) : file « À affecter » (cartes patient + Appeler), dialog dispatch (Select infirmiers, zone du RDV en premier, hint hors-zone), missions avec badges de statut, réaffectation (remise ASSIGNED + notification), compte rendu en <details> ; sidebar + onglet « Missions & Dispatch » (AdminTab) ; raccourci accueil avec compteur « X à affecter » et badge « 8 en attente » sur les recharges (hook useAdminCounters) ; ADMIN_TABS mort supprimé ; carte « Espace Médecin Chef » : features passées live = badge vert cliquable (Supervision/Dispatch), Statistiques reste « à venir ».
 - UI admin — components/profile/admin-profile-view.tsx (nouveau) : héro + badge Médecin Chef, Activité de supervision (4 tuiles réelles : recharges à valider/traitées, RDV à affecter, missions actives), infos éditables, mot de passe FONCTIONNEL (socle Task 34), confidentialité médicale 2013-430, préférence healthAlerts (le switch appointmentReminders, inerte pour un admin, est volontairement masqué), urgences, déconnexion.
 - Déduplication profil : components/profile/profile-edit-dialogs.tsx (nouveau) — ProfileIdentityDialog + ProfileZoneDialog autonomes (brouillon réinitialisé via le pattern React d'ajustement au rendu — règle eslint set-state-in-effect), NurseProfileView refactorisé vers le socle partagé (copie « secteur d'intervention » paramétrable), profil patient inchangé.
-- Panneau notifications (user-dashboard) : routage du clic par famille+rôle (patient : RECHARGE_*→Wallet, reste→RDV ; infirmier→Missions ; admin : RECHARGE_*→Recharges, reste→Missions & Dispatch) + icône/couleur par famille (Wallet/CalendarCheck/ClipboardCheck) ; profilFields morts retirés.
+- Panneau notifications (user-dashboard) : routage du clic par famille+rôle (patient : RECHARGE*\*→Wallet, reste→RDV ; infirmier→Missions ; admin : RECHARGE*\*→Recharges, reste→Missions & Dispatch) + icône/couleur par famille (Wallet/CalendarCheck/ClipboardCheck) ; profilFields morts retirés.
 - Piège détecté : après `prisma generate`, le serveur dev REUTILISÉ par dev-boot.sh servait l'ancien client Prisma (500 « Invalid value for argument type ») — kill du process + boot frais obligatoire après toute modification d'enum.
 - E2E API scripts/audit-e2e-admin-notifications.sh (persisté, rotation de créneaux + filtres entityId pour être re-runnable) : 47/47 vert — gardes 401/403, contrat étendu, cycle recharges complet (alerte admin, double décision 409, crédit/refus notifiés), RDV domicile → dispatch → réaffectation → statuts → clôture/annulations avec toutes les notifications, dates FR sans ISO, marquage lu (une/tout/404/400), isolation, guards profil admin.
 - Navigateur (agent-browser) : accueil admin (compteurs réels, badges live), dispatch complet à la souris (dialog → « Mission affectée », file vidée, 6 missions), réaffectation (validation inline puis succès « Mission réaffectée »), panneau notifications admin (APPOINTMENT_REQUESTED visible → clic → Missions ; RECHARGE_REQUESTED → clic → Recharges), profil admin complet + erreur « Mot de passe actuel incorrect » inline, patient : « Recharge validée » → clic → Wallet, infirmier : profil refactorisé + dialogs partagés avec copie personnalisée ; captures tool-results/admin-{home,missions,dispatch-ok,dispatch-after,reassign-ok,notif-panel,password-error}-35.png + nurse-profile-35.png + admin-missions-mobile-35.png (390 px).
 - eslint src : 0 erreur ; tsc : 0 erreur dans src/ (erreurs préexistantes hors src/ inchangées) ; serveur relancé sain (health ok/up).
 
 Stage Summary:
+
 - L'interface admin est complète et « tout est bon » : le Médecin Chef dispose enfin de la vue Missions & Dispatch (file à affecter, dispatch guidé par zone, réaffectation, CR) et d'un profil de plein exercice (mot de passe, préférences, stats réelles) — le flux métier RDV DOMICILE est désormais bouclé 100 % en UI.
 - Les notifications InApp couvrent les trois cycles métier (RDV, missions, recharges) : chaque mutation métier notifie les bonnes personnes DANS la transaction, le clic sur une notification mène à l'outil d'action, et l'anti-doublon structurel (userId+type+entityId) garantit l'idempotence.
 - Contrats mis à jour : GET /api/admin/missions (payload étendu additif) et table complète des types de notification (destinataire/déclencheur/entityId) dans .ai/API_CONTRACTS.md.
 - L'audit 47/47 est re-runnable (rotation de créneaux) : `bash scripts/audit-e2e-admin-notifications.sh`.
 
 ---
+
 Task ID: 36
 Agent: ORCHESTRATEUR (Super Z) — exécution directe
 Task: « Ok pour le apk je veux utiliser capacitor donc implémenté tous les plugins comme les notification push, local notification etc... » (PO, 2026-10-05)
 
 Work Log:
+
 - ADR-008 (.ai/ADR/ADR-008-capacitor-apk-push.md) : architecture « WebView distante » — l'APK Capacitor charge l'app Next.js déployée (server.url https://mondocpro.vercel.app), un seul code source (export statique impossible : API routes + auth cookie + transactions sérialisables) ; Firebase optionnel au build (dégradation gracieuse) ; rappels locaux inexact assumé (politique Play)
 - Dépendances : @capacitor/core+android 8.5.2 + 13 plugins (push-notifications, local-notifications, splash-screen, status-bar, app, haptics, network, preferences, device, keyboard, toast, share, browser) + cli/assets devDeps + firebase-admin 14.5.0
 - capacitor.config.ts (appId ci.mondopro.app — à valider PO avant Play Store, webDir capacitor-shell/, server.url overridable CAPACITOR_SERVER_URL pour dev LAN, splash launchAutoHide:false, Keyboard resize:body) ; capacitor-shell/index.html = shell de secours brandé (message hors-ligne après 8 s)
-- android/ généré (cap add android) ; AndroidManifest : POST_NOTIFICATIONS + RECEIVE_BOOT_COMPLETED + VIBRATE (commentés) ; template Capacitor 8 applique google-services SEULEMENT si android/app/google-services.json existe (gitigné, comme *.keystore) → l'APK compile sans Firebase
+- android/ généré (cap add android) ; AndroidManifest : POST_NOTIFICATIONS + RECEIVE_BOOT_COMPLETED + VIBRATE (commentés) ; template Capacitor 8 applique google-services SEULEMENT si android/app/google-services.json existe (gitigné, comme \*.keystore) → l'APK compile sans Firebase
 - Icônes natifs : scripts/gen-cap-assets.py (sharp/PIL depuis public/img/logo.png 512²) → assets/ icon-only/foreground/background + splash + splash-dark → capacitor-assets generate --android (74 fichiers, 2,02 Mo) ; splash = badge blanc sur bleu #1565c0, miroir du chargement web
 - Migration 20261005120000_add_device_tokens.sql (device_tokens : token unique VARCHAR(4096), platform, deviceName, appVersion, lastSeenAt ; upsert = réattribution du jeton au dernier compte connecté ; FK cascade) ; miroir supabase/schema.prisma (model DeviceToken + User.deviceTokens) ; appliquée en local (CLI supabase suspendu en sandbox → prisma db execute + tracking inséré manuellement dans supabase_migrations.schema_migrations — script scripts/apply-device-tokens-migration.ts ; db:migrate-deploy du PO ne la re-appliquera pas)
 - src/lib/push.ts (server-only) : registerDeviceToken (upsert par token), removeDeviceToken/removeAllDeviceTokens, pushUrlFor (miroir serveur de notificationDestination : PATIENT recharge→wallet/reste→rdv · NURSE→missions · ADMIN recharge→recharges/reste→missions), sendPushToUsers (firebase-admin dynamique, env-gated FIREBASE_SERVICE_ACCOUNT_JSON ou 3 var décomposées, sendEach avec data.url PAR RÔLE destinataire, purge jetons morts registration-token-not-registered, fire-and-forget jamais de throw, no-op loggé sans Firebase), sendPushToAdmins
@@ -1046,20 +1059,23 @@ Work Log:
 - user-dashboard : effet lien profond ?tab= validé par rôle (PATIENT/NURSE/ADMIN allowlists — aucun onglet hors rôle) ; listener mondocpro:notifications-changed→refreshNotifications (badge à jour dès push reçue app ouverte) ; onBooked→scheduleAppointmentReminders+hapticSuccess ; patient-home + appointments-view onCancelled→cancelAppointmentReminders ; use-auth logout→void unregisterPush() AVANT /api/auth/logout (session encore valide)
 - Piège réencouru + solution : serveur dev réutilisé par dev-boot.sh après prisma generate → 500 sur db.deviceToken inconnu ; pkill + boot frais → sondes vertes
 - E2E : 9/9 sondes push (401 sans session, 400 corps invalide/ambigu, 200 register nominal+idempotent, 200 unregister token+all+idempotent, login/me/health ok) ; device_tokens=0 après unregister all (vérifié en DB) ; audit Task 35 re-run : PASS=47 FAIL=0 (zéro régression notifications) ; cap sync android OK ; eslint src 0 erreur ; tsc src 0 erreur (préexistantes hors src/ inchangées)
-- Docs : ADR-008 + .ai/APK_BUILD.md (prérequis JDK 21/Android Studio, build debug/release+keystore, setup Firebase §4 pas à pas, icônes, dépannage mappé sur les logs [push]/[native]) + API_CONTRACTS.md (2 contrats + payload push) ; .gitignore : android/app/google-services.json + *.keystore/*.jks
+- Docs : ADR-008 + .ai/APK_BUILD.md (prérequis JDK 21/Android Studio, build debug/release+keystore, setup Firebase §4 pas à pas, icônes, dépannage mappé sur les logs [push]/[native]) + API_CONTRACTS.md (2 contrats + payload push) ; .gitignore : android/app/google-services.json + _.keystore/_.jks
 
 Stage Summary:
+
 - L'APK Capacitor est prêt à compiler : `bun install && npx cap sync android && cd android && ./gradlew assembleDebug` produit un APK qui charge la prod, avec 13 plugins natifs opérationnels (splash brandé, barre de statut, bouton retour, haptique, bandeau réseau, rappels locaux RDV H-24/H-1, push FCM dès le setup Firebase)
 - Le canal push est complet de bout en bout côté serveur (10 déclencheurs métier, double canal InApp+push, jetons device_tokens gérés upsert/révocation/purge automatique) — activable en production par la seule injection FIREBASE_SERVICE_ACCOUNT_JSON sur Vercel (guide APK_BUILD.md §4) ; sans elle, dégradation gracieuse sans aucune régression
 - Déconnexion = révocation du jeton de l'appareil ; reconnexion d'un autre compte sur le même appareil = réattribution du jeton ; tap sur push = lien profond vers l'outil d'action du bon rôle (miroir serveur/client du routage Task 35)
 - Actions PO : ① valider appId ci.mondopro.app avant publication ; ② créer le projet Firebase + google-services.json (build) + FIREBASE_SERVICE_ACCOUNT_JSON sur Vercel (push) ; ③ Android Studio + JDK 21 pour assembler la release signée (APK_BUILD.md §5)
 
 ---
+
 Task ID: 33-suite (diagnostic v4)
 Agent: Super Z (principal)
 Task: Résoudre « Erreur interne — réessayez » persistant sur Vercel — user demande le format de DATABASE_URL
 
 Work Log:
+
 - Sonde /api/health prod : hasDatabaseUrl=true mais erreur SANS code (v3 aveugle sur la cause)
 - Health route v4 (commit f6d1898) : analyse structurelle dbUrl (parseable, scheme, hostKind, port, hasUsername/hasPassword, atSymbolCount, queryKeys) + classification dbErrorKind (url-malformed, auth, dns-network, timeout, tls, too-many-connections, prepared-statements) — zéro secret exposé
 - Test local E2E : status ok / database up — identifiants .env locaux VALIDES (host pooler aws-0-eu-west-1, port 5432, sslmode=require)
@@ -1067,32 +1083,38 @@ Work Log:
 - DEPLOY_VERCEL.md §4 : 2 nouvelles lignes de dépannage (supabase-direct, parseable/atSymbolCount)
 
 Stage Summary:
+
 - Cause racine prod : DATABASE_URL sur Vercel = host DIRECT Supabase (IPv6-only) incompatible fonctions Vercel (IPv4)
 - Correction PO : remplacer par l'URL pooler (copier la valeur .env locale sans guillemets) → Redeploy
 - Le diagnostic v4 rend ce cas auto-diagnostiquable via /api/health sans accès aux logs
 
 ---
+
 Task ID: 33-clôture (incident prod résolu)
 Agent: Super Z (principal)
 Task: Résolution complète « Erreur interne — réessayez » sur https://mondocpro.vercel.app
 
 Work Log:
+
 - health v4 déployé (f6d1898) : hostKind="supabase-direct" → cause = URL DIRECTE (db.<ref>.supabase.co, IPv6-only) collée sur Vercel par le PO depuis son propre .env régénéré via Supabase → Connect (onglet direct par défaut)
 - PO guidé pas à pas : remplacer DATABASE_URL par la forme POOLER (host aws-0-eu-west-1.pooler.supabase.com, user postgres.<REF>, port 5432, sslmode=require) + Redeploy obligatoire
 - Poll automatique /api/health : bascule confirmée à 19:28:29 UTC+0 → hostKind="supabase-pooler", database="up", status="ok"
 - Validation E2E prod : POST /api/auth/login (patient test +2250709229992) → HTTP 200 + user object ; GET /api/auth/me avec cookie → HTTP 200 (session OK)
 
 Stage Summary:
+
 - INCIDENT CLÔTURÉ : prod pleinement opérationnelle (health ok/up, login 200, session persistante)
 - Rôle du health v4 : auto-diagnostic de la cause exacte sans accès logs Vercel (hostKind, dbErrorKind, hints)
 - Leçon PO : Supabase → Connect affiche l'URL DIRECTE par défaut (IPv6-only, incompatible Vercel) — toujours prendre l'onglet Connection pooling
 
 ---
+
 Task ID: 36-bis (build APK)
 Agent: Super Z (principal)
 Task: « genere moi le APK et aussi avec le logo » (PO) — compilation effective de l'APK Capacitor
 
 Work Log:
+
 - Reprise de l'état f086ffd (Task 36 complète côté code) : config capacitor.config.ts restaurée telle que commitée (appId ci.mondopro.app, webDir capacitor-shell, splash launchAutoHide:false piloté par NativeBootstrap) — réécriture involontaire annulée, mobile/ éphémère supprimé
 - Android SDK installé dans le projet (gitigné) : cmdline-tools 11076708 + platform-tools + platforms;android-36 + build-tools 35/36 (licences acceptées)
 - JRE système sans javac → JDK portable Temurin 21.0.12.1 installé (.jdk21/, gitigné) ; pas de sudo dans la sandbox
@@ -1102,16 +1124,19 @@ Work Log:
 - Artefact livré : download/MondocPro-debug.apk
 
 Stage Summary:
+
 - APK debug signé (keystore debug) prêt à installer : download/MondocPro-debug.apk — WebView distante vers https://mondocpro.vercel.app, 13 plugins natifs actifs, icônes+splash au logo
 - Push FCM : à activer par le PO (google-services.json dans android/app/ + FIREBASE_SERVICE_ACCOUNT_JSON sur Vercel, guide .ai/APK_BUILD.md §4) — sans quoi dégradation gracieuse
 - Outils de build reproductibles consignés dans .gitignore (.android-sdk/, .jdk21/) + APK_BUILD.md
 
 ---
+
 Task ID: 37
 Agent: Super Z (principal)
 Task: « Développe le mode sombre, pour chaque utilisateur » (PO)
 
 Work Log:
+
 - Schéma : enum ThemeMode (SYSTEM/LIGHT/DARK) + User.theme @default(SYSTEM) (supabase/schema.prisma, section FEATURE-PROFIL)
 - Migration 20261005200000_add_user_theme.sql : le DDL direct a heurté 3 obstacles sandbox (db execute --url XOR --schema ; pooler session 5432 saturé EMAXCONNSESSION pool_size 15 — dev server + instances Vercel ; transaction 6543 en stall + direct IPv6 non routé) → contournement : route temporaire /api/dev-migrate (jeton one-time) exécutant le DDL VIA le pool Prisma déjà établi du serveur dev, supprimée aussitôt ; correction clé : table users en snake_case (@@map) — tracking supabase_migrations inséré (le migrate-deploy du PO ne la rejouera pas) ; script scripts/apply-user-theme-migration.ts consigné pour reproductibilité
 - Client Prisma régénéré (theme présent dans le type User)
@@ -1122,16 +1147,19 @@ Work Log:
 - Validation : eslint 0, tsc src 0 ; E2E PATCH complet à rejouer après redémarrage du serveur dev (le process en cours a un client Prisma périmé sans le champ theme — touch/Turbopack n'invalide pas node_modules, et les démons meurent entre tool-calls : redémarrage impossible sans casser la preview) ; la prod Vercel (build frais, postinstall prisma generate) sera conforme dès le push
 
 Stage Summary:
+
 - Mode sombre PAR UTILISATEUR complet : User.theme (SYSTEM/LIGHT/DARK), PATCH /api/auth/profile, toggle en-tête + « Apparence » en profil, boot sans flash (localStorage) puis sync serveur, barre de statut native APK synchronisée
 - Limite preview connue : persistance PATCH inactive tant que le serveur dev n'est pas redémarré (client Prisma périmé) — le visuel localStorage fonctionne ; prod OK dès déploiement
 - Découverte infra : pool session Supabase 5432 saturable (pool_size 15) par Vercel en session mode — candidat à un passage prod en Option B (6543 + pgbouncer) et à connection_limit=1 (DEPLOY_VERCEL.md §3)
 
 ---
+
 Task ID: 38
 Agent: Super Z (principal)
 Task: « Lorsque j'accepte les notifications l'application crashe et se ferme seul » (PO) — crash APK à l'acceptation de la permission notifications
 
 Work Log:
+
 - Lecture worklog (Task 37 mode sombre : bien achevée en session précédente) + sync git (propre)
 - Cause racine confirmée par lecture du code natif : @capacitor/push-notifications 8.1.3, register() appelle FirebaseMessaging.getInstance() SANS garde (PushNotificationsPlugin.java:114) ; build sans google-services.json → FirebaseApp jamais initialisé → IllegalStateException ; Bridge.callPluginMethod (Bridge.java:854) catch Exception puis RE-PROPAGE new RuntimeException(ex) dans le Runnable du thread principal → mort du process. Le try/catch JS de registerPush() ne peut rien contre un crash natif
 - Déclencheur exact : NativeBootstrap → /api/auth/me ok → registerPush() → checkPermissions=prompt → dialogue système → acceptation → register() → crash
@@ -1144,16 +1172,19 @@ Work Log:
 - Docs : .ai/APK_BUILD.md §4 (encart incident : « un APK sans google-services.json ne doit jamais afficher le dialogue notifications » + lastCrash) + §6 (2 lignes : crash à l'acceptation / permission jamais demandée)
 
 Stage Summary:
+
 - CRASH CLÔTURÉ à deux niveaux : dès le déploiement Vercel, l'APK v1 installé ne crashe plus (garde web) ; l'APK v2 (désinstaller v1 une fois, clé v1 perdue) embarque le garde natif + journal de crash — et une signature désormais stable
 - Le canal push FCM reste INACTIF tant que le PO ne fournit pas le projet Firebase (google-services.json dans android/app/ + FIREBASE_SERVICE_ACCOUNT_JSON sur Vercel, APK_BUILD.md §4) ; InApp + rappels locaux de RDV fonctionnels sans Firebase
 - Prochaines étapes possibles : exposer lastCrash() dans une section support/diagnostic de l'app (upload du stack trace) ; Task 35 (admin+InApp E2E), Task 34 (profil Nurse), Task 26 (Tokens)
 
 ---
+
 Task ID: 38-bis
 Agent: Super Z (principal)
 Task: « lance la preview » (PO) — redémarrage du serveur après recyclage + E2E mode sombre
 
 Work Log:
+
 - Port 3000 mort (process éphémères entre tool-calls) ; 2 processus `prisma db execute` de la migration theme (stall 6543, 20:28/20:30) tués
 - Boot via scripts/dev-boot.sh (setsid nohup bun run dev) — premier health KO à 50 s (compile Turbopack initiale) puis UP ; une 2e instance lancée par erreur tuée aussitôt (port 3000 unique confirmé)
 - Sanity : home 200, /api/health {status ok, database up}, /api/auth/me 401 sans session ; reverse-proxy plateforme :81 (FC_CUSTOM_LISTEN_PORT) = 200
@@ -1163,36 +1194,42 @@ Work Log:
 - Garde-fou sandbox : commandes bash contenant le nom du reverse-proxy bloquées → worklog appendu via fichier temporaire
 
 Stage Summary:
+
 - App LIVE et saine en sandbox (health ok/up, mode sombre persistant par utilisateur E2E-validé) ; route preview edge à réactiver par la plateforme (bouton preview UI ou prochain heartbeat) — rien à corriger côté projet
 
 ---
+
 Task ID: 39 (vérification Tasks 34/35 sur dernier commit)
 Agent: Super Z (principal)
 Task: « enchaîner sur la Task 35 (interface admin + notifications InApp) ou la Task 34 (profil infirmier) — récupère le dernier commit et remplace toute la codebase » (PO, 2026-10-05)
 
 Work Log:
+
 - Sync git : 2 auto-commits plateforme locaux (worklog + scripts/theme-e2e.ts) poussés vers origin puis reset --hard origin/main → codebase = 0e6c087 (inclut Tasks 34/35/36/37/38), working tree clean
 - Constat clé : Tasks 34 ET 35 étaient DÉJÀ complètes dans des sessions antérieures (Task 34 commit b41551f, Task 47/47 ; Task 35 commit, audit 47/47) → plan inversé : VÉRIFICATION complète plutôt que ré-implémentation
 - Présence code vérifiée : nurse-profile-view / password-change-dialog / profile-primitives (T34) ; missions-view / admin-profile-view / profile-edit-dialogs / lib/notifications.ts / migration 20261005100000 (T35) — tous présents dans le commit
 - Serveur : déjà vivant en début de session (health ok / database up / pooler) ; dev-boot.sh en tête des commandes browser (garde-fou sandbox)
 - E2E Task 34 (scripts/audit-nurse-profile.sh) : 23/23 PASS — change-password sémantique 2 appareils (courant préservé / autre révoqué), validations Zod, PATCH birthDate, restauration mot de passe de test
 - E2E Task 35 (scripts/audit-e2e-admin-notifications.sh) : PASS=47 FAIL=0 — gardes 401/403, contrat missions étendu, cycles recharges (alerte admin, double décision 409, crédit/refus notifiés), RDV domicile → dispatch → réaffectation → statuts → clôture/annulations, dates FR sans ISO, marquage lu + isolation
-- Navigateur (agent-browser, mobile 390) : login admin → accueil (compteurs réels « 9 en attente », raccourcis, badges live) ; Missions & Dispatch (file à affecter + 8 missions + réaffectation) ; panneau notifications (RECHARGE_*/APPOINTMENT_*/MISSION_* en français, dates FR) ; routage au clic validé (RECHARGE_REQUESTED → onglet Recharges) ; profil admin complet (Activité de supervision 4 tuiles, mot de passe, loi 2013-430, Apparence T37) ; profil infirmier complet (Activité de terrain 8/8/0/1, sécurité, préférences)
+- Navigateur (agent-browser, mobile 390) : login admin → accueil (compteurs réels « 9 en attente », raccourcis, badges live) ; Missions & Dispatch (file à affecter + 8 missions + réaffectation) ; panneau notifications (RECHARGE*\*/APPOINTMENT*_/MISSION\__ en français, dates FR) ; routage au clic validé (RECHARGE_REQUESTED → onglet Recharges) ; profil admin complet (Activité de supervision 4 tuiles, mot de passe, loi 2013-430, Apparence T37) ; profil infirmier complet (Activité de terrain 8/8/0/1, sécurité, préférences)
 - BUG CORRIGÉ (BUG-005) : erreur d'hydratation React « <li> cannot be a descendant of <li> » dans RechargesView (Décisions récentes) — RechargeRow rendait un <li> enveloppé dans un <li> parent ; fix : prop children optionnelle rendue DANS le <li> de RechargeRow, wrapper supprimé ; badges Confirmée/Refusée désormais dans la carte (visuel cohérent)
 - Vérification post-fix : 0 erreur d'hydratation sur Recharges + profil + accueil ; bun run lint global 0 erreur ; tsc 0 erreur dans src/
 
 Stage Summary:
+
 - Tasks 34 et 35 CONFIRMÉES complètes et fonctionnelles sur le dernier commit (0e6c087) : 23/23 + 47/47 audits API verts, parcours admin/infirmier validés au navigateur, 0 erreur console après correctif
 - BUG-005 (hydratation <li> imbriqué, vue Recharges) corrigé dans ce pass — commit séparé à suivre
 - Rien d'autre à implémenter pour ces deux tâches ; reste au backlog PO : activation FCM (google-services.json + FIREBASE_SERVICE_ACCOUNT_JSON), Task 26 (Tokens avancés/Wallet)
 
 ---
+
 Task ID: 40
 Agent: Super Z (principal)
 Task: « je ne veux pas de firebase » puis « Je veux @capacitor/push-notifications, @capacitor/local-notifications mais sans firebase » (PO, 2026-10-05)
 
 Work Log:
-- Clarification technique posée dans l'ADR : sur Android le plugin @capacitor/push-notifications transporte UNIQUEMENT via FCM (bibliothèques Firebase embarquées par le plugin, non séparables) ; MAIS bibliothèques ≠ projet — aucun compte/console/google-services.json/FIREBASE_* requis tant que register() n'est pas appelé
+
+- Clarification technique posée dans l'ADR : sur Android le plugin @capacitor/push-notifications transporte UNIQUEMENT via FCM (bibliothèques Firebase embarquées par le plugin, non séparables) ; MAIS bibliothèques ≠ projet — aucun compte/console/google-services.json/FIREBASE\_\* requis tant que register() n'est pas appelé
 - package.json : firebase-admin + @firebase/util (trustedDependencies) RETIRÉS ; @capacitor/push-notifications RÉ-INTRODUIT à la demande PO (bun install, lockfile propre, node_modules/firebase-admin purgé)
 - src/lib/native.ts : garde isPushCapable() (Task 38) conservée → canal push DISTANT dormant sans projet Firebase ; permission notifications (Android 13+) désormais demandée via LocalNotifications.requestPermissions() (même permission OS POST_NOTIFICATIONS, utile aux rappels sans Firebase) AVANT la garde ; FIX LATENT : le listener de tap sur notification locale est déplacé dans initNativeShell (initLocalNotificationTap) — auparavant enregistré seulement si Firebase était configuré, le tap sur un rappel RDV ne naviguait pas sur les APK réels ; registerPush conserve le flux complet derrière la garde (s'auto-activerait si Firebase revenait)
 - Serveur : src/lib/push.ts réécrit — registre de jetons conservé (registerDeviceToken/removeDeviceToken/removeAllDeviceTokens), envoi FCM SUPPRIMÉ (getMessaging/sendPushToUsers/sendPushToAdmins/pushUrlFor/firebase-admin) ; 9 appels void sendPushTo… retirés d'appointments.ts (3), tokens.ts (2), nurse.ts (3), reminders.ts (1) — les notifications InApp jumelles DANS les transactions sont intactes ; routes /api/push/register|unregister et table device_tokens conservées (carnet d'adresses sain, 401/400/200 vérifiés)
@@ -1201,18 +1238,21 @@ Work Log:
 - APK : AUCUN rebuild nécessaire — les sources natives (MainActivity, DiagnosticsPlugin, build.gradle) sont inchangées et le plugin push reste embarqué ; tout le correctif vit dans le bundle web servi par Vercel → les APK v1 ET v2 déjà installés en bénéficient sans réinstallation ; download/MondocPro-debug.apk (v1.0.1, versionCode 2) reste l'artefact courant
 
 Stage Summary:
+
 - Le produit fonctionne 100 % SANS projet Firebase : notifications InApp (panneau, badge, routage clic) + rappels locaux RDV H-24/H-1 ; canal push distant dormant (jamais activé, jamais de crash, zéro appel inutile)
 - Zéro dépendance Google côté serveur, zéro secret Firebase à gérer, zéro action PO en attente — la « TODO activation FCM » du backlog est fermée par décision
 - Ré-activation possible un jour si la décision change : google-services.json + FIREBASE_SERVICE_ACCOUNT_JSON + git revert du commit ADR-009 (documenté APK_BUILD §4 / ADR-009)
 
 ---
+
 Task ID: 41
 Agent: Super Z (principal)
 Task: « je veux être notifié app fermée, pour les alertes critiques, ou de notifications locales enrichies et autres » (PO, 2026-10-05) — lever la conséquence négative de l'ADR-009 sans rouvrir Firebase
 
 Work Log:
+
 - Choix technique : @capacitor/background-runner v3.0.0 (officiel) — tâche WorkManager Android (~15 min plancher) exécutant un JS headless même app fermée ; capacités vérifiées dans la source du plugin : fetch (method/headers/body), CapacitorKV (SharedPreferences), CapacitorNotifications.schedule (channelId, largeBody, extra…), dispatchEvent app→runner pour l'injection de données
-- Serveur : POST /api/native/device-key (auth session) émet une clé 32 octets CSPRNG retournée UNE fois, stockée HASHÉE (SHA-256, même posture que Session.tokenHash) dans device_tokens + colonne expiresAt (TTL 180 j, migration 20261005220000_add_device_tokens_expires_at.sql appliquée via scripts/apply-device-key-expires-at-migration.ts — DDL via $executeRawUnsafe, le spawn `prisma db execute` ETIMEDOUT dans le sandbox ; pattern scripts/apply-*-migration.ts repris) ; GET /api/notifications/poll auth Bearer (findUserByDeviceKey) : curseur ?since= + serverTime (zéro skew), max 20, rattrapage borné 3 j, APPOINTMENT_REMINDER exclus (rappels déjà planifiés localement — sinon doublons)
+- Serveur : POST /api/native/device-key (auth session) émet une clé 32 octets CSPRNG retournée UNE fois, stockée HASHÉE (SHA-256, même posture que Session.tokenHash) dans device_tokens + colonne expiresAt (TTL 180 j, migration 20261005220000_add_device_tokens_expires_at.sql appliquée via scripts/apply-device-key-expires-at-migration.ts — DDL via $executeRawUnsafe, le spawn `prisma db execute` ETIMEDOUT dans le sandbox ; pattern scripts/apply-\*-migration.ts repris) ; GET /api/notifications/poll auth Bearer (findUserByDeviceKey) : curseur ?since= + serverTime (zéro skew), max 20, rattrapage borné 3 j, APPOINTMENT_REMINDER exclus (rappels déjà planifiés localement — sinon doublons)
 - Classification SERVEUR (le bundle runner reste un afficheur muet) : CRITICAL_NOTIFICATION_TYPES (dispatch, annulation, mission attribuée, cycle recharges) + notificationUrlFor() miroir de notificationDestination() du dashboard — dans lib/notifications.ts
 - Runner : src/background/custom-background.ts (events provision/onAppTick/wipe, resolve() obligatoire dans tous les chemins, curseur n'avance qu'après tick réussi, purge KV sur 401/403, hash 32 bits stable identique à native.ts) → esbuild IIFE minifié (bun run build:runner, esbuild en devDependency) → capacitor-shell/custom-background.js (1,3 Ko, commité comme index.html) ; capacitor.config.ts plugins.BackgroundRunner { label: ci.mondopro.app.runner, event: onAppTick, repeat: true, interval: 15, autoStart: true }
 - Client (src/lib/native.ts) : 3 canaux Android idempotents dès le boot — critical (IMPORTANCE 4 : son+vibration+LED), reminders (4), updates (3) — NB v8 : createChannel(channel) direct, Importance = union numérique ; provisionNotificationSync() (clé persistée dans Preferences, émission sinon, injection dans le KV du runner via dispatchEvent, serverUrl = window.location.origin) appelée TOUJOURS dans registerPush (indépendant de la garde FCM) ; unregisterPush() étendu (révocation clé + purge KV wipe) ; rappels RDV enrichis (largeBody, summaryText, canal reminders) ; event window « mondocpro:session-open » (use-auth login/register) → NativeBootstrap re-provisionne (login = navigation SPA)
@@ -1223,36 +1263,42 @@ Work Log:
 - Docs : ADR-010 (décision, conséquences, 5 alternatives écartées) ; API_CONTRACTS.md (2 nouveaux contrats détaillés) ; APK_BUILD.md (en-tête versions + étape build:runner OBLIGATOIRE + §4 canaux actifs + 3 lignes dépannage dont le correctif SCHEDULE_EXACT_ALARM) ; API_CONTRACTS/APK_BUILD cohérents avec ADR-009 inchangé
 
 Stage Summary:
+
 - Le PO reçoit EXACTEMENT ce qui était demandé, sans Firebase : alertes critiques livrées même app fermée (sondage WorkManager ≤ ~15 min), notifications locales enrichies (canaux de criticité, big-text, alarmes exactes, deep-link d'action), InApp inchangé
 - Clés d'appareil hashées + TTL 180 j + purge logout/reset : la fuite DB ne compromet rien, un appareil perdu s'éteint ; curseur strict → zéro doublon/zéro perte (n'avance qu'après un tick réussi)
 - APK v1.0.2 (versionCode 3, keystore versionné) est le SEUL artefact livrable : le runner vit dans l'APK (le web distant seul ne peut pas l'ajouter) ; latence/Android-only documentés dans l'ADR-010 (limites WorkManager assumées)
 - Reste au backlog PO : Task 26 (Tokens/Wallet) ; secrets exposés à réinitialiser
 
 ---
+
 Task ID: 42
 Agent: Super Z (principal)
 Task: « Ajoute aussi: https://capacitorjs.com/docs/apis/network » (PO, 2026-10-05) — plugin Network : vérifier l'intégration et la renforcer
 
 Work Log:
+
 - Constat : @capacitor/network@8.0.1 était DÉJÀ installé et câblé depuis la Task 36 (écoute networkStatusChange + bandeau hors-ligne NativeBootstrap) — embedded dans l'APK (visible dans le cap sync) ; la demande PO devient donc « intégration complète selon les docs officielles »
 - BUG LATENT corrigé : le plugin Android Network n'a PAS d'envoi immédiat à l'inscription du listener (constat NetworkPlugin.java — pas d'onListenerAdd) → l'app ouverte DÉJÀ hors ligne n'affichait jamais le bandeau tant que la connectivité ne variait pas ; listenNetwork() pousse maintenant l'état courant via Network.getStatus() AVANT d'attacher le listener
 - Contrat d'événement aligné sur les docs : « mondocpro:network » diffuse désormais { connected, connectionType } ("wifi"|"cellular"|"none"|"unknown") au lieu d'un booléen nu — NativeBootstrap consomme le nouvel objet (le type de connexion est disponible pour tout futur usage UI)
 - Runner (ADR-010) : garde réseau avant chaque sonde — CapacitorDevice.getNetworkStatus() (API Capacitor du background-runner, même contrat Network) ; hors ligne → resolve() immédiat, pas de fetch inutile, le curseur n'avance pas ; statut toléré en objet OU JSON string selon l'engine ; échec de lecture → le fetch décide (une sonde ratée coûte moins cher qu'une alerte non livrée)
 - APK v1.0.3 (versionCode 4) : rebuild + vérifs aapt2 (v4/1.0.3) + apksigner (SHA-256 050993fe… = keystore versionné, upgrade sans désinstallation) + runner embarqué vérifié ; download/mondocpro-v1.0.2-debug.apk remplacé par mondocpro-v1.0.3-debug.apk
 - Incident environnement : pool session Supabase 5432 INJOIGNABLE ~2 min (health degraded, audits 7/10 FAIL au premier passage) — sondes directes via scripts/db-probe.ts : 5432 KO puis récupéré, 6543 OK ; cause environnementale (saturation transitoire du pooler, pattern déjà documenté), AUCUN code en cause ; audits repassés verts après récupération
-- Validation : lint 0 (android/** ajouté aux ignores eslint — artefacts Gradle) ; tsc 0 dans src/ ; audit canal app fermée 17/17 PASS ; non-régression 23/23 et PASS=47 FAIL=0 ; bun run build:runner + cap sync avant build
+- Validation : lint 0 (android/\*\* ajouté aux ignores eslint — artefacts Gradle) ; tsc 0 dans src/ ; audit canal app fermée 17/17 PASS ; non-régression 23/23 et PASS=47 FAIL=0 ; bun run build:runner + cap sync avant build
 
 Stage Summary:
+
 - Plugin Network intégré COMPLET selon les docs : état initial (getStatus) + suivi des changements + type de connexion exposé + garde réseau du runner « app fermée »
 - Les APK ≥ v1.0.3 gaspillent zéro sonde hors ligne ; le bandeau hors-ligne s'affiche dès l'ouverture même en mode avion
 - APK v1.0.3 = artefact courant (download/mondocpro-v1.0.3-debug.apk) ; le web (bandeau initial + détail enrichi) atteint les APK existants dès le déploiement Vercel
 
 ---
+
 Task ID: 43
 Agent: Super Z (principal)
 Task: « Active aussi les action retour android » + liens docs /apis/action-sheet, /apis/app, /plugins/web, /plugins/tutorial/android-implementation (PO, 2026-10-05)
 
 Work Log:
+
 - Lecture worklog (Tasks 40/41/42 déjà poussées : ADR-009 sans Firebase, ADR-010 runner app fermée, Network complet — arbre propre sur c4750d4)
 - Interprétation du besoin : « les actions » = plugin **ActionSheet** (feuille d'actions native Android) ; « retour » = **bouton retour Android** via le listener `backButton` du plugin **App** ; les liens /plugins/web + /plugins/tutorial/android-implementation = s'assurer que le pont custom suit le pattern officiel (déjà le cas : DiagnosticsPlugin.java Task 38 = @CapacitorPlugin + registerPlugin MainActivity + interface registerPlugin côté web)
 - @capacitor/action-sheet@8.1.1 installé (bun add) ; `npx cap sync android` → plugin enregistré (capacitor.settings.gradle + capacitor.build.gradle) — AUCUN custom natif requis
@@ -1266,6 +1312,7 @@ Work Log:
 - Docs : .ai/APK_BUILD.md — historique v1.0.4 + tableau §3 (5/"1.0.4") + NOUVELLE section §4bis « Interactions natives » (ordre de priorité du retour + feuille d'actions missions) + 2 lignes dépannage (retour ferme l'app depuis une modale → v1.0.4+ ; pas de bouton Actions → v1.0.4+) ; .ai/CHANGELOG.md entrée Ajouté Task 43 ; ADR-007 intact (il porte les Tokens, la limite retour était documentée dans le code — remplacée par le nouveau commentaire)
 
 Stage Summary:
+
 - Les « actions retour Android » sont actives : le bouton retour ferme d'abord les modales (limite ADR historique levée), remonte la navigation, puis exige un double-appui confirmé par toast pour quitter — UX native complète via les plugins OFFICIELS App + ActionSheet, zéro code natif custom ajouté
 - La feuille d'actions native concentre les actions des missions infirmier dans un bottom sheet système (Refuser en rouge DESTRUCTIVE) ; le web reste inchangé
 - APK v1.0.4 (versionCode 5) = SEUL artefact livrable (le plugin ActionSheet vit dans le natif ; le web distant apporte le fallback) ; téléchargeable en download/mondocpro-v1.0.4-debug.apk

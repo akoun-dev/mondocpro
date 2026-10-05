@@ -163,19 +163,19 @@ export function WalletSection({ openRecharge = false, onRechargeOpened }: Props)
 
   return (
     <section aria-labelledby="profil-portefeuille">
-      <div className="mb-2.5 flex items-center justify-between gap-2">
-        <div>
-          <h3 id="profil-portefeuille" className="text-xl font-bold tracking-tight">
-            Portefeuille santé
-          </h3>
-          <p className="text-xs text-muted-foreground">Épargne santé &amp; tokens médicaux</p>
-        </div>
-        {wallet && (
+      {/* Titre + sous-titre : rendus dans le header de l'app (helper
+          viewHeading) — seul le rappel du taux Token reste ici. L'id reste
+          référencé par aria-labelledby + les liens « Portefeuille » du profil. */}
+      {wallet && (
+        <div className="mb-2.5 flex items-center justify-end gap-2">
           <span className="text-xs text-muted-foreground">
             1 Token = {TOKEN_VALUE_FCFA.toLocaleString("fr-FR")} FCFA
           </span>
-        )}
-      </div>
+        </div>
+      )}
+      <h3 id="profil-portefeuille" className="sr-only">
+        Portefeuille santé
+      </h3>
 
       {/* Carte solde — dégradé primaire ADR-002 */}
       <div className="overflow-hidden rounded-2xl bg-gradient-to-br from-primary to-primary-dark text-primary-foreground shadow-md shadow-primary/20">

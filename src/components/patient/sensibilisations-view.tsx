@@ -7,7 +7,6 @@
 import { useMemo, useState } from "react"
 import { motion } from "framer-motion"
 import {
-    ArrowLeft,
     ArrowRight,
     HeartPulse,
     Square,
@@ -17,7 +16,6 @@ import {
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useSpeech } from "@/hooks/use-speech"
-import { ZONE_LABELS } from "@/lib/auth-schemas"
 import type { AppZone } from "@/stores/auth-store"
 import { estimatedListenMinutes, relativePublishedLabel } from "@/lib/datetime"
 import type { SensibilisationDto } from "@/lib/sensibilisations"
@@ -27,7 +25,6 @@ type Props = {
     zone: AppZone
     loading: boolean
     error: string | null
-    onBack: () => void
     onRefresh: () => void
     onOpenArticle: (item: SensibilisationDto) => void
 }
@@ -146,7 +143,6 @@ export function SensibilisationsView({
     zone,
     loading,
     error,
-    onBack,
     onRefresh,
     onOpenArticle,
 }: Props) {
@@ -169,30 +165,6 @@ export function SensibilisationsView({
 
     return (
         <div className="flex flex-col gap-5">
-            {/* En-tête — même gabarit que « Mes rendez-vous » */}
-            <div className="flex items-start justify-between gap-3">
-                <div className="flex min-w-0 items-start gap-1.5">
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={onBack}
-                        aria-label="Retour à l'accueil"
-                        className="size-9 shrink-0 rounded-full"
-                    >
-                        <ArrowLeft className="size-5" aria-hidden="true" />
-                    </Button>
-                    <div className="min-w-0">
-                        <h2 className="text-xl font-bold tracking-tight sm:text-2xl">
-                            Sensibilisations
-                        </h2>
-                        <p className="mt-0.5 text-xs text-muted-foreground sm:text-sm">
-                            Conseils et alertes santé — {ZONE_LABELS[zone]} et
-                            Abidjan
-                        </p>
-                    </div>
-                </div>
-            </div>
-
             {/* Onglets segmentés — même composant visuel que la vue RDV */}
             <div
                 role="group"

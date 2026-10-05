@@ -1,6 +1,5 @@
 "use client"
 
-import Image from "next/image"
 import {
     Banknote,
     ClipboardCheck,
@@ -11,6 +10,7 @@ import {
     X,
     Stethoscope,
     UserRound,
+    UsersRound,
 } from "lucide-react"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
@@ -20,6 +20,9 @@ import type { AppUser } from "@/stores/auth-store"
 export type AdminTab =
     | "accueil"
     | "missions"
+    | "equipes"
+    | "patients"
+    | "infirmiers"
     | "recharges"
     | "specialties"
     | "tarifs"
@@ -28,9 +31,16 @@ export type AdminTab =
 // Navigation latérale du Médecin Chef — Task 35 : « Missions & Dispatch »
 // rejoint la barre (file à affecter + supervision), à côté des recharges de
 // Tokens dont la validation est le second pilier opérationnel.
+// FEATURE-ANNUAIRE-ADMIN : « Équipes » (supervision + dispatch des effectifs)
+// et les deux annuaires Patients / Infirmiers viennent s'ajouter au pilotage
+// opérationnel. « Missions » reste le journal des interventions ; « Équipes »
+// est la vue décisionnelle (charge, file à affecter, répartition par zone).
 const ITEMS: { id: AdminTab; label: string; icon: typeof LayoutDashboard }[] = [
     { id: "accueil", label: "Vue d'ensemble", icon: LayoutDashboard },
+    { id: "equipes", label: "Équipes", icon: UsersRound },
     { id: "missions", label: "Missions & Dispatch", icon: ClipboardCheck },
+    { id: "patients", label: "Patients", icon: UserRound },
+    { id: "infirmiers", label: "Infirmiers", icon: Stethoscope },
     { id: "recharges", label: "Recharges Tokens", icon: Banknote },
     { id: "specialties", label: "Spécialités", icon: Stethoscope },
     { id: "tarifs", label: "Tarifs", icon: Tags },
@@ -56,18 +66,11 @@ export function AdminSidebar({
     const content = (
         <aside className="flex h-full w-72 flex-col border-r border-sidebar-border bg-sidebar p-4 text-sidebar-foreground">
             <div className="flex items-center justify-between gap-3 px-2 pb-6">
-                <div className="flex items-center gap-2.5">
-                    <Image
-                        src="/img/logo.png"
-                        alt="Mon doc Pro"
-                        width={40}
-                        height={40}
-                        className="size-10 rounded-xl object-cover shadow-sm"
-                    />
-                    <div className="leading-tight">
-                        <p className="font-bold tracking-tight">Mon doc Pro</p>
-                        <p className="text-xs text-sidebar-foreground/60">Administration</p>
-                    </div>
+                <div className="leading-tight">
+                    <p className="font-bold tracking-tight">Mon doc Pro</p>
+                    <p className="text-xs text-sidebar-foreground/60">
+                        Administration
+                    </p>
                 </div>
                 <Button
                     variant="ghost"
@@ -102,7 +105,10 @@ export function AdminSidebar({
                                             : "text-sidebar-foreground/75 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
                                     }`}
                                 >
-                                    <item.icon className="size-4.5" aria-hidden="true" />
+                                    <item.icon
+                                        className="size-4.5"
+                                        aria-hidden="true"
+                                    />
                                     {item.label}
                                 </button>
                             </li>
@@ -126,10 +132,17 @@ export function AdminSidebar({
                         </AvatarFallback>
                     </Avatar>
                     <span className="min-w-0 flex-1">
-                        <span className="block truncate text-sm font-semibold">{user.fullName}</span>
-                        <span className="block text-xs text-sidebar-foreground/60">Médecin Chef</span>
+                        <span className="block truncate text-sm font-semibold">
+                            {user.fullName}
+                        </span>
+                        <span className="block text-xs text-sidebar-foreground/60">
+                            Médecin Chef
+                        </span>
                     </span>
-                    <UserRound className="size-4 text-sidebar-foreground/50" aria-hidden="true" />
+                    <UserRound
+                        className="size-4 text-sidebar-foreground/50"
+                        aria-hidden="true"
+                    />
                 </button>
                 <Button
                     type="button"
@@ -155,7 +168,9 @@ export function AdminSidebar({
                         onClick={() => onOpenChange(false)}
                         aria-label="Fermer le menu admin"
                     />
-                    <div className="relative h-full w-72 shadow-2xl">{content}</div>
+                    <div className="relative h-full w-72 shadow-2xl">
+                        {content}
+                    </div>
                 </div>
             )}
         </>

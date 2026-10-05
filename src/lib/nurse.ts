@@ -54,43 +54,50 @@ export async function listAdminMissions() {
 // suffit à l'interface de dispatch. Additif : `missions` reste inchangé
 // (contrat Task 32, scripts d'audit préservés). Les DTO vivent dans
 // nurse-schemas.ts (client-safe) pour être consommés par la vue admin.
+/**
+ * File "à affecter" : RDV à domicile actifs sans infirmier.
+ * Source UNIQUE de la file d'affectation, partagée par GET /api/admin/missions
+ * et GET /api/admin/teams — les deux vues doivent voir la même file, sinon le
+ * dispatch depuis l'une ne correspond plus à l'affichage de l'autre.
+ */
+export async function listDispatchQueue() {
+  const rows = await db.appointment.findMany({
+    where: {
+      type: "DOMICILE",
+      status: { in: ["PENDING", "CONFIRMED"] },
+      nurseMission: { is: null },
+    },
+    orderBy: { scheduledAt: "asc" },
+    take: 50,
+    include: {
+      patient: { select: { fullName: true, phone: true } },
+      specialty: { select: { name: true } },
+    },
+  });
+  return rows.map((a) => ({
+    id: a.id,
+    patientName: a.patient.fullName,
+    patientPhone: a.patient.phone,
+    zone: a.zone,
+    type: a.type,
+    scheduledAt: a.scheduledAt.toISOString(),
+    specialtyName: a.specialty?.name ?? null,
+    reason: a.reason,
+    tokensReserved: a.tokensReserved,
+  }));
+}
+
 export async function listAdminMissionBoard(): Promise<AdminMissionBoard> {
   const [missions, queueRows, nurses] = await Promise.all([
     listAdminMissions(),
-    db.appointment.findMany({
-      where: {
-        type: "DOMICILE",
-        status: { in: ["PENDING", "CONFIRMED"] },
-        nurseMission: { is: null },
-      },
-      orderBy: { scheduledAt: "asc" },
-      take: 50,
-      include: {
-        patient: { select: { fullName: true, phone: true } },
-        specialty: { select: { name: true } },
-      },
-    }),
+    listDispatchQueue(),
     db.user.findMany({
       where: { role: "NURSE" },
       orderBy: { fullName: "asc" },
       select: { id: true, fullName: true, phone: true, zone: true },
     }),
   ]);
-  return {
-    missions,
-    dispatchQueue: queueRows.map((a) => ({
-      id: a.id,
-      patientName: a.patient.fullName,
-      patientPhone: a.patient.phone,
-      zone: a.zone,
-      type: a.type,
-      scheduledAt: a.scheduledAt.toISOString(),
-      specialtyName: a.specialty?.name ?? null,
-      reason: a.reason,
-      tokensReserved: a.tokensReserved,
-    })),
-    nurses,
-  };
+  return { missions, dispatchQueue: queueRows, nurses };
 }
 
 export async function getNurseMission(nurseId: string, id: string) {

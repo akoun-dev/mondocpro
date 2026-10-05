@@ -6,7 +6,6 @@
 // (409 si des RDV y sont rattachés → toast, la désactivation est conseillée).
 import { useCallback, useEffect, useState } from "react"
 import {
-    ArrowLeft,
     Check,
     Loader2,
     Pencil,
@@ -33,13 +32,9 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { toast } from "@/hooks/use-toast"
 import type { SpecialtyDto } from "@/lib/specialties"
 
-type Props = {
-    onBack: () => void
-}
-
 const NAME_MAX = 80
 
-export function SpecialtiesView({ onBack }: Props) {
+export function SpecialtiesView() {
     const [specialties, setSpecialties] = useState<SpecialtyDto[] | null>(null)
     const [loading, setLoading] = useState(true)
     const [loadError, setLoadError] = useState<string | null>(null)
@@ -224,30 +219,6 @@ export function SpecialtiesView({ onBack }: Props) {
 
     return (
         <div className="flex flex-col gap-5">
-            {/* En-tête — même gabarit que « Mes rendez-vous » */}
-            <div className="flex items-start justify-between gap-3">
-                <div className="flex min-w-0 items-start gap-1.5">
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={onBack}
-                        aria-label="Retour à l'accueil"
-                        className="size-9 shrink-0 rounded-full"
-                    >
-                        <ArrowLeft className="size-5" aria-hidden="true" />
-                    </Button>
-                    <div className="min-w-0">
-                        <h2 className="text-xl font-bold tracking-tight sm:text-2xl">
-                            Spécialités
-                        </h2>
-                        <p className="mt-0.5 text-xs text-muted-foreground sm:text-sm">
-                            Catalogue proposé aux patients à la prise de
-                            rendez-vous
-                        </p>
-                    </div>
-                </div>
-            </div>
-
             {/* Ajout d'une spécialité */}
             <form
                 onSubmit={event => {

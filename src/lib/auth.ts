@@ -34,6 +34,10 @@ export type PublicUser = {
     appointmentReminders: boolean
     healthAlerts: boolean
     theme: ThemeMode
+    // FEATURE-ANNUAIRE-ADMIN : false = compte suspendu par le Médecin Chef.
+    // Vrai pour tout utilisateur connecté (une session ne survit jamais à une
+    // suspension — voir getCurrentUser), donc l'UI n'a rien à tester.
+    isActive: boolean
     createdAt: Date
 }
 
@@ -47,6 +51,7 @@ export function toPublicUser(user: {
     appointmentReminders: boolean
     healthAlerts: boolean
     theme: ThemeMode
+    isActive: boolean
     createdAt: Date
 }): PublicUser {
     return {
@@ -59,6 +64,7 @@ export function toPublicUser(user: {
         appointmentReminders: user.appointmentReminders,
         healthAlerts: user.healthAlerts,
         theme: user.theme,
+        isActive: user.isActive,
         createdAt: user.createdAt,
     }
 }
@@ -155,6 +161,19 @@ export async function getCurrentUser(): Promise<PublicUser | null> {
     if (session.expiresAt < new Date()) {
         await db.session
             .delete({ where: { id: session.id } })
+            .catch(() => undefined)
+        return null
+    }
+
+    // FEATURE-ANNUAIRE-ADMIN — la suspension PREND EFFET IMMÉDIATEMENT.
+    // Sans ce contrôle, un infirmier désactivé par le Médecin Chef
+    // conserverait sa session ouverte jusqu'à son expiration (30 jours avec
+    // « se souvenir de moi ») et continuerait à opérer sur ses missions.
+    // On purge les sessions du compte : sa réactivation ne doit pas ressusciter
+    // des accès volés, il se reconnectera normalement.
+    if (!session.user.isActive) {
+        await db.session
+            .deleteMany({ where: { userId: session.user.id } })
             .catch(() => undefined)
         return null
     }

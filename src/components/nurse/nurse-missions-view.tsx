@@ -119,8 +119,9 @@ export function NurseMissionsView() {
     }
 
     return <section aria-label="Mes missions" className="space-y-5">
-        <div className="flex items-start justify-between gap-3">
-            <div><h2 className="text-2xl font-bold tracking-tight">Mes missions</h2><p className="text-sm text-muted-foreground">Consultez vos interventions et mettez à jour leur avancement.</p></div>
+        {/* Titre + sous-titre : rendus dans le header de l'app (helper
+            viewHeading). Seule l'action de rafraîchissement reste ici. */}
+        <div className="flex justify-end">
             <Button variant="outline" size="icon" onClick={() => void refresh()} aria-label="Actualiser les missions"><RefreshCw className="size-4" /></Button>
         </div>
         {loading && <div className="flex items-center justify-center rounded-2xl border bg-card py-16 text-sm text-muted-foreground"><Loader2 className="mr-2 size-4 animate-spin" />Chargement des missions…</div>}

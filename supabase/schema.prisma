@@ -52,6 +52,11 @@ model User {
   // via PATCH /api/auth/profile (toggle en-tête + section « Apparence » du
   // profil) et appliqué par ThemeInit (boot localStorage puis sync serveur).
   theme                 ThemeMode            @default(SYSTEM)
+  // ——— FEATURE-ANNUAIRE-ADMIN — suspension de compte ———
+  // false = compte suspendu par le Médecin Chef (vues Patients / Infirmiers).
+  // GARDÉ PAR src/lib/auth.ts : la connexion est refusée et les sessions déjà
+  // ouvertes deviennent inertes (requireRole + getCurrentUser).
+  isActive              Boolean              @default(true)
   createdAt           DateTime             @default(now())
   updatedAt           DateTime             @updatedAt
   sessions            Session[]

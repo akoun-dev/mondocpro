@@ -150,16 +150,9 @@ export function AppointmentsView({ data, onBook }: Props) {
 
     return (
         <div className="flex flex-col gap-5">
-            {/* En-tête maquette : titre + sous-titre à gauche, « + Nouveau RDV » à droite */}
-            <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                    <h2 className="text-xl font-bold tracking-tight sm:text-2xl">
-                        Mes rendez-vous
-                    </h2>
-                    <p className="mt-0.5 text-xs text-muted-foreground sm:text-sm">
-                        Consultez et gérez vos consultations
-                    </p>
-                </div>
+            {/* Titre + sous-titre : rendus dans le header de l'app (helper
+                viewHeading). Seule l'action « Nouveau RDV » reste ici. */}
+            <div className="flex justify-end">
                 <Button
                     onClick={onBook}
                     className="h-10 shrink-0 gap-1.5 rounded-xl text-sm font-semibold"

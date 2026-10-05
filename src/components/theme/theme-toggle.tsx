@@ -34,7 +34,11 @@ export function ThemeToggle() {
             aria-label={isDark ? "Passer en thème clair" : "Passer en thème sombre"}
             title={isDark ? "Thème clair" : "Thème sombre"}
             onClick={() => setTheme(isDark ? "light" : "dark")}
-            className="size-9 shrink-0 rounded-full text-muted-foreground hover:text-foreground"
+            // 44px sur mobile (cible tactile minimale WCAG 2.2), 36px sur
+            // desktop où la souris n'a pas de contrainte de précision. Aligné
+            // sur la cloche de notifications, voisine immédiate dans le même
+            // en-tête : deux boutons d'actions doivent avoir la même hauteur.
+            className="size-11 shrink-0 rounded-full text-muted-foreground hover:text-foreground sm:size-9"
         >
             {isDark ? <Sun className="size-5" /> : <Moon className="size-5" />}
         </Button>

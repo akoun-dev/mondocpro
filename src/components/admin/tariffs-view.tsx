@@ -8,7 +8,6 @@
 // ne sont jamais impactés (invariant financier du ledger).
 import { useCallback, useEffect, useState } from "react";
 import {
-  ArrowLeft,
   Check,
   Coins,
   Info,
@@ -154,7 +153,7 @@ function TariffRow({
   );
 }
 
-export function TariffsView({ onBack }: Props) {
+export function TariffsView() {
   const [tariffs, setTariffs] = useState<TariffDto[] | null>(null);
   const [loadError, setLoadError] = useState(false);
   const [editingKey, setEditingKey] = useState<string | null>(null);
@@ -241,36 +240,18 @@ export function TariffsView({ onBack }: Props) {
 
   return (
     <div className="flex flex-col gap-5">
-      {/* En-tête — même gabarit que « Recharges » / « Spécialités » */}
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex min-w-0 items-start gap-1.5">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={onBack}
-            aria-label="Retour à l'accueil"
-            className="size-9 shrink-0 rounded-full"
-          >
-            <ArrowLeft className="size-5" aria-hidden="true" />
-          </Button>
-          <div className="min-w-0">
-            <h2 className="text-xl font-bold tracking-tight sm:text-2xl">
-              Tarifs des consultations
-            </h2>
-            <p className="mt-0.5 text-xs text-muted-foreground sm:text-sm">
-              Grille en vigueur — 1 Token = 2 500 FCFA
-            </p>
-          </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => void loadAll()}
-            aria-label="Rafraîchir la grille tarifaire"
-            className="size-9 shrink-0 rounded-full"
-          >
-            <RefreshCw className="size-4" aria-hidden="true" />
-          </Button>
-        </div>
+      {/* Titre + sous-titre : rendus dans le header de l'app (helper
+          viewHeading). Seule l'action de rafraîchissement reste ici. */}
+      <div className="flex justify-end">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => void loadAll()}
+          aria-label="Rafraîchir la grille tarifaire"
+          className="size-9 shrink-0 rounded-full"
+        >
+          <RefreshCw className="size-4" aria-hidden="true" />
+        </Button>
       </div>
 
       {/* Contrat d'application du tarif — éviter toute mauvaise surprise. */}

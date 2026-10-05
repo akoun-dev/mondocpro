@@ -45,6 +45,18 @@ export async function POST(request: Request) {
       );
     }
 
+    // FEATURE-ANNUAIRE-ADMIN — suspension décidée par le Médecin Chef.
+    // Le contrôle passe APRÈS la validation du mot de passe : une tentative
+    // d'énumération reçoit toujours le 401 générique ci-dessus (aucune fuite
+    // d'information). Seul le détenteur du bon mot de passe découvre que son
+    // compte est suspendu — information qu'il lui faut pour corriger sa démarche.
+    if (!user.isActive) {
+      return NextResponse.json(
+        { error: "Compte suspendu — contactez l'administration" },
+        { status: 403 },
+      );
+    }
+
     await createSession(user.id, remember);
     return NextResponse.json({ user: toPublicUser(user) });
   } catch (e) {
