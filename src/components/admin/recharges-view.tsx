@@ -7,7 +7,7 @@
 // rapproché). Les décisions récentes restent affichées (traçabilité).
 // Modèle transitoire : la confirmation automatique par le prestataire
 // arrivera avec la décision Mobile Money (ADR-005).
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import {
   ArrowLeft,
   BadgeCheck,
@@ -34,10 +34,13 @@ function RechargeRow({
   recharge,
   busy,
   onDecide,
+  children,
 }: {
   recharge: AdminRechargeDto;
   busy: boolean;
   onDecide?: (decision: "CONFIRM" | "REJECT") => void;
+  /** Métadonnées additionnelles rendues DANS la carte (évite un <li> imbriqué invalide). */
+  children?: ReactNode;
 }) {
   return (
     <li className="rounded-2xl border bg-card p-4 shadow-sm">
@@ -95,6 +98,7 @@ function RechargeRow({
           </Button>
         </div>
       )}
+      {children}
     </li>
   );
 }
@@ -263,8 +267,7 @@ export function RechargesView({ onBack }: Props) {
               </h3>
               <ul className="grid gap-3">
                 {processed.map(recharge => (
-                  <li key={recharge.id}>
-                    <RechargeRow recharge={recharge} busy={false} />
+                  <RechargeRow key={recharge.id} recharge={recharge} busy={false}>
                     <div className="mt-2 flex items-center gap-2">
                       <Badge
                         className={
@@ -281,7 +284,7 @@ export function RechargesView({ onBack }: Props) {
                         </span>
                       )}
                     </div>
-                  </li>
+                  </RechargeRow>
                 ))}
               </ul>
             </section>

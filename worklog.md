@@ -1164,3 +1164,24 @@ Work Log:
 
 Stage Summary:
 - App LIVE et saine en sandbox (health ok/up, mode sombre persistant par utilisateur E2E-validé) ; route preview edge à réactiver par la plateforme (bouton preview UI ou prochain heartbeat) — rien à corriger côté projet
+
+---
+Task ID: 39 (vérification Tasks 34/35 sur dernier commit)
+Agent: Super Z (principal)
+Task: « enchaîner sur la Task 35 (interface admin + notifications InApp) ou la Task 34 (profil infirmier) — récupère le dernier commit et remplace toute la codebase » (PO, 2026-10-05)
+
+Work Log:
+- Sync git : 2 auto-commits plateforme locaux (worklog + scripts/theme-e2e.ts) poussés vers origin puis reset --hard origin/main → codebase = 0e6c087 (inclut Tasks 34/35/36/37/38), working tree clean
+- Constat clé : Tasks 34 ET 35 étaient DÉJÀ complètes dans des sessions antérieures (Task 34 commit b41551f, Task 47/47 ; Task 35 commit, audit 47/47) → plan inversé : VÉRIFICATION complète plutôt que ré-implémentation
+- Présence code vérifiée : nurse-profile-view / password-change-dialog / profile-primitives (T34) ; missions-view / admin-profile-view / profile-edit-dialogs / lib/notifications.ts / migration 20261005100000 (T35) — tous présents dans le commit
+- Serveur : déjà vivant en début de session (health ok / database up / pooler) ; dev-boot.sh en tête des commandes browser (garde-fou sandbox)
+- E2E Task 34 (scripts/audit-nurse-profile.sh) : 23/23 PASS — change-password sémantique 2 appareils (courant préservé / autre révoqué), validations Zod, PATCH birthDate, restauration mot de passe de test
+- E2E Task 35 (scripts/audit-e2e-admin-notifications.sh) : PASS=47 FAIL=0 — gardes 401/403, contrat missions étendu, cycles recharges (alerte admin, double décision 409, crédit/refus notifiés), RDV domicile → dispatch → réaffectation → statuts → clôture/annulations, dates FR sans ISO, marquage lu + isolation
+- Navigateur (agent-browser, mobile 390) : login admin → accueil (compteurs réels « 9 en attente », raccourcis, badges live) ; Missions & Dispatch (file à affecter + 8 missions + réaffectation) ; panneau notifications (RECHARGE_*/APPOINTMENT_*/MISSION_* en français, dates FR) ; routage au clic validé (RECHARGE_REQUESTED → onglet Recharges) ; profil admin complet (Activité de supervision 4 tuiles, mot de passe, loi 2013-430, Apparence T37) ; profil infirmier complet (Activité de terrain 8/8/0/1, sécurité, préférences)
+- BUG CORRIGÉ (BUG-005) : erreur d'hydratation React « <li> cannot be a descendant of <li> » dans RechargesView (Décisions récentes) — RechargeRow rendait un <li> enveloppé dans un <li> parent ; fix : prop children optionnelle rendue DANS le <li> de RechargeRow, wrapper supprimé ; badges Confirmée/Refusée désormais dans la carte (visuel cohérent)
+- Vérification post-fix : 0 erreur d'hydratation sur Recharges + profil + accueil ; bun run lint global 0 erreur ; tsc 0 erreur dans src/
+
+Stage Summary:
+- Tasks 34 et 35 CONFIRMÉES complètes et fonctionnelles sur le dernier commit (0e6c087) : 23/23 + 47/47 audits API verts, parcours admin/infirmier validés au navigateur, 0 erreur console après correctif
+- BUG-005 (hydratation <li> imbriqué, vue Recharges) corrigé dans ce pass — commit séparé à suivre
+- Rien d'autre à implémenter pour ces deux tâches ; reste au backlog PO : activation FCM (google-services.json + FIREBASE_SERVICE_ACCOUNT_JSON), Task 26 (Tokens avancés/Wallet)
