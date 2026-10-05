@@ -354,20 +354,23 @@ model VisitReport {
   @@map("visit_reports")
 }
 
-// ——— FEATURE-PUSH (Task 36) — Jetons FCM des appareils natifs (Capacitor) ———
-// Un appareil = une ligne, identifiée par son token FCM (unique). Le token
-// est RÉATTRIBUÉ si l'utilisateur se reconnecte avec un autre compte sur le
-// même appareil (upsert côté API : un token ne sert qu'un compte à la fois).
-// Suppression à la déconnexion (POST /api/push/unregister) et écrémage
-// automatique des tokens invalidés par FCM (erreur 404/410 lors d'un envoi).
+// ——— FEATURE-PUSH / ADR-010 — Identifiants d'appareils natifs ———
+// Deux populations : jetons FCM dormants (ADR-009, jamais alimentés) et
+// clés de sondage du Background Runner (ADR-010). Stockage HASHÉ (SHA-256)
+// : la clé autorise à LIRE les notifications de l'utilisateur, une fuite DB
+// ne doit donc pas la compromettre. Suppression à la déconnexion
+// (POST /api/push/unregister) et à la réinitialisation de mot de passe.
 // lastSeenAt trace l'activité : un appareil vu depuis > 90 jours pourra être
 // purgé par une future tâche d'entretien.
 model DeviceToken {
   id         String   @id @default(cuid())
   userId     String
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  // Token FCM — jusqu'à ~4 Ko, jamais secret côté DB (il autorise à ENVOYER
-  // à l'appareil, pas à lire quoi que ce soit).
+  // Empreinte SHA-256 de l'identifiant d'appareil. Depuis l'ADR-010, la table
+  // porte deux populations : les jetons FCM dormants (jamais alimentés) et
+  // les CLÉS DE SONDAGE du Background Runner — un identifiant d'appareil est
+  // un secret d'authentification (il autorise à LIRE les notifications), seul
+  // son hash est donc stocké (même posture que Session.tokenHash).
   token      String   @unique @db.VarChar(4096)
   // "android" | "ios" | "web" — Device.platform (Capacitor).
   platform   String   @db.VarChar(20)
@@ -375,6 +378,9 @@ model DeviceToken {
   appVersion String?  @db.VarChar(40)
   createdAt  DateTime @default(now())
   lastSeenAt DateTime @default(now()) @updatedAt
+  // Expiration des clés de sondage (ADR-010) — null = jeton FCM historique
+  // sans TTL. Une clé expirée ne peut plus lire /api/notifications/poll.
+  expiresAt  DateTime?
 
   @@index([userId])
   @@map("device_tokens")

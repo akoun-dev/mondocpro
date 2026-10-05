@@ -278,6 +278,23 @@ Validation: schéma zod de référence (src/lib/<domaine>.ts)
 - Ce que c'était : envoi FCM fire-and-forget après le commit de la transaction métier, `{ title, body }` identique à la notification InApp jumelle + `data: { url, type, entityId }` pour le routage du clic au tap (mapping miroir de `notificationDestination()`).
 - État actuel : les notifications métier restent créées **dans la transaction** (canal InApp, Task 35) et les rappels RDV sont planifiés **localement** sur l'appareil (H-24/H-1) — les deux 100 % sans Firebase. Ré-activation éventuelle du push : cf. `.ai/ADR/ADR-009-notifications-sans-firebase.md` (git revert + config projet Firebase).
 
+### [POST] /api/native/device-key — Émission de la clé de sondage (ADR-010, Task 40)
+
+- Feature: FEATURE-PUSH (ADR-010) | Owner: Backend | Statut: **IMPLÉMENTÉ** (2026-10-05)
+- Request: `{ "platform": "android" | "ios" | "web", "deviceName"?: string(≤120), "appVersion"?: string(≤40) }` (cookie de session, tous rôles)
+- Response: 200 `{ "key": string(64 hex), "expiresAt": ISO }` — clé **retournée une seule fois**, stockée **hashée (SHA-256)** dans `device_tokens` (colonne `expiresAt`, TTL 180 jours). Écrémage opportun des clés expirées à chaque émission.
+- Errors: 400 `{ error, details }` · 401 `{ error }` · 500
+- Notes: appelée par `provisionNotificationSync()` (lib/native.ts) au démarrage de session — réutilisation de la clé persistée côté appareil (Preferences), donc une seule émission par appareil entre deux logouts. Révocation : `POST /api/push/unregister { token: key }` au logout, purge totale (`{ all: true }` ou reset de mot de passe via `invalidateUserSessions`).
+
+### [GET] /api/notifications/poll — Diffusion « app fermée » sans Firebase (ADR-010, Task 40)
+
+- Feature: FEATURE-PUSH (ADR-010) | Owner: Backend | Statut: **IMPLÉMENTÉ** (2026-10-05)
+- Auth: **`Authorization: Bearer <clé d'appareil>`** — PAS de cookie : le Background Runner est un processus JS natif sans WebView ni cookie jar. 401 si clé absente/inconnue/expirée.
+- Query: `?since=<ISO>` — curseur serveur (le runner renvoie `serverTime` de la réponse précédente). Bornes : sans `since` → 0 notification (jamais de rattrapage) ; `since` vieux de plus de 3 jours → ramené à `now-3j`.
+- Response: 200 `{ "notifications": [{ "id", "type", "title", "body", "critical": boolean, "url", "createdAt": ISO }], "serverTime": ISO }` — max 20, tri asc. `critical` (canaux « critical » vs « updates », cf. `CRITICAL_NOTIFICATION_TYPES` dans lib/notifications.ts) et `url` (`/?tab=…` miroir de `notificationDestination()` du dashboard) sont calculés **côté serveur** — le bundle runner ne duplique aucune carte.
+- Exclusions: les `APPOINTMENT_REMINDER` ne passent JAMAIS par le poll (rappels déjà planifiés localement à la réservation — un poll les livrerait en doublon).
+- Notes: consommé UNIQUEMENT par `capacitor-shell/custom-background.js` (tâche WorkManager ~15 min, même app fermée). Chaque item devient une notification locale Android (canaux `critical`/`updates` créés par l'app, lib/native.ts). Le curseur n'avance qu'après un tick réussi (panne réseau → aucune alerte perdue).
+
 ---
 
 ## Contrats à venir

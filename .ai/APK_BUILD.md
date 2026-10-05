@@ -1,7 +1,14 @@
 # Build APK Android — Mon doc Pro (Capacitor)
 
 > Task 36 — procédure complète pour produire l'APK depuis ce dépôt.
-> Architecture : voir **ADR-008** (WebView distante + push FCM + rappels locaux).
+> Architecture : voir **ADR-008** (WebView distante + push FCM + rappels locaux),
+> **ADR-009** (notifications sans Firebase), **ADR-010** (alertes « app fermée »
+> via Background Runner + clés d'appareil).
+> Historique des versions : **v1.0.0** (Task 36) → **v1.0.1** (versionCode 2,
+> garde Diagnostics Task 38) → **v1.0.2** (versionCode 3, Task 40 : Background
+> Runner + canaux enrichis + SCHEDULE_EXACT_ALARM). Keystore debug **versionné**
+> `android/keys/debug.keystore` (SHA-256 `050993fe…`) → installation par-dessus
+> les versions antérieures SANS désinstallation.
 
 ## 1. Prérequis (une seule fois)
 
@@ -19,6 +26,9 @@ Variables d'environnement (Android Studio les propose automatiquement) :
 
 ```bash
 bun install                      # postinstall = prisma generate
+bun run build:runner             # compile src/background/custom-background.ts
+                                 # → capacitor-shell/custom-background.js (APK ≥ v1.0.2,
+                                 #    OBLIGATOIRE avant cap sync — ADR-010)
 npx cap sync android             # copie capacitor-shell/ + met à jour les deps natives
 cd android && ./gradlew assembleDebug
 # → android/app/build/outputs/apk/debug/app-debug.apk
@@ -45,7 +55,7 @@ privilégier la prod (HTTPS) pour tester les flux authentifiés, ou `adb reverse
 |---|---|---|
 | `appId` (package) | `ci.mondopro.app` | **immuable** après publication Play Store |
 | `appName` | `Mon doc Pro` | affiché sous l'icône |
-| `versionCode` / `versionName` | `1` / `"1.0"` | `android/app/build.gradle` — incrémenter à chaque release |
+| `versionCode` / `versionName` | `3` / `"1.0.2"` | `android/app/build.gradle` — incrémenter à chaque release |
 
 Icônes et splash : sources dans `assets/` (générées par `scripts/gen-cap-assets.py`
 depuis `public/img/logo.png`), régénérer via :
@@ -55,7 +65,7 @@ python3 scripts/gen-cap-assets.py
 npx capacitor-assets generate --android --assetPath assets
 ```
 
-## 4. Notifications — état du canal push (ADR-009 : AUCUN projet Firebase)
+## 4. Notifications — canaux actifs (ADR-009 + ADR-010 : AUCUN projet Firebase)
 
 **Décision PO (2026-10-05) : pas de Firebase.** Les canaux de notification
 actifs sont :
@@ -63,8 +73,18 @@ actifs sont :
 - **InApp** — panneau notifications + badge, créés DANS les transactions
   métier (Task 35) : recharges, RDV domicile, missions, rappel 24 h.
 - **Notifications locales** (`@capacitor/local-notifications`) — rappels RDV
-  H-24/H-1 planifiés sur l'appareil à la réservation ; le tap navigue vers la
-  vue Rendez-vous (`initLocalNotificationTap`, enregistré au boot du shell).
+  H-24/H-1 planifiés sur l'appareil à la réservation (canal `reminders`,
+  importance HIGH, style big-text) ; le tap navigue vers la vue Rendez-vous
+  (`initLocalNotificationTap`, enregistré au boot du shell).
+- **Alertes « app fermée » (ADR-010, APK ≥ v1.0.2)** — le **Background
+  Runner** (`@capacitor/background-runner`, tâche WorkManager ~15 min) sonde
+  `GET /api/notifications/poll` avec la **clé d'appareil** émise par
+  `POST /api/native/device-key` (provisionnée à la connexion) et déclenche
+  des notifications locales sur les canaux `critical` (importance 4 : son,
+  vibration, LED) ou `updates` (importance 3). Latence ≤ ~15 min, Android
+  uniquement, soumise aux optimisations batterie des constructeurs.
+  Clé **hashée** en base (TTL 180 j), révoquée au logout et au reset de mot
+  de passe, purge du KV natif du runner (event `wipe`).
 
 Le plugin **`@capacitor/push-notifications` reste embarqué** dans l'APK (il
 porte ses bibliothèques Firebase — aucun projet, compte ou
@@ -114,8 +134,10 @@ cd android && ./gradlew assembleRelease   # APK signé
 | Symptôme | Cause probable | Correctif |
 |---|---|---|
 | Splash figé sur « Chargement » | serveur injoignable (avion, DNS) | le shell bascule sur le message hors-ligne ; vérifier https://mondocpro.vercel.app/api/health |
-| Aucune push reçue | **Comportement attendu** : canal push distant DORMANT sans projet Firebase (ADR-009) — notifications InApp + rappels locaux actifs | §4 (ré-activation : projet Firebase + revert ADR-009) |
+| Aucune push reçue | **Comportement attendu** : canal push distant DORMANT sans projet Firebase (ADR-009) — notifications InApp + rappels locaux + sondage app fermée (ADR-010) actifs | §4 (ré-activation : projet Firebase + revert ADR-009) |
+| Pas d'alerte « app fermée » | APK < v1.0.2 (pas de runner), ou optimisations batterie constructeur, ou clé jamais provisionnée (se connecter une fois) | installer v1.0.2+ ; exclure l'app de l'optimisation batterie (dontkillmyapp.com) ; vérifier `adb logcat | grep BackgroundRunner` |
+| Notification locale qui ne s'affiche pas | canal Android inexistant au moment du post (les canaux sont créés au boot du shell — APK ≥ v1.0.2 uniquement) | ouvrir l'app une fois (création des canaux), puis re-provisionner |
 | L'app se ferme à l'acceptation des notifications | APK v1 sans `google-services.json` : crash `IllegalStateException: Default FirebaseApp is not initialized` via le bridge | Installer un APK ≥ v2 (garde `Diagnostics.firebaseAvailable()`) ; depuis le correctif web ADR-009, le canal push distant n'est plus jamais activé sans Firebase |
 | Permission notifications jamais demandée | Android 13+ : demandée à la 1re ouverture après connexion **via LocalNotifications** (rappels RDV) — indépendante de Firebase depuis ADR-009 | se déconnecter/reconnecter, ou réinstaller ; vérifier les permissions système de l'app |
-| Rappels RDV avec quelques minutes de retard | alarmes inexactes (politique Play, pas de SCHEDULE_EXACT_ALARM) | comportement documenté (ADR-008) — le pipeline serveur 24 h double le rappel |
+| Rappels RDV avec quelques minutes de retard | alarmes inexactes | **corrigé v1.0.2** : `SCHEDULE_EXACT_ALARM` ajouté (Android 12+) — sur Android ≤ 11 le comportement reste à ±quelques minutes |
 | `cap sync` échoue | dépendances natives désynchronisées | `bun install` puis `npx cap sync android` |

@@ -69,6 +69,21 @@ const config: CapacitorConfig = {
       smallIcon: "ic_launcher",
       iconColor: "#1565c0",
     },
+    // ADR-010 (Task 40) — Diffusion « app fermée » sans Firebase : l'OS
+    // (WorkManager) exécute capacitor-shell/custom-background.js toutes les
+    // 15 minutes (plancher Android) même quand l'app est tuée. Le runner
+    // sonde GET /api/notifications/poll avec la clé d'appareil provisionnée
+    // par registerPush() et déclenche des notifications LOCALES sur les
+    // canaux « critical » / « updates » (créés côté app, lib/native.ts).
+    // Build du fichier : bun run build:runner (esbuild, voir package.json).
+    BackgroundRunner: {
+      label: "ci.mondopro.app.runner",
+      src: "custom-background.js",
+      event: "onAppTick",
+      repeat: true,
+      interval: 15, // minutes — plancher WorkManager
+      autoStart: true,
+    },
   },
 };
 

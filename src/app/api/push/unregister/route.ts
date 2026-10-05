@@ -1,8 +1,10 @@
-// POST /api/push/unregister — FEATURE-PUSH (Task 36).
-// Révoque le jeton FCM de l'appareil courant (déconnexion de l'app) ou, en
-// secours, TOUS les jetons de l'utilisateur. Idempotent : supprimer un jeton
-// déjà absent est un succès (200) — la déconnexion ne doit jamais échouer
-// pour autant.
+// POST /api/push/unregister — FEATURE-PUSH (Task 36) · ADR-010 (Task 40).
+// Révoque l'identifiant de l'appareil courant (déconnexion de l'app) ou, en
+// secours, TOUS les identifiants de l'utilisateur. L'identifiant peut être
+// un jeton FCM (canal distant dormant, ADR-009) ou une clé de sondage du
+// Background Runner (ADR-010) — la révocation est identique (hash lookup).
+// Idempotent : supprimer un identifiant déjà absent est un succès (200) —
+// la déconnexion ne doit jamais échouer pour autant.
 // Corps : { token } OU { all: true } — exactement une des deux formes.
 import { NextResponse } from "next/server";
 import { z } from "zod";

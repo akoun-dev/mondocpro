@@ -29,6 +29,9 @@ export function NativeBootstrap() {
         // Enregistrement push : uniquement avec une session valide (401 sans
         // session → le POST register échouerait de toute façon). Rejoué à
         // chaque reprise : re-registrations idempotentes côté serveur.
+        // ADR-010 : déclenché aussi à la CONNEXION (event "mondocpro:session-open"
+        // émis par use-auth) — le login est une navigation SPA, sans rechargement,
+        // la session doit provisionner le runner sans attendre une reprise.
         let cancelled = false;
         const tryRegisterPush = async () => {
             try {
@@ -42,6 +45,9 @@ export function NativeBootstrap() {
         };
         void tryRegisterPush();
 
+        const onSessionOpen = () => void tryRegisterPush();
+        window.addEventListener("mondocpro:session-open", onSessionOpen);
+
         const onVisibility = () => {
             if (document.visibilityState === "visible") void tryRegisterPush();
         };
@@ -50,6 +56,7 @@ export function NativeBootstrap() {
         return () => {
             cancelled = true;
             window.removeEventListener("mondocpro:network", onNetwork);
+            window.removeEventListener("mondocpro:session-open", onSessionOpen);
             document.removeEventListener("visibilitychange", onVisibility);
         };
     }, []);

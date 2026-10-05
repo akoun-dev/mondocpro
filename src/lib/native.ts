@@ -17,7 +17,17 @@
 //    garde ci-dessous ne l'active jamais — zéro crash, zéro appel inutile.
 //    Ré-activation possible un jour = config Firebase + revert de la partie
 //    serveur (voir ADR-009) — aucun changement de ce fichier.
+//
+// Décision ADR-010 (2026-10-05) — Diffusion « app fermée » SANS Firebase :
+//  le Background Runner (@capacitor/background-runner) est une tâche
+//  WorkManager de l'OS (toutes les ~15 min, même app fermée) qui sonde
+//  GET /api/notifications/poll avec une CLÉ D'APPAREIL émise par
+//  POST /api/native/device-key et déclenche des notifications LOCALES sur
+//  les canaux « critical » / « updates ». Ce fichier provisionne la clé au
+//  démarrage de session (provisionNotificationSync) et la purge au logout
+//  (unregisterPush + wipe du KV natif du runner).
 import { Capacitor, registerPlugin } from "@capacitor/core";
+import { BackgroundRunner } from "@capacitor/background-runner";
 import { App } from "@capacitor/app";
 import { Device } from "@capacitor/device";
 import { Haptics, NotificationType, ImpactStyle } from "@capacitor/haptics";
@@ -106,6 +116,10 @@ export function initNativeShell(): void {
     void listenNetwork();
     void listenBackButton();
     initLocalNotificationTap();
+    // Canaux Android créés dès le boot du shell (idempotent, avant toute
+    // session) : le runner peut poster sur « critical »/« updates » dès son
+    // premier tick, même si l'utilisateur n'a pas encore ouvert de session.
+    void createNotificationChannels();
 }
 
 // Tap sur une notification LOCALE (rappel RDV, mise en avant InApp) → lien
@@ -165,6 +179,14 @@ async function isPushCapable(): Promise<boolean> {
 
 const PUSH_TOKEN_KEY = "push.fcm.token";
 
+// ADR-010 — Clé de sondage du Background Runner. Stockée dans Preferences
+// (côté app, pour la révoquer au logout) ET injectée dans le KV natif du
+// runner (SharedPreferences, lisible par la tâche OS sans WebView).
+const POLL_KEY_PREF = "native.poll.key";
+// DOIT matcher plugins.BackgroundRunner.label de capacitor.config.ts :
+// le label nomme le fichier SharedPreferences du runner.
+const RUNNER_LABEL = "ci.mondopro.app.runner";
+
 async function deviceName(): Promise<string | null> {
     try {
         const info = await Device.getInfo();
@@ -205,14 +227,129 @@ function navigate(url: string): void {
     window.location.assign(url.startsWith("/") ? url : "/");
 }
 
+// ——— Canaux Android (ADR-010) ———
+// La criticité n'est pas une option de détail : Android classe le son, la
+// vibration et le head-up display PAR CANAL. Trois canaux couvrent le
+// produit — le runner ne peut poster que sur des canaux existants (une
+// notification sur un canal inconnu ne s'affiche PAS), d'où la création
+// systématique et idempotente dès le boot du shell.
+let channelsCreated = false;
+
+async function createNotificationChannels(): Promise<void> {
+    if (!isNative() || channelsCreated) return;
+    channelsCreated = true;
+    try {
+        // NB plugin v8 : createChannel(channel: Channel) — le canal est passé
+        // DIRECTEMENT, et Importance est une union numérique Android
+        // (4 = IMPORTANCE_HIGH, 3 = IMPORTANCE_DEFAULT).
+        // 1. Alertes critiques — dispatch à affecter, annulations, décisions
+        //    financières : importance HIGH (son + vibration + head-up).
+        await LocalNotifications.createChannel({
+            id: "critical",
+            name: "Alertes critiques",
+            description:
+                "Actions urgentes : dispatch RDV, annulations, décisions de recharge",
+            importance: 4,
+            vibration: true,
+            lights: true,
+            lightColor: "#1565c0",
+        });
+        // 2. Rappels de RDV — HIGH également : manquer un rendez-vous de soin
+        //    coûte plus cher qu'une vibration de plus.
+        await LocalNotifications.createChannel({
+            id: "reminders",
+            name: "Rappels de rendez-vous",
+            description: "Rappels H-24 et H-1 de vos rendez-vous",
+            importance: 4,
+            vibration: true,
+        });
+        // 3. Mises à jour — compte rendus déposés, changements de statut :
+        //    visibles sans agressivité (importance DEFAULT).
+        await LocalNotifications.createChannel({
+            id: "updates",
+            name: "Mises à jour",
+            description: "Comptes rendus et changements de statut",
+            importance: 3,
+        });
+    } catch (error) {
+        //échec transitoire → réessai au prochain registerPush
+        channelsCreated = false;
+        console.warn("[native] createNotificationChannels:", error);
+    }
+}
+
+// ——— Diffusion « app fermée » (ADR-010) : clé d'appareil + KV du runner ———
+
+// Provisioning : réutilise la clé persistée, ou en émet une nouvelle via
+// POST /api/native/device-key (auth session). La clé est alors injectée dans
+// le KV NATIF du runner (dispatchEvent "provision" → CapacitorKV) : la tâche
+// OS la lira sans WebView ni cookie. Idempotent, rejoué à chaque session.
+export async function provisionNotificationSync(): Promise<void> {
+    if (!isNative()) return;
+    try {
+        let deviceKey = (await Preferences.get({ key: POLL_KEY_PREF })).value;
+        if (!deviceKey) {
+            const res = await fetch("/api/native/device-key", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    platform: platformName(),
+                    deviceName: await deviceName(),
+                    appVersion: await appVersion(),
+                }),
+            });
+            if (!res.ok) {
+                console.warn("[native] /api/native/device-key:", res.status);
+                return;
+            }
+            const data = (await res.json()) as { key?: string };
+            if (!data.key) return;
+            deviceKey = data.key;
+            await Preferences.set({ key: POLL_KEY_PREF, value: deviceKey });
+        }
+
+        // window.location.origin = serveur qui sert l'app web (ADR-007 :
+        // WebView distante) — le runner sonde le même serveur que l'app.
+        await BackgroundRunner.dispatchEvent({
+            label: RUNNER_LABEL,
+            event: "provision",
+            details: {
+                deviceKey,
+                serverUrl: window.location.origin,
+            },
+        });
+    } catch (error) {
+        // APK sans runner (v≤1.0.1) ou runner injoignable : le canal
+        // « app fermée » reste indisponible, l'app elle-même fonctionne.
+        console.warn("[native] provisionNotificationSync:", error);
+    }
+}
+
+// Purge du KV natif du runner (déconnexion, reset) — best effort : sur un
+// APK sans runner l'event n'a pas de destinataire, c'est un no-op sûr.
+async function wipeRunnerStorage(): Promise<void> {
+    try {
+        await BackgroundRunner.dispatchEvent({
+            label: RUNNER_LABEL,
+            event: "wipe",
+            details: {},
+        });
+    } catch {
+        // no-op
+    }
+}
+
 let pushListenersRegistered = false;
 
 // Flux d'initialisation des notifications au démarrage de session :
 //  1. PERMISSION NOTIFICATIONS (Android 13+) — demandée via LocalNotifications
 //     (même permission OS POST_NOTIFICATIONS que le plugin push) : elle couvre
-//     rappels RDV ET, le cas échéant, les push. Demander ici (et non via le
-//     plugin push) garantit que la demande reste utile SANS Firebase.
-//  2. Canal push DISTANT — activé UNIQUEMENT si Firebase est initialisé dans
+//     rappels RDV, mises en avant InApp ET les notifications du runner.
+//  2. CANAUX ANDROID (critical/reminders/updates) — créés de façon
+//     idempotente avant toute émission.
+//  3. DIFFUSION « APP FERMÉE » (ADR-010) — clé d'appareil + KV du runner,
+//     TOUJOURS activée (indépendante du canal distant).
+//  4. Canal push DISTANT — activé UNIQUEMENT si Firebase est initialisé dans
 //     le process (garde isPushCapable). Sans projet Firebase (décision
 //     ADR-009) : dormant, aucun register(), aucun jeton envoyé au serveur.
 // Idempotent : rejoué à chaque ouverture/reprise (permission déjà accordée =
@@ -229,12 +366,19 @@ export async function registerPush(): Promise<void> {
             await LocalNotifications.requestPermissions();
         }
 
-        // 2. Canal push distant — DORMANT sans projet Firebase (ADR-009) :
+        // 2. Canaux Android (idempotent).
+        await createNotificationChannels();
+
+        // 3. Diffusion « app fermée » (ADR-010) — toujours active : ce n'est
+        //    PAS le canal FCM, aucune dépendance Firebase.
+        void provisionNotificationSync();
+
+        // 4. Canal push distant — DORMANT sans projet Firebase (ADR-009) :
         // jamais de dialogue ni de register() tant que Firebase n'est pas
         // initialisé dans le process.
         if (!(await isPushCapable())) {
             console.info(
-                "[native] canal push distant dormant (aucun projet Firebase — décision ADR-009) : notifications InApp + rappels locaux actifs",
+                "[native] canal push distant dormant (aucun projet Firebase — ADR-009) : InApp + rappels locaux + sondage app fermée (ADR-010) actifs",
             );
             return;
         }
@@ -329,20 +473,38 @@ export async function registerPush(): Promise<void> {
     }
 }
 
-// Déconnexion : révoque le jeton FCM de CET appareil côté serveur (le push
-// ne suit plus l'ancien compte) puis efface la copie locale. No-op complet
-// tant que le canal distant est dormant (aucun jeton stocké — ADR-009).
+// Déconnexion : révoque côté serveur les identifiants de CET appareil (le
+// jeton FCM dormant historique ADR-009 ET la clé de sondage du runner
+// ADR-010 — la session native doit mourir avec la session web), efface les
+// copies locales et purge le KV natif du runner. Idempotent, best-effort :
+// la déconnexion ne doit jamais échouer pour autant.
 export async function unregisterPush(): Promise<void> {
     if (!isNative()) return;
     try {
         const { value } = await Preferences.get({ key: PUSH_TOKEN_KEY });
-        if (!value) return;
-        await fetch("/api/push/unregister", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ token: value }),
-        });
-        await Preferences.remove({ key: PUSH_TOKEN_KEY });
+        if (value) {
+            await fetch("/api/push/unregister", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ token: value }),
+            });
+            await Preferences.remove({ key: PUSH_TOKEN_KEY });
+        }
+
+        const { value: pollKey } = await Preferences.get({ key: POLL_KEY_PREF });
+        if (pollKey) {
+            await fetch("/api/push/unregister", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ token: pollKey }),
+            });
+        }
+        await Preferences.remove({ key: POLL_KEY_PREF });
+
+        // Le runner ne doit conserver AUCUN credential après logout : sans
+        // purge, sa prochaine sonde partirait avec une clé morte (401 géré
+        // par le runner, mais la purge évite l'appel inutile).
+        await wipeRunnerStorage();
     } catch {
         // best-effort — la déconnexion ne doit jamais échouer pour autant
     }
@@ -400,6 +562,11 @@ export async function scheduleAppointmentReminders(
                 id,
                 title: "Rappel de rendez-vous",
                 body,
+                // Enrichissement (ADR-010) : style big-text déplié sur
+                // l'écran de verrouillage + canal dédié (son + vibration).
+                largeBody: body,
+                summaryText: "Mon doc Pro",
+                channelId: "reminders",
                 schedule: { at, allowWhileIdle: true },
                 extra: { url: "/?tab=rdv" },
             }));

@@ -110,8 +110,12 @@ async function sessionCookieOptions(): Promise<{
 
 // Après un reset de mot de passe, toutes les sessions existantes sont révoquées :
 // un attaquant ayant volé une session ne la conserve pas après reprise de contrôle.
+// ADR-010 : les clés de sondage du Background Runner sont purgées avec — ce
+// sont des credentials de lecture des notifications au même titre qu'une
+// session (l'appareil se reprovisionnera à la prochaine connexion).
 export async function invalidateUserSessions(userId: string): Promise<void> {
     await db.session.deleteMany({ where: { userId } })
+    await db.deviceToken.deleteMany({ where: { userId } })
 }
 
 export async function createSession(

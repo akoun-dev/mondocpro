@@ -125,3 +125,42 @@ export const markNotificationsReadSchema = z
 export type MarkNotificationsReadInput = z.infer<
     typeof markNotificationsReadSchema
 >;
+
+// ——— Diffusion locale « app fermée » (ADR-010) ———
+// Le Background Runner de l'APK sonde GET /api/notifications/poll et
+// transforme chaque notification en notification LOCALE Android. Deux
+// décisions de classification, partagées serveur (le runner reçoit les
+// champs déjà calculés — aucune duplication dans le bundle runner) :
+
+// 1. CRITICITÉ — les types qui exigent une réaction rapide (file de travail
+//    du Médecin Chef, annulation tardive, nouveau soin attribué, décision
+//    financière) sont livrés sur le canal Android « critical » (importance
+//    HIGH : son + vibration). Les autres sur « updates » (importance
+//    DEFAULT). Les rappels de RDV n'empruntent PAS ce chemin : ils sont
+//    déjà planifiés localement à la réservation (H-24/H-1, lib/native.ts).
+export const CRITICAL_NOTIFICATION_TYPES: ReadonlySet<string> = new Set([
+    "APPOINTMENT_REQUESTED",
+    "APPOINTMENT_CANCELLED",
+    "MISSION_ASSIGNED",
+    "RECHARGE_REQUESTED",
+    "RECHARGE_CONFIRMED",
+    "RECHARGE_REJECTED",
+]);
+
+export function isCriticalNotification(type: string): boolean {
+    return CRITICAL_NOTIFICATION_TYPES.has(type);
+}
+
+// 2. DESTINATION — miroir serveur de notificationDestination() du dashboard
+//    (src/components/auth/user-dashboard.tsx) : le tap sur la notification
+//    locale ouvre la vue qui permet d'AGIR. Les deux sources doivent rester
+//    alignées — la version testée par les audits E2E est le dashboard.
+export function notificationUrlFor(
+    type: string,
+    role: "PATIENT" | "NURSE" | "ADMIN",
+): string {
+    const family = notificationFamily(type);
+    if (role === "NURSE") return "/?tab=missions";
+    if (role === "ADMIN") return family === "recharge" ? "/?tab=recharges" : "/?tab=missions";
+    return family === "recharge" ? "/?tab=wallet" : "/?tab=rdv";
+}

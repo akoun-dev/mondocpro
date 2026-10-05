@@ -125,6 +125,10 @@ export function useAuth() {
           const data = (await res.json()) as { user: AppUser };
           setUser(data.user);
           setStatus("authenticated");
+          // Task 40 — le boot natif (NativeBootstrap) re-provisionne la clé
+          // de sondage du Background Runner dès la session (le login est une
+          // navigation SPA : aucun rechargement ne relancerait le flux).
+          window.dispatchEvent(new Event("mondocpro:session-open"));
           return { ok: true };
         }
         return await readError(res);
@@ -145,6 +149,8 @@ export function useAuth() {
           const body = (await res.json()) as { user: AppUser };
           setUser(body.user);
           setStatus("authenticated");
+          // Task 40 — même provisionnement que le login (voir ci-dessus).
+          window.dispatchEvent(new Event("mondocpro:session-open"));
           return { ok: true };
         }
         return await readError(res);

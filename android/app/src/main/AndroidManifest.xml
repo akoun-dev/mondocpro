@@ -42,6 +42,12 @@
          redémarrage de l'appareil (@capacitor/local-notifications). -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
+    <!-- Task 40 / ADR-010 — Alarmes EXACTES (Android 12+) : les rappels H-24/H-1
+         doivent sonner à l'heure précise, et les notifications du Background
+         Runner doivent passer à travers le Doze. Sans cette permission, les
+         alarmes deviennent inexactes (±10 min) sur Android 12+. -->
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+
     <!-- Task 36 — Retour haptique (@capacitor/haptics) et vibration des
          notifications. -->
     <uses-permission android:name="android.permission.VIBRATE" />
