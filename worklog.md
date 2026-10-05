@@ -1394,3 +1394,24 @@ Stage Summary:
 - GET /api/admin/overview documenté ; la file de dispatch du dashboard partage la source unique listDispatchQueue() (zéro divergence avec Équipes/Missions)
 - Code mort retiré (useAdminCounters + 4 raccourcis) ; accueil patient et infirmier inchangés ; APK v1.0.4 inchangé
 - Reste au backlog PO : Task 26 (Tokens/Wallet avancé) ; secrets exposés à réinitialiser
+
+---
+
+Task ID: 47
+Agent: Super Z (principal)
+Task: « les composant dashboard ne sont pas tres responsives mobile, regarde » (PO, 2026-10-06) — FIX responsive du tableau de bord admin
+
+Work Log:
+
+- Diagnostic instrumenté (agent-browser, viewport 390×844, compte admin) : `document.documentElement.scrollWidth` = **487 px au lieu de 390** sur l'accueil admin → 97 px de défilement horizontal ; les autres onglets admin (patients, infirmiers, missions, équipes, recharges, sensibilisations) mesurés propres (390) après chargement complet
+- Cause racine identifiée par mesure d'éléments : les grilles `grid gap-4 xl:grid-cols-2` / `xl:grid-cols-3` de `admin-home-view.tsx` n'ont PAS de colonne explicite en mobile → Tailwind génère des **pistes implicites `auto`** dimensionnées au *max-content* ; deux contenus non césurables les gonflent : (1) le texte `truncate` des lignes « Dernières missions » (« Médecine générale · Infirmier Maquette UI · Il y a 28 min » ≈ 471 px — `truncate` ne change PAS la taille intrinsèque), (2) le graphique recharts re-mesuré sur la piste déjà élargie (391 px) — cartes mesurées à 441/471 px dans un conteneur de 358 px ; symptômes visibles : label « lun » du graphique coupé, description « Charge des territoires — file d'affectation incluse » tronquée, barre Yopougon sortant de l'écran
+- Fix minimal (`src/components/admin/admin-home-view.tsx`, 5 lignes) : `grid-cols-1` explicite sur les 4 grilles (2 squelettes + 2 contenus) — Tailwind émet `repeat(1, minmax(0,1fr))`, piste bornée au conteneur quel que soit le contenu ; + héros compacté sur mobile (`p-5` au lieu de `p-6` avant `sm:p-8`)
+- Fix NOT applied blindément partout : vérifié d'abord que les listes `grid gap-3` des autres vues admin NE débordent pas (mesures par onglet) — inutile de les toucher
+- Validation : lint 0 ; tsc src 0 (seul bruit hors-projet `skills/`) ; E2E mobile 390 : accueil admin `scrollWidth` = 390, graphique 308 px avec les 7 labels (mar mer jeu ven sam dim lun) rendus, truncate avec ellipsis propre (« Infirmier Maqu… »), captures top/mid/bot propres ; **non-régression desktop 1600 : grilles mesurées 6/2/3 colonnes** + capture identique au Task 46 ; tablette 768 : 3 colonnes KPI, 0 débordement ; accueil infirmier mobile vérifié (login réel, 390, héros intact) ; audits non-régression **23/23 + PASS=47 FAIL=0 + 17/17** ; 0 erreur/warning console
+- Purement web (CSS classes) : aucun rebuild APK requis
+
+Stage Summary:
+
+- Le tableau de bord du Médecin Chef est pleinement responsive : plus AUCUN défilement horizontal en 390 px — graphique 7 jours entier, barres de zone dans l'écran, files d'action ellipsées proprement
+- Leçon consignée : toute grille Tailwind avec seulement des variantes `xl:`/`lg:` doit avoir un `grid-cols-1` de base — les pistes implicites `auto` se dimensionnent au max-content et débordent avec du contenu truncate/recharts
+- Reste au backlog PO : Task 26 (Tokens/Wallet avancé) ; secrets exposés à réinitialiser

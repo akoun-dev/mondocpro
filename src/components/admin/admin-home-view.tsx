@@ -188,7 +188,7 @@ export function AdminHomeView({ userName, onNavigate }: Props) {
     return (
         <div className="flex flex-col gap-6">
             {/* Héro de bienvenue — dégradé médical, texte blanc AA */}
-            <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary to-primary-dark p-6 text-primary-foreground sm:p-8">
+            <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary to-primary-dark p-5 text-primary-foreground sm:p-8">
                 <div
                     aria-hidden="true"
                     className="pointer-events-none absolute inset-0"
@@ -279,7 +279,7 @@ export function AdminHomeView({ userName, onNavigate }: Props) {
                             />
                         ))}
                     </div>
-                    <div className="grid gap-4 xl:grid-cols-2">
+                    <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
                         <Skeleton
                             className="h-[280px] rounded-2xl"
                             aria-hidden="true"
@@ -289,7 +289,7 @@ export function AdminHomeView({ userName, onNavigate }: Props) {
                             aria-hidden="true"
                         />
                     </div>
-                    <div className="grid gap-4 xl:grid-cols-3">
+                    <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
                         {[0, 1, 2].map(index => (
                             <Skeleton
                                 key={index}
@@ -355,7 +355,7 @@ export function AdminHomeView({ userName, onNavigate }: Props) {
 
                     {/* Statistiques — activité hebdomadaire + répartition
                         par zone */}
-                    <div className="grid gap-4 xl:grid-cols-2">
+                    <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
                         <Card className="rounded-2xl">
                             <CardHeader>
                                 <CardTitle className="text-base">
@@ -457,7 +457,7 @@ export function AdminHomeView({ userName, onNavigate }: Props) {
                     </div>
 
                     {/* Files d'action — missions récentes, dispatch, paiements */}
-                    <div className="grid gap-4 xl:grid-cols-3">
+                    <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
                         <Card className="rounded-2xl">
                             <CardHeader>
                                 <CardTitle className="text-base">

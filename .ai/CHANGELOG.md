@@ -68,6 +68,8 @@ Format basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) — ve
 
 - **BUG-001** : faux mismatch d'hydratation sur `<body>` causé par l'injection d'attributs externes (`bis_status`, `__processed_*`) par l'environnement de preview → `suppressHydrationWarning` ajouté sur `<body>` (`src/app/layout.tsx`).
 
+- **Dashboard admin débordant sur mobile (signalement PO 2026-10-06 « les composants dashboard ne sont pas très responsives mobile »)** : le tableau de bord du Médecin Chef provoquait un **défilement horizontal de 97 px** en mobile 390 px (document 487 px) — les grilles `grid gap-4 xl:grid-cols-2/3` sans colonne de base laissaient Tailwind créer des **pistes implicites `auto`** dimensionnées au *max-content* : le texte `truncate` non césurable des files d'action (≈ 471 px) et le graphique recharts (re-mesuré sur la piste élargie, 391 px) poussaient les cartes au-delà du viewport — coupe du graphique (« lun » invisible), description des zones tronquée, barre Yopougon sortant de l'écran ; **fix** : `grid-cols-1` explicite (= `minmax(0,1fr)`, pistes bornées au conteneur) sur les 4 grilles concernées (2 squelettes + 2 contenus) + héros compacté sur mobile (`p-5` avant `sm:p-8`) ; vérifié : `scrollWidth` 390 = viewport sur accueil admin ET accueil infirmier, les 7 labels du graphique rendus (mar→lun), truncate avec ellipsis propre, desktop 1600 px inchangé (grilles 6/2/3 colonnes mesurées), tablette 768 px propre (3 KPI), 0 erreur console.
+
 ---
 
 ## [0.1.0] — Scaffold · 2026-09-30
