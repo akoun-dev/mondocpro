@@ -70,16 +70,31 @@ export async function styleStatusBar(): Promise<void> {
 
 // ——— Réseau (bandeau hors-ligne) ———
 
-// Écoute l'état réseau natif et diffuse « mondocpro:network » sur window
-// (CustomEvent<boolean> — true = connecté). Le bandeau UI est rendu par
-// NativeBootstrap qui s'abonne à cet événement.
+// Diffuse l'état réseau natif « mondocpro:network » sur window —
+// CustomEvent<{ connected: boolean; connectionType: string }> (contrat
+// officiel du plugin : "wifi" | "cellular" | "none" | "unknown"). Le bandeau
+// UI est rendu par NativeBootstrap qui s'abonne à cet événement.
+function dispatchNetworkStatus(connected: boolean, connectionType: string): void {
+    window.dispatchEvent(
+        new CustomEvent("mondocpro:network", {
+            detail: { connected, connectionType },
+        }),
+    );
+}
+
 export async function listenNetwork(): Promise<void> {
     if (!isNative()) return;
     try {
-        await Network.addListener("networkStatusChange", (status) => {
-            window.dispatchEvent(
-                new CustomEvent("mondocpro:network", { detail: status.connected }),
-            );
+        // État INITIAL — docs Network : networkStatusChange ne part qu'au
+        // CHANGEMENT (le plugin Android n'a pas d'envoi immédiat à
+        // l'inscription, constat NetworkPlugin.java) : sans getStatus(),
+        // l'app ouverte déjà hors ligne n'afficherait le bandeau qu'après
+        // une variation de connectivité. On pousse l'état courant d'abord.
+        const status = await Network.getStatus();
+        dispatchNetworkStatus(status.connected, status.connectionType);
+
+        await Network.addListener("networkStatusChange", (change) => {
+            dispatchNetworkStatus(change.connected, change.connectionType);
         });
     } catch {
         // no-op

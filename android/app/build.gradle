@@ -11,8 +11,10 @@ android {
         // app fermée) + canaux enrichis + SCHEDULE_EXACT_ALARM. Même keystore
         // versionné (android/keys/debug.keystore) → installation par-dessus
         // v1.0.0/v1.0.1 SANS désinstallation.
-        versionCode 3
-        versionName "1.0.2"
+        // v1.0.3 : garde réseau du runner (CapacitorDevice.getNetworkStatus —
+        // docs /apis/network) : pas de sonde inutile hors ligne.
+        versionCode 4
+        versionName "1.0.3"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.

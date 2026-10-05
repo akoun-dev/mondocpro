@@ -40,6 +40,12 @@ declare const CapacitorNotifications: {
     schedule(options: RunnerNotification[]): void;
 };
 
+// Même contrat que @capacitor/network : { connected, connectionType } —
+// exposé au runtime du runner par CapacitorDevice (doc « Capacitor API »).
+declare const CapacitorDevice: {
+    getNetworkStatus(): { connected: boolean; connectionType: string } | string;
+};
+
 // Le runner passe (resolve, reject, args) au handler — signature différente
 // du addEventListener DOM typé par TS ; on caste une fois, localement.
 const addRunnerListener = addEventListener as unknown as (
@@ -131,6 +137,27 @@ addRunnerListener("onAppTick", (resolve, reject) => {
                 // clé révoquée par un reset de mot de passe) — rien à faire.
                 resolve();
                 return;
+            }
+
+            // Garde réseau (docs /apis/network) : hors ligne, ne pas sonder
+            // pour rien — le curseur n'avance pas et le prochain tick
+            // réessaiera. Le statut peut arriver en JSON string selon la
+            // version de l'engine : on tolère les deux formes. En cas de
+            // lecture impossible, on tente le fetch quand même (une sonde
+            // ratée coûte moins cher qu'une alerte non livrée).
+            try {
+                const rawNetwork = CapacitorDevice.getNetworkStatus();
+                const network = (
+                    typeof rawNetwork === "string"
+                        ? JSON.parse(rawNetwork)
+                        : rawNetwork
+                ) as { connected?: boolean };
+                if (network && network.connected === false) {
+                    resolve();
+                    return;
+                }
+            } catch {
+                // statut indisponible — le fetch décidera
             }
 
             const serverUrl =

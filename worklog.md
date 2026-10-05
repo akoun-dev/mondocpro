@@ -1227,3 +1227,22 @@ Stage Summary:
 - Clés d'appareil hashées + TTL 180 j + purge logout/reset : la fuite DB ne compromet rien, un appareil perdu s'éteint ; curseur strict → zéro doublon/zéro perte (n'avance qu'après un tick réussi)
 - APK v1.0.2 (versionCode 3, keystore versionné) est le SEUL artefact livrable : le runner vit dans l'APK (le web distant seul ne peut pas l'ajouter) ; latence/Android-only documentés dans l'ADR-010 (limites WorkManager assumées)
 - Reste au backlog PO : Task 26 (Tokens/Wallet) ; secrets exposés à réinitialiser
+
+---
+Task ID: 42
+Agent: Super Z (principal)
+Task: « Ajoute aussi: https://capacitorjs.com/docs/apis/network » (PO, 2026-10-05) — plugin Network : vérifier l'intégration et la renforcer
+
+Work Log:
+- Constat : @capacitor/network@8.0.1 était DÉJÀ installé et câblé depuis la Task 36 (écoute networkStatusChange + bandeau hors-ligne NativeBootstrap) — embedded dans l'APK (visible dans le cap sync) ; la demande PO devient donc « intégration complète selon les docs officielles »
+- BUG LATENT corrigé : le plugin Android Network n'a PAS d'envoi immédiat à l'inscription du listener (constat NetworkPlugin.java — pas d'onListenerAdd) → l'app ouverte DÉJÀ hors ligne n'affichait jamais le bandeau tant que la connectivité ne variait pas ; listenNetwork() pousse maintenant l'état courant via Network.getStatus() AVANT d'attacher le listener
+- Contrat d'événement aligné sur les docs : « mondocpro:network » diffuse désormais { connected, connectionType } ("wifi"|"cellular"|"none"|"unknown") au lieu d'un booléen nu — NativeBootstrap consomme le nouvel objet (le type de connexion est disponible pour tout futur usage UI)
+- Runner (ADR-010) : garde réseau avant chaque sonde — CapacitorDevice.getNetworkStatus() (API Capacitor du background-runner, même contrat Network) ; hors ligne → resolve() immédiat, pas de fetch inutile, le curseur n'avance pas ; statut toléré en objet OU JSON string selon l'engine ; échec de lecture → le fetch décide (une sonde ratée coûte moins cher qu'une alerte non livrée)
+- APK v1.0.3 (versionCode 4) : rebuild + vérifs aapt2 (v4/1.0.3) + apksigner (SHA-256 050993fe… = keystore versionné, upgrade sans désinstallation) + runner embarqué vérifié ; download/mondocpro-v1.0.2-debug.apk remplacé par mondocpro-v1.0.3-debug.apk
+- Incident environnement : pool session Supabase 5432 INJOIGNABLE ~2 min (health degraded, audits 7/10 FAIL au premier passage) — sondes directes via scripts/db-probe.ts : 5432 KO puis récupéré, 6543 OK ; cause environnementale (saturation transitoire du pooler, pattern déjà documenté), AUCUN code en cause ; audits repassés verts après récupération
+- Validation : lint 0 (android/** ajouté aux ignores eslint — artefacts Gradle) ; tsc 0 dans src/ ; audit canal app fermée 17/17 PASS ; non-régression 23/23 et PASS=47 FAIL=0 ; bun run build:runner + cap sync avant build
+
+Stage Summary:
+- Plugin Network intégré COMPLET selon les docs : état initial (getStatus) + suivi des changements + type de connexion exposé + garde réseau du runner « app fermée »
+- Les APK ≥ v1.0.3 gaspillent zéro sonde hors ligne ; le bandeau hors-ligne s'affiche dès l'ouverture même en mode avion
+- APK v1.0.3 = artefact courant (download/mondocpro-v1.0.3-debug.apk) ; le web (bandeau initial + détail enrichi) atteint les APK existants dès le déploiement Vercel

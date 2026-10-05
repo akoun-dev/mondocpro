@@ -21,8 +21,12 @@ export function NativeBootstrap() {
         initNativeShell();
 
         // Bandeau hors-ligne : état initial + suivi des changements natifs.
+        // Le détail porte le contrat officiel du plugin Network
+        // ({ connected, connectionType }) — dispatché aussi à l'ouverture
+        // (listenNetwork pousse l'état courant via Network.getStatus()).
         const onNetwork = (event: Event) => {
-            setOffline(!(event as CustomEvent<boolean>).detail);
+            const detail = (event as CustomEvent<{ connected?: boolean }>).detail;
+            setOffline(!detail?.connected);
         };
         window.addEventListener("mondocpro:network", onNetwork);
 

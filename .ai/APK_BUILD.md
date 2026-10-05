@@ -6,7 +6,10 @@
 > via Background Runner + clés d'appareil).
 > Historique des versions : **v1.0.0** (Task 36) → **v1.0.1** (versionCode 2,
 > garde Diagnostics Task 38) → **v1.0.2** (versionCode 3, Task 40 : Background
-> Runner + canaux enrichis + SCHEDULE_EXACT_ALARM). Keystore debug **versionné**
+> Runner + canaux enrichis + SCHEDULE_EXACT_ALARM) → **v1.0.3** (versionCode 4,
+> Task 41 : garde réseau du runner via `CapacitorDevice.getNetworkStatus` —
+> docs /apis/network — + état réseau initial du bandeau hors-ligne via
+> `Network.getStatus()`). Keystore debug **versionné**
 > `android/keys/debug.keystore` (SHA-256 `050993fe…`) → installation par-dessus
 > les versions antérieures SANS désinstallation.
 
@@ -55,7 +58,7 @@ privilégier la prod (HTTPS) pour tester les flux authentifiés, ou `adb reverse
 |---|---|---|
 | `appId` (package) | `ci.mondopro.app` | **immuable** après publication Play Store |
 | `appName` | `Mon doc Pro` | affiché sous l'icône |
-| `versionCode` / `versionName` | `3` / `"1.0.2"` | `android/app/build.gradle` — incrémenter à chaque release |
+| `versionCode` / `versionName` | `4` / `"1.0.3"` | `android/app/build.gradle` — incrémenter à chaque release |
 
 Icônes et splash : sources dans `assets/` (générées par `scripts/gen-cap-assets.py`
 depuis `public/img/logo.png`), régénérer via :
