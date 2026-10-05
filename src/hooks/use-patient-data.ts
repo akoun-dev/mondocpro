@@ -26,6 +26,13 @@ export type PatientData = {
 const LOAD_ERROR =
   "Impossible de charger vos données — vérifiez votre connexion puis réessayez.";
 
+// Attente courte entre deux tentatives (relance unique des fetchs wallet —
+// Task 48 : les 500 pooler sont transitoires, une seule relance suffit à
+// masquer les micro-coupures réseau et les micro-déploiements).
+const RETRY_DELAY_MS = 700;
+
+const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
 async function fetchJson<T>(url: string): Promise<T> {
   const res = await fetch(url);
   if (!res.ok) {
@@ -59,7 +66,15 @@ export function usePatientData(enabled: boolean): PatientData {
   const loadWallet = useCallback(async () => {
     setWalletLoading(true);
     try {
-      const result = await fetchJson<WalletDto>("/api/wallet");
+      let result: WalletDto;
+      try {
+        result = await fetchJson<WalletDto>("/api/wallet");
+      } catch {
+        // Relance unique — un échec isolé (réseau mobile, redéploiement)
+        // ne doit pas afficher « Solde indisponible ».
+        await delay(RETRY_DELAY_MS);
+        result = await fetchJson<WalletDto>("/api/wallet");
+      }
       if (!mounted.current) return;
       setWallet(result);
       setWalletError(false);

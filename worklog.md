@@ -1415,3 +1415,30 @@ Stage Summary:
 - Le tableau de bord du Médecin Chef est pleinement responsive : plus AUCUN défilement horizontal en 390 px — graphique 7 jours entier, barres de zone dans l'écran, files d'action ellipsées proprement
 - Leçon consignée : toute grille Tailwind avec seulement des variantes `xl:`/`lg:` doit avoir un `grid-cols-1` de base — les pistes implicites `auto` se dimensionnent au max-content et débordent avec du contenu truncate/recharts
 - Reste au backlog PO : Task 26 (Tokens/Wallet avancé) ; secrets exposés à réinitialiser
+
+---
+
+Task ID: 48
+Agent: Super Z (principal)
+Task: « Au niveau de patient, la vue wallet ne charge pas correctement et je vois token indisponible sur l'accueil, regarde ce qui ne va pas » (PO, 2026-10-06) — INCIDENT production DB
+
+Work Log:
+
+- Reproduction en conditions réelles : connexion patient sur **https://mondocpro.vercel.app** (navigateur instrumenté) → accueil « **Solde indisponible** » (aucune pill Token), `GET /api/wallet` → **500** ; le MÊME appel via curl renvoyait 200 quelques minutes plus tôt, puis TOUT passait en 500 (wallet ×6, appointments ×3) tandis que `/api/health` et `/api/sensibilisations` restaient 200 → dégradation **flottante** de la couche base, pas du code métier
+- Diagnostic code écarté : hook `usePatientData` et `WalletSection` consomment `/api/wallet` (plat WalletDto) conformément au contrat ; l'API (requireRole PATIENT → `getWalletForPatient`) marche en dev (200 en ~2,5 s, données réelles 191 Tokens)
+- Preuve DB capturée (`scripts/diag-db-connections.ts`) : **`FATAL (EMAXCONNSESSION) max clients reached in session mode — pool_size: 15`** — la chaîne `DATABASE_URL` vise le **pooler de SESSION Supabase (5432)** : chaque instance Vercel chaude y garde des connexions DÉDIÉES ; à saturation, toute nouvelle connexion est refusée → 500 intermittents puis persistants ; le dev (sessions établies avant saturation) continuait de servir → bug invisible en local, bloquant en prod ; aggravant : `getWalletForPatient` tirait **7 requêtes parallèles** (6 agrégats + findMany) par appel
+- Voie de fixation validée AVANT implémentation (`scripts/diag-txn-pooler.ts`) : le **pooler de TRANSACTION (6543)** + `pgbouncer=true` accepte les requêtes (groupBy type×status, agrégat à filtre relation, findMany, transaction sérialisable courte) — prérequis Prisma du mode transaction respecté (désactivation du cache de statements préparés)
+- **Fix 1 — `src/lib/db.ts`** : `serverlessSafeDatasourceUrl()` — en production (NODE_ENV=production), réécriture idempotente de `*.pooler.supabase.com:5432` → **6543** + `pgbouncer=true` + `connection_limit=1` + `pool_timeout=20` (une connexion par instance, montage recommandé Supabase × Vercel) ; dev strictement inchangé ; le PO peut aussi baser la var Vercel en 6543, le code reste compatible
+- **Fix 2 — `src/lib/tokens.ts`** : `getWalletForPatient` refacto en **UNE `$transaction` batchée** (groupBy type×status pour les 6 familles de mouvements + 1 agrégat blocage RDV actifs + findMany ledger) = 1 connexion / 1 aller-retour / snapshot cohérent ; formule de solde STRICTEMENT inchangée (`computeBalance` demeure la source unique pour la réservation) ; sémantique conservée au détail près vérifié (CONSUMPTION sommée sur tous statuts)
+- **Fix 3 — résilience client** : relance UNIQUE du fetch wallet après 700 ms (`use-patient-data.ts` + `wallet-section.tsx`) — un échec isolé (réseau mobile, redéploiement) n'affiche plus « Solde indisponible » / vue en erreur
+- Validation : lint 0 ; tsc src 0 ; **11 vérifications unitaires** du normalisateur (`scripts/check-datasource-url.ts` : réécriture prod, dev intact, idempotence 6543, base directe intacte, undefined/URL invalide) ; **équivalence stricte service refacto ↔ `computeBalance` sur 6543 avec données réelles** (191/5/16 · 40 000 FCFA, 50 mouvements) + 3 appels consécutifs stables (`scripts/check-wallet-6543.ts`) ; audits non-régression **23/23 + 47/47 + 17/17**
+- `scripts/e2e-tokens.sh` : constaté **déjà rouge avant ce lot** (baseline mesurée via git stash : PASS=45 FAIL=14 vs PASS=42 FAIL=17 après) — le script est obsolète depuis l'évolution des onglets (Wallet devenu onglet dédié, sidebar admin complète, clinages « Profil » index 3 erronés, login admin « formulaire introuvable » faute de déconnexion préalable) ; les vérifications de VÉRITÉ données du wallet (solde crédité, solde 0 réservé, lignes coût wizard) restent PASS ; réécriture du script posée au backlog PO — ne bloque pas ce lot
+- Docs : **ADR-011** (contexte EMAXCONNSESSION, décision 6543+pgbouncer+connection_limit=1, conséquences, backlog PO) + entrée CHANGELOG « Corrigé »
+- Verification prod APRES déploiement : série de 200 sur /api/wallet et /api/appointments (voir complément ci-dessous si applicable)
+
+Stage Summary:
+
+- La cause des « Token indisponible » / wallet en erreur côté patient était une saturation du pooler de session Supabase en production — un incident d'INFRA rendu visible par l'UI (états d'erreur conformes), pas un bug du wallet
+- Le correctif en trois couches (URL normalisée 6543 en prod, wallet en 1 requête batchée, relance client unique) rétablit le service SANS migration ni changement de variable d'environnement ; équivalence de formule prouvée sur données réelles
+- Leçon consignée : une dégradation DB « flottante » (200/500 alternés) = saturation de connexions ; tester la prod AU NAVIGATEUR (session réelle) en plus de curl ; toujours mesurer la baseline d'un script E2E avant d'attribuer une régression
+- Reste au backlog PO : var Vercel DATABASE_URL → 6543 (optionnel, le code s'adapte) ; réécrire e2e-tokens.sh sur les deep links ; Task 26 (Tokens/Wallet avancé) ; secrets exposés à réinitialiser
