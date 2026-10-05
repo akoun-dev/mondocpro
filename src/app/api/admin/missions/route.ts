@@ -51,7 +51,9 @@ export async function GET() {
     if (!guard.ok) return guard.response
     try {
         return NextResponse.json(await listAdminMissionBoard())
-    } catch {
+    } catch (error) {
+        // Un 500 muet ne se débogue pas : la cause part au journal serveur.
+        console.error("[admin/missions/GET] erreur:", error)
         return NextResponse.json(
             { error: "Erreur interne — réessayez" },
             { status: 500 }

@@ -47,6 +47,31 @@ export const patientHistoryQuerySchema = z.object({
 export type AdminUserListQuery = z.infer<typeof adminUserListQuerySchema>;
 export type PatientHistoryQuery = z.infer<typeof patientHistoryQuerySchema>;
 
+// ——— Création d'un infirmier (demande PO 2026-10) ———
+// Règles de champ définies une seule fois dans auth-schemas.ts (registerBase) ;
+// re-exporté ici pour que les routes admin gardent une seule source d'import.
+export { createNurseSchema, type CreateNurseInput } from "@/lib/auth-schemas";
+
+/**
+ * Réponse POST /api/admin/nurses.
+ * `generatedPassword` n'est présent que si le Médecin Chef a laissé le mot de
+ * passe vide : il est affiché UNE fois à la création, jamais réversible ensuite
+ * (seul le bcrypt est stocké).
+ */
+export type CreatedNurse = {
+  id: string;
+  fullName: string;
+  phone: string;
+  zone: string;
+  isActive: boolean;
+  createdAt: string;
+};
+
+export type CreateNurseResult = {
+  nurse: CreatedNurse;
+  generatedPassword: string | null;
+};
+
 /** PATCH /api/admin/users/[id] — activation / désactivation d'un compte. */
 export const updateAccountActiveSchema = z.object({
   isActive: z.boolean(),

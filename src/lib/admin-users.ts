@@ -7,15 +7,19 @@
 // Règle de sécurité transverse : aucune de ces fonctions n'autorise. Elles
 // lisent et renvoient des DTO ; la suspension de compte passe par
 // setAccountActive(), qui refuse de laisser un soignant sans mission active.
+import { randomInt } from "node:crypto";
+
 import { db } from "@/lib/db";
-import { invalidateUserSessions } from "@/lib/auth";
-import type { Prisma } from "@prisma/client";
+import { hashPassword, invalidateUserSessions } from "@/lib/auth";
+import { Prisma } from "@prisma/client";
 
 import { ZONE_LABELS } from "@/lib/auth-schemas";
 import { listDispatchQueue, listNurseMissions } from "@/lib/nurse";
 import {
   periodStart,
   type AdminUserListQuery,
+  type CreateNurseInput,
+  type CreateNurseResult,
   type NurseDetail,
   type NurseLoadItem,
   type PatientConsultation,
@@ -422,6 +426,99 @@ export async function getAdminNurse(id: string): Promise<NurseDetail> {
   if (!nurse) throw new AdminUserError(404, "Infirmier introuvable");
 
   return { nurse, missions: await listNurseMissions(id) };
+}
+
+// ——— Création d'un compte infirmier (demande PO 2026-10) ———
+
+/**
+ * Alphabet sans caractères ambigus (pas de 0/O, 1/l/I) : le mot de passe
+ * temporaire est dicté par téléphone — un « O » lu comme « 0 » suffirait à
+ * bloquer la première connexion de l'infirmier.
+ */
+const PASSWORD_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789";
+
+function generateTemporaryPassword(length = 10): string {
+  let password = "";
+  for (let index = 0; index < length; index += 1) {
+    password += PASSWORD_ALPHABET[randomInt(PASSWORD_ALPHABET.length)];
+  }
+  return password;
+}
+
+/**
+ * Crée un compte NURSE actif — le workflow complet d'onboarding tient en trois
+ * temps gérés ici : identité + zone saisies par le Médecin Chef, mot de passe
+ * choisi OU généré (renvoyé une seule fois, seul le bcrypt est stocké), compte
+ * immédiatement connectable (isActive par défaut) et visible dans l'annuaire
+ * comme affectable par le dispatch — aucun parcours intermédiaire.
+ *
+ * Le rôle est forcé côté serveur : même convention que POST /api/auth/register
+ * (aucune confiance aux données client). Le numéro est l'identité métier, sa
+ * singularité est vérifiée avant création puis garantie par l'unicité SQL
+ * (course P2002 interceptée de la même façon).
+ */
+export async function createAdminNurse(
+  input: CreateNurseInput,
+): Promise<CreateNurseResult> {
+  // Mot de passe vide/absent = génération côté serveur — le Médecin Chef ne
+  // choisit PAS toujours la valeur, il peut déléguer la robustesse à l'app.
+  const manualPassword =
+    input.password && input.password.length > 0 ? input.password : null;
+  const generatedPassword = manualPassword ? null : generateTemporaryPassword();
+
+  const existing = await db.user.findUnique({
+    where: { phone: input.phone },
+    select: { id: true },
+  });
+  if (existing) {
+    throw new AdminUserError(
+      409,
+      "Ce numéro est déjà inscrit — un compte existe déjà avec ce téléphone",
+    );
+  }
+
+  try {
+    const user = await db.user.create({
+      data: {
+        fullName: input.fullName,
+        phone: input.phone,
+        passwordHash: await hashPassword(manualPassword ?? generatedPassword!),
+        role: "NURSE" as const,
+        zone: input.zone,
+      },
+      select: {
+        id: true,
+        fullName: true,
+        phone: true,
+        zone: true,
+        isActive: true,
+        createdAt: true,
+      },
+    });
+
+    return {
+      nurse: {
+        id: user.id,
+        fullName: user.fullName,
+        phone: user.phone,
+        zone: user.zone,
+        isActive: user.isActive,
+        createdAt: user.createdAt.toISOString(),
+      },
+      generatedPassword,
+    };
+  } catch (e) {
+    if (
+      e instanceof Prisma.PrismaClientKnownRequestError &&
+      e.code === "P2002" // course entre findUnique et create (unicité phone)
+    ) {
+      throw new AdminUserError(
+        409,
+        "Ce numéro est déjà inscrit — un compte existe déjà avec ce téléphone",
+      );
+    }
+    throw e;
+  }
 }
 
 // ——— Vue Équipes : supervision + dispatch ———

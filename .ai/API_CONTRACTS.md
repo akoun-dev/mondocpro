@@ -90,6 +90,16 @@ Validation: schéma zod de référence (src/lib/<domaine>.ts)
 - Errors: 401 · 403 hors ADMIN · 404 `{ error }` introuvable · 409 `{ error }` des RDV y sont rattachés (désactivation recommandée) · 500
 - Notes: la suppression détache les RDV via FK `onDelete: SetNull` — refusée si des RDV existent (l'historique clinique reste rattaché à une spécialité).
 
+### [GET|POST] /api/admin/nurses — Annuaire des infirmiers & création d'un compte (Médecin Chef)
+
+- Feature: FEATURE-ANNUAIRE-ADMIN | Owner: Backend | Statut: **IMPLÉMENTÉ** (annuaire 2f710cc · création demande PO 2026-10)
+- GET Request: `?search=&zone=&status=all|active|inactive` — mêmes filtres que l'annuaire patients
+- GET Response: 200 `{ "nurses": [{ id, fullName, phone, zone, isActive, createdAt, activeMissions, pendingAcceptance, completedThisMonth, completedTotal, lastMissionAt }] }`
+- POST Request: `{ "fullName": string(2–80), "phone": téléphone E.164 souple (8–15 chiffres), "zone": YOPOUGON|SONGON|PK22|NDOTRE, "password"?: string(8–72), "confirmPassword"?: string }` — `password` absent ou vide = **généré côté serveur** (alphabet sans caractères ambigus, 10 caractères)
+- POST Response: 201 `{ "nurse": { id, fullName, phone, zone, isActive: true, createdAt }, "generatedPassword": string|null }` — `generatedPassword` n'est renvoyé qu'UNE fois, à la création (seul le bcrypt est stocké)
+- Errors: 400 `{ error, details }` (zod) · 401 · 403 hors ADMIN · 409 `{ error }` numéro déjà inscrit (unicité phone, course P2002 incluse) · 500
+- Notes: rôle NURSE forcé côté serveur (aucune confiance client) ; compte créé **actif** — connexion immédiate, présence instantanée dans l'annuaire et le dispatch (vue Équipes). Voir aussi GET/PATCH `/api/admin/nurses/:id` (fiche + charge) et PATCH `/api/admin/users/:id` (suspension).
+
 ### [GET] /api/sensibilisations — Fil de sensibilisations santé
 
 - Feature: FEATURE-SENSO | Owner: Backend | Statut: **IMPLÉMENTÉ** (lot P0/P1 2026-10-03)

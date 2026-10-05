@@ -709,7 +709,14 @@ export function UserDashboard() {
             <div className="flex min-w-0 flex-1 flex-col">
                 {/* Barre d'app — sticky avec flou en verre dépoli */}
                 <header className="sticky top-0 z-20 border-b bg-card/80 backdrop-blur-md">
-                    <div className="mx-auto flex w-full max-w-5xl items-center justify-between gap-3 px-4 py-3">
+                    {/* Demande PO 2026-10 : les écrans du Médecin Chef s'étendent
+                        sur toute la largeur (sidebar + contenu w-full) ; les
+                        autres rôles restent centrés sur max-w-5xl. */}
+                    <div
+                        className={`flex w-full items-center justify-between gap-3 px-4 py-3 ${
+                            user.role === "ADMIN" ? "" : "mx-auto max-w-5xl"
+                        }`}
+                    >
                         <div className="flex min-w-0 items-center gap-2.5">
                             {user.role === "ADMIN" && (
                                 <AdminMenuButton
@@ -1019,8 +1026,12 @@ export function UserDashboard() {
           un seul élément <main> par page). */}
                 <h1 className="sr-only">Mon espace Mon doc Pro</h1>
 
+                {/* Demande PO 2026-10 : vues admin en pleine largeur (w-full,
+                    plus de max-w-5xl) — les tableaux de supervision (équipes,
+                    annuaires, missions) gagnent la place des grands écrans.
+                    Patient / infirmier restent bornés à max-w-3xl. */}
                 <div
-                    className={`mx-auto w-full px-4 py-6 sm:py-8 ${user.role === "ADMIN" ? "max-w-5xl pb-8" : "max-w-3xl pb-32"}`}
+                    className={`w-full px-4 py-6 sm:py-8 ${user.role === "ADMIN" ? "pb-8" : "mx-auto max-w-3xl pb-32"}`}
                 >
                     <AnimatePresence mode="wait" initial={false}>
                         {tab === "accueil" && (
