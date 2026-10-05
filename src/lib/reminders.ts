@@ -8,7 +8,6 @@
 // Anti-doublon : chaque envoi réussi marque `Appointment.reminderSentAt` ; un
 // RDV déjà marqué n'est jamais repris par un tick suivant.
 import { db } from "@/lib/db";
-import { sendPushToUsers } from "@/lib/push";
 
 // Préavis du rappel : envoyé quand le RDV commence dans moins de 24 h.
 export const REMINDER_LEAD_HOURS = 24;
@@ -158,15 +157,6 @@ export async function processDueReminders(
       await db.appointment.update({
         where: { id: appointment.id },
         data: { reminderSentAt: now },
-      });
-      // 3. Canal push natif (Task 36) — jumelle de la notification InApp :
-      // l'appareil Capacitor reçoit la rappel même app fermée. Fire-and-forget,
-      // jamais compté dans le succès du tick (canal best-effort).
-      void sendPushToUsers([appointment.patientId], {
-        title: notification.title,
-        body: notification.body,
-        type: "APPOINTMENT_REMINDER",
-        entityId: appointment.id,
       });
       results.push({ appointmentId: appointment.id, ok: true });
     } catch (error) {

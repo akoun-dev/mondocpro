@@ -4,7 +4,9 @@
 > **Périmètre** : FEATURE-MOBILE (Task 36) — distribution APK, plugins natifs, notifications push et rappels locaux de RDV.
 
 ## Statut
-`Accepté` — l'identifiant d'application (`ci.mondopro.app`) et la configuration Firebase restent à confirmer par le PO avant toute publication Play Store (voir `.ai/APK_BUILD.md`).
+`Accepté` — l'identifiant d'application (`ci.mondopro.app`) reste à confirmer par le PO avant toute publication Play Store (voir `.ai/APK_BUILD.md`).
+
+> **Mise à jour 2026-10-05 (ADR-009)** : le canal push FCM décrit ci-dessous est **DORMANT** — décision PO « pas de Firebase ». Le plugin `@capacitor/push-notifications` reste embarqué (bibliothèques Firebase incluses, aucun projet/compte requis) mais la garde `isPushCapable()` ne l'active jamais sans projet Firebase ; `firebase-admin` et l'envoi serveur sont supprimés. Canaux actifs = InApp + notifications locales. Détails et chemin de ré-activation : `.ai/ADR/ADR-009-notifications-sans-firebase.md`.
 
 ## Date
 2026-10-05

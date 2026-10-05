@@ -262,7 +262,7 @@ Validation: schéma zod de référence (src/lib/<domaine>.ts)
 - Request: `{ "token": string(16..4096), "platform": "android" | "ios" | "web", "deviceName"?: string(≤120), "appVersion"?: string(≤40) }` (cookie de session, tous rôles)
 - Response: 200 `{ "ok": true }` — **upsert par jeton** : si l'appareil était lié à un autre compte, le jeton est réattribué (un appareil ne pousse que pour le compte courant)
 - Errors: 400 `{ error, details }` (zod : token longueur, platform énumérée) · 401 `{ error }` · 500
-- Notes: appelé par `src/lib/native.ts` à chaque ouverture/reprise de l'APK (idempotent). Le jeton autorise à ENVOYER à l'appareil — aucune donnée lisible. Sans configuration Firebase côté serveur, l'enregistrement reste actif et l'envoi est no-op (`[push] Firebase non configuré` dans les logs).
+- Notes: appelé par `src/lib/native.ts` à chaque ouverture/reprise de l'APK (idempotent). Le jeton autorise à ENVOYER à l'appareil — aucune donnée lisible. **ADR-009 (2026-10-05) : canal push distant DORMANT** — le client n'appelle cette route que si Firebase est initialisé dans l'APK (jamais le cas : aucun projet Firebase). Route conservée saine (401/400/200) comme carnet d'adresses pour un futur transport.
 
 ### [POST] /api/push/unregister — Révocation du jeton FCM (déconnexion)
 
@@ -272,12 +272,11 @@ Validation: schéma zod de référence (src/lib/<domaine>.ts)
 - Errors: 400 `{ error, details }` (corps ambigu) · 401 `{ error }` · 500
 - Notes: appelé fire-and-forget AVANT `POST /api/auth/logout` (la session doit encore être valide) ; `{ all: true }` disponible pour une future « déconnexion partout ».
 
-### Push FCM — payload envoyé par le serveur (documenté, hors HTTP)
+### Push FCM — payload (HISTORIQUE — canal distant dormant, ADR-009)
 
-- Feature: FEATURE-PUSH (Task 36) | Owner: Backend | Statut: **IMPLÉMENTÉ**
-- Notification: `{ title, body }` — **contenu identique à la notification InApp jumelle** (canaux doubles : InApp toujours, push best-effort)
-- Data: `{ "url": "/?tab=<onglet>", "type": <NotificationType>, "entityId": string }` — l'app native navigue vers `url` au tap (`pushNotificationActionPerformed`) ; mapping miroir de `notificationDestination()` : PATIENT recharge→`wallet` / reste→`rdv` · NURSE→`missions` · ADMIN recharge→`recharges` / reste→`missions`
-- Notes: envoyée APRÈS le commit de la transaction métier (jamais bloquante) ; jetons invalides (app désinstallée) purgés automatiquement ; déclencheurs = table des types de notification (Task 35) + rappel RDV 24 h (Task 24).
+- Feature: FEATURE-PUSH | Owner: Backend | Statut: **RETIRÉ** (2026-10-05 — firebase-admin et code d'envoi supprimés)
+- Ce que c'était : envoi FCM fire-and-forget après le commit de la transaction métier, `{ title, body }` identique à la notification InApp jumelle + `data: { url, type, entityId }` pour le routage du clic au tap (mapping miroir de `notificationDestination()`).
+- État actuel : les notifications métier restent créées **dans la transaction** (canal InApp, Task 35) et les rappels RDV sont planifiés **localement** sur l'appareil (H-24/H-1) — les deux 100 % sans Firebase. Ré-activation éventuelle du push : cf. `.ai/ADR/ADR-009-notifications-sans-firebase.md` (git revert + config projet Firebase).
 
 ---
 

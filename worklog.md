@@ -1185,3 +1185,22 @@ Stage Summary:
 - Tasks 34 et 35 CONFIRMÉES complètes et fonctionnelles sur le dernier commit (0e6c087) : 23/23 + 47/47 audits API verts, parcours admin/infirmier validés au navigateur, 0 erreur console après correctif
 - BUG-005 (hydratation <li> imbriqué, vue Recharges) corrigé dans ce pass — commit séparé à suivre
 - Rien d'autre à implémenter pour ces deux tâches ; reste au backlog PO : activation FCM (google-services.json + FIREBASE_SERVICE_ACCOUNT_JSON), Task 26 (Tokens avancés/Wallet)
+
+---
+Task ID: 40
+Agent: Super Z (principal)
+Task: « je ne veux pas de firebase » puis « Je veux @capacitor/push-notifications, @capacitor/local-notifications mais sans firebase » (PO, 2026-10-05)
+
+Work Log:
+- Clarification technique posée dans l'ADR : sur Android le plugin @capacitor/push-notifications transporte UNIQUEMENT via FCM (bibliothèques Firebase embarquées par le plugin, non séparables) ; MAIS bibliothèques ≠ projet — aucun compte/console/google-services.json/FIREBASE_* requis tant que register() n'est pas appelé
+- package.json : firebase-admin + @firebase/util (trustedDependencies) RETIRÉS ; @capacitor/push-notifications RÉ-INTRODUIT à la demande PO (bun install, lockfile propre, node_modules/firebase-admin purgé)
+- src/lib/native.ts : garde isPushCapable() (Task 38) conservée → canal push DISTANT dormant sans projet Firebase ; permission notifications (Android 13+) désormais demandée via LocalNotifications.requestPermissions() (même permission OS POST_NOTIFICATIONS, utile aux rappels sans Firebase) AVANT la garde ; FIX LATENT : le listener de tap sur notification locale est déplacé dans initNativeShell (initLocalNotificationTap) — auparavant enregistré seulement si Firebase était configuré, le tap sur un rappel RDV ne naviguait pas sur les APK réels ; registerPush conserve le flux complet derrière la garde (s'auto-activerait si Firebase revenait)
+- Serveur : src/lib/push.ts réécrit — registre de jetons conservé (registerDeviceToken/removeDeviceToken/removeAllDeviceTokens), envoi FCM SUPPRIMÉ (getMessaging/sendPushToUsers/sendPushToAdmins/pushUrlFor/firebase-admin) ; 9 appels void sendPushTo… retirés d'appointments.ts (3), tokens.ts (2), nurse.ts (3), reminders.ts (1) — les notifications InApp jumelles DANS les transactions sont intactes ; routes /api/push/register|unregister et table device_tokens conservées (carnet d'adresses sain, 401/400/200 vérifiés)
+- Non-régression : audit Task 34 23/23 PASS ; audit Task 35 PASS=47 FAIL=0 (cycles recharges/RDV domicile/missions avec toutes les notifications InApp) ; bun run lint 0 erreur ; tsc 0 erreur dans src/ ; health ok/up ; sonde /api/push/register sans session → 401 (route intacte)
+- Docs : ADR-009 créé (décision, alternatives écartées, chemin de ré-activation en 3 étapes) ; ADR-008 note de mise à jour en tête ; APK_BUILD.md §4 réécrit (« aucun projet Firebase requis » + garde + ré-activation) et 3 lignes de dépannage corrigées (push reçue = comportement attendu dormant) ; API_CONTRACTS.md (notes register/unregister + section payload push marquée RETIRÉ) ; CHANGELOG entrée Modifié
+- APK : AUCUN rebuild nécessaire — les sources natives (MainActivity, DiagnosticsPlugin, build.gradle) sont inchangées et le plugin push reste embarqué ; tout le correctif vit dans le bundle web servi par Vercel → les APK v1 ET v2 déjà installés en bénéficient sans réinstallation ; download/MondocPro-debug.apk (v1.0.1, versionCode 2) reste l'artefact courant
+
+Stage Summary:
+- Le produit fonctionne 100 % SANS projet Firebase : notifications InApp (panneau, badge, routage clic) + rappels locaux RDV H-24/H-1 ; canal push distant dormant (jamais activé, jamais de crash, zéro appel inutile)
+- Zéro dépendance Google côté serveur, zéro secret Firebase à gérer, zéro action PO en attente — la « TODO activation FCM » du backlog est fermée par décision
+- Ré-activation possible un jour si la décision change : google-services.json + FIREBASE_SERVICE_ACCOUNT_JSON + git revert du commit ADR-009 (documenté APK_BUILD §4 / ADR-009)

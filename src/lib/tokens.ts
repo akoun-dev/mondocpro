@@ -6,7 +6,6 @@
 // updateMany — une double confirmation reste sans effet).
 import { db } from "@/lib/db";
 import { notifyAdmins, notifyUsers } from "@/lib/notifications";
-import { sendPushToAdmins, sendPushToUsers } from "@/lib/push";
 import { Prisma, type TokenTransaction } from "@prisma/client";
 import type { AppointmentTypeValue } from "@/lib/appointment-schemas";
 import {
@@ -402,14 +401,6 @@ export async function requestRecharge(
     });
     return row;
   });
-  // Task 36 — push jumelle : la file des recharges à valider arrive en
-  // notification native (le Médecin Chef n'a pas l'interface ouverte 24h/24).
-  void sendPushToAdmins({
-    title: "Recharge de Tokens à valider",
-    body: `Un patient a déclaré un paiement de ${amountFcfa.toLocaleString("fr-FR")} FCFA (${tokens} Token${tokens > 1 ? "s" : ""}) — à rapprocher dans les recharges.`,
-    type: "RECHARGE_REQUESTED",
-    entityId: created.id,
-  });
   return toTransactionDto(created);
 }
 
@@ -514,18 +505,6 @@ export async function decideRecharge(
     return tx.tokenTransaction.findUniqueOrThrow({
       where: { id: rechargeId },
     });
-  });
-  // Task 36 — push jumelle au patient (crédit ou refus) — après le commit,
-  // contenu identique à la notification InApp jumelle.
-  void sendPushToUsers([existing.userId], {
-    title:
-      decision === "CONFIRM" ? "Recharge validée" : "Recharge non validée",
-    body:
-      decision === "CONFIRM"
-        ? `Votre recharge de ${existing.amountFcfa?.toLocaleString("fr-FR") ?? "—"} FCFA est confirmée : ${existing.tokens} Token${existing.tokens > 1 ? "s" : ""} disponibles dans votre portefeuille.`
-        : `Votre déclaration de ${existing.amountFcfa?.toLocaleString("fr-FR") ?? "—"} FCFA n'a pas pu être rapprochée d'un paiement. Contactez le support si vous pensez qu'il s'agit d'une erreur.`,
-    type: decision === "CONFIRM" ? "RECHARGE_CONFIRMED" : "RECHARGE_REJECTED",
-    entityId: rechargeId,
   });
   return toTransactionDto(fresh);
 }

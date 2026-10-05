@@ -1,12 +1,22 @@
-// FEATURE-PUSH (Task 36) — Pont natif Capacitor côté client.
+// FEATURE-PUSH / FEATURE-LOCALES — Pont natif Capacitor côté client.
 // Un seul module pour TOUT le comportement natif de l'APK : splash, barre de
-// statut, bouton retour Android, push FCM, rappels locaux de RDV, réseau et
+// statut, bouton retour Android, notifications (locales + push), réseau et
 // retours haptiques. Dans un navigateur classique (isNative() === false)
 // chaque fonction est un no-op silencieux — un seul code source web/native.
 //
 // Architecture « WebView distante » (ADR-007) : le pont natif window.Capacitor
 // est injecté par le WebView dans les pages chargées depuis server.url ;
 // les plugins JS ci-dessous se connectent automatiquement à ce pont.
+//
+// Décision ADR-009 (2026-10-05) — AUCUN projet Firebase :
+//  - Canaux PRIMAIRES = notifications InApp (panneau, badge) + notifications
+//    LOCALES (rappels RDV H-24/H-1, mise en avant des InApp) — zéro config.
+//  - Le plugin @capacitor/push-notifications reste embarqué (il porte ses
+//    bibliothèques Firebase, sans compte ni google-services.json requis) mais
+//    le canal push DISTANT reste DORMANT : sans projet Firebase configuré, la
+//    garde ci-dessous ne l'active jamais — zéro crash, zéro appel inutile.
+//    Ré-activation possible un jour = config Firebase + revert de la partie
+//    serveur (voir ADR-009) — aucun changement de ce fichier.
 import { Capacitor, registerPlugin } from "@capacitor/core";
 import { App } from "@capacitor/app";
 import { Device } from "@capacitor/device";
@@ -95,9 +105,30 @@ export function initNativeShell(): void {
     void styleStatusBar();
     void listenNetwork();
     void listenBackButton();
+    initLocalNotificationTap();
 }
 
-// ——— Push FCM ———
+// Tap sur une notification LOCALE (rappel RDV, mise en avant InApp) → lien
+// profond. Enregistré UNE fois au boot du shell — indépendant du canal push
+// distant (avant ce fix, le listener n'existait que si Firebase était
+// configuré : le tap sur un rappel ne naviguait pas sans Firebase).
+let localTapListenerRegistered = false;
+
+function initLocalNotificationTap(): void {
+    if (!isNative() || localTapListenerRegistered) return;
+    localTapListenerRegistered = true;
+    void LocalNotifications.addListener(
+        "localNotificationActionPerformed",
+        (action) => {
+            const extra = action.notification.extra as
+                | { url?: string }
+                | undefined;
+            navigate(extra?.url ?? "/?tab=rdv");
+        },
+    );
+}
+
+// ——— Garde du canal push distant (dormant sans Firebase — ADR-009) ———
 
 // Garde anti-crash (Task 38) : le plugin push natif 8.x appelle
 // FirebaseMessaging.getInstance() SANS vérifier que Firebase est initialisé.
@@ -107,8 +138,9 @@ export function initNativeShell(): void {
 // où l'utilisateur accepte la permission notifications. Le plugin natif
 // local « Diagnostics » (DiagnosticsPlugin.java, APK ≥ v2) teste la
 // disponibilité Firebase par réflexion ; sur un APK plus ancien il n'existe
-// pas → l'appel échoue → on considère le push indisponible (jamais de
-// register() = jamais de crash).
+// pas → l'appel échoue → on considère le push distant indisponible (jamais
+// de register() = jamais de crash). Les notifications InApp et les rappels
+// LOCAUX restent 100 % fonctionnels sans Firebase.
 const Diagnostics = registerPlugin<{
     firebaseAvailable: () => Promise<{ available: boolean; reason: string }>;
 }>("Diagnostics");
@@ -175,20 +207,34 @@ function navigate(url: string): void {
 
 let pushListenersRegistered = false;
 
-// Flux complet d'enregistrement push : permission → listeners → register().
-// Le jeton arrive via l'événement « registration » puis est envoyé au serveur
-// (POST /api/push/register) qui le lie au compte courant. Idempotent :
-// l'app re-registre à chaque ouverture/reprise (le token FCM peut tourner et
-// l'appareil peut avoir changé de compte).
+// Flux d'initialisation des notifications au démarrage de session :
+//  1. PERMISSION NOTIFICATIONS (Android 13+) — demandée via LocalNotifications
+//     (même permission OS POST_NOTIFICATIONS que le plugin push) : elle couvre
+//     rappels RDV ET, le cas échéant, les push. Demander ici (et non via le
+//     plugin push) garantit que la demande reste utile SANS Firebase.
+//  2. Canal push DISTANT — activé UNIQUEMENT si Firebase est initialisé dans
+//     le process (garde isPushCapable). Sans projet Firebase (décision
+//     ADR-009) : dormant, aucun register(), aucun jeton envoyé au serveur.
+// Idempotent : rejoué à chaque ouverture/reprise (permission déjà accordée =
+// retour immédiat sans dialogue).
 export async function registerPush(): Promise<void> {
     if (!isNative()) return;
     try {
-        // Garde anti-crash (Task 38) : jamais de dialogue ni de register()
-        // tant que Firebase n'est pas initialisé dans le process. Le canal
-        // InApp et les rappels locaux de RDV restent 100 % fonctionnels.
+        // 1. Permission notifications — nécessaire aux rappels locaux même
+        // sans Firebase ; sur Android 13+ déclenche le dialogue système une
+        // seule fois (déjà accordée → retour immédiat).
+        const localPermission = (await LocalNotifications.checkPermissions())
+            .display;
+        if (localPermission === "prompt") {
+            await LocalNotifications.requestPermissions();
+        }
+
+        // 2. Canal push distant — DORMANT sans projet Firebase (ADR-009) :
+        // jamais de dialogue ni de register() tant que Firebase n'est pas
+        // initialisé dans le process.
         if (!(await isPushCapable())) {
             console.info(
-                "[native] push FCM indisponible sur ce build (Firebase non configuré — google-services.json absent) : canal push ignoré",
+                "[native] canal push distant dormant (aucun projet Firebase — décision ADR-009) : notifications InApp + rappels locaux actifs",
             );
             return;
         }
@@ -229,7 +275,7 @@ export async function registerPush(): Promise<void> {
                 }
             });
 
-            // 2. Échec d'enregistrement FCM (souvent google-services.json absent).
+            // 2. Échec d'enregistrement FCM (canal distant non configuré).
             await PushNotifications.addListener("registrationError", (error) => {
                 console.warn("[native] registration FCM:", error);
             });
@@ -262,6 +308,8 @@ export async function registerPush(): Promise<void> {
             );
 
             // 4. Tap sur une push (app en arrière-plan) → lien profond data.url.
+            //    (Le tap sur une notification LOCALE est géré par
+            //    initLocalNotificationTap — enregistré au boot du shell.)
             await PushNotifications.addListener(
                 "pushNotificationActionPerformed",
                 (action) => {
@@ -271,29 +319,19 @@ export async function registerPush(): Promise<void> {
                     navigate(data?.url ?? "/");
                 },
             );
-
-            // 5. Tap sur un rappel LOCAL de RDV → vue Rendez-vous.
-            await LocalNotifications.addListener(
-                "localNotificationActionPerformed",
-                (action) => {
-                    const extra = action.notification.extra as
-                        | { url?: string }
-                        | undefined;
-                    navigate(extra?.url ?? "/?tab=rdv");
-                },
-            );
         }
 
         await PushNotifications.register();
     } catch (error) {
-        // Souvent : Firebase non initialisé (google-services.json absent du
-        // build) — l'app reste 100 % fonctionnelle, le canal push est off.
+        //Firebase absent du process (décision ADR-009) → déjà filtré par la
+        // garde ; toute autre erreur laisse l'app 100 % fonctionnelle.
         console.warn("[native] registerPush:", error);
     }
 }
 
 // Déconnexion : révoque le jeton FCM de CET appareil côté serveur (le push
-// ne suit plus l'ancien compte) puis efface la copie locale.
+// ne suit plus l'ancien compte) puis efface la copie locale. No-op complet
+// tant que le canal distant est dormant (aucun jeton stocké — ADR-009).
 export async function unregisterPush(): Promise<void> {
     if (!isNative()) return;
     try {

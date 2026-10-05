@@ -1,7 +1,6 @@
 import { db } from "@/lib/db";
 import type { MissionStatus } from "@prisma/client";
 import { ZONE_LABELS } from "@/lib/auth-schemas";
-import { sendPushToUsers } from "@/lib/push";
 import type { AdminMissionBoard, DispatchMissionInput, VisitReportInput } from "@/lib/nurse-schemas";
 
 export class NurseMissionError extends Error {
@@ -134,13 +133,6 @@ export async function updateNurseMissionStatus(nurseId: string, id: string, stat
     });
     return next;
   });
-  // Task 36 — push jumelle patient + Médecin Chef (suivi de mission, app fermée).
-  void sendPushToUsers([...new Set([mission.patientId, mission.assignedById])], {
-    title: "Mission mise à jour",
-    body: `La mission est maintenant « ${statusLabel(status)} ».`,
-    type: "MISSION_STATUS_CHANGED",
-    entityId: `${id}:${status}`,
-  });
   return serializeMission(updated);
 }
 
@@ -179,13 +171,6 @@ export async function createVisitReport(nurseId: string, id: string, input: Visi
     });
     return created;
   });
-  // Task 36 — push jumelle patient + Médecin Chef (compte rendu disponible).
-  void sendPushToUsers([...new Set([mission.patientId, mission.assignedById])], {
-    title: "Compte rendu disponible",
-    body: "Le compte rendu de votre mission est disponible.",
-    type: "VISIT_REPORT_SUBMITTED",
-    entityId: `${id}:report`,
-  });
   return { ...report, createdAt: report.createdAt.toISOString(), updatedAt: report.updatedAt.toISOString() };
 }
 
@@ -208,14 +193,6 @@ export async function dispatchMission(adminId: string, input: DispatchMissionInp
       : await tx.nurseMission.create({ data: { appointmentId: appointmentId!, patientId: appointment.patientId, nurseId: input.nurseId, assignedById: adminId }, include: missionInclude });
     await tx.notification.create({ data: { userId: input.nurseId, type: "MISSION_ASSIGNED", title: "Nouvelle mission", body: `Une mission de soins à ${ZONE_LABELS[appointment.zone] ?? appointment.zone} vous a été attribuée pour le ${formatSlotFr(appointment.scheduledAt)}. Consultez l'onglet Missions pour l'accepter.`, entityId: `${next.id}:assignment:${next.assignedAt.getTime()}` } });
     return next;
-  });
-  // Task 36 — push jumelle à l'infirmier affecté : c'est LUI qui doit réagir
-  // vite (accepter la mission) — la push native est le canal le plus rapide.
-  void sendPushToUsers([input.nurseId], {
-    title: "Nouvelle mission",
-    body: `Une mission de soins à ${ZONE_LABELS[appointment.zone] ?? appointment.zone} vous a été attribuée pour le ${formatSlotFr(appointment.scheduledAt)}. Consultez l'onglet Missions pour l'accepter.`,
-    type: "MISSION_ASSIGNED",
-    entityId: `${mission.id}:assignment:${mission.assignedAt.getTime()}`,
   });
   return serializeMission(mission);
 }

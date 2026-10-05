@@ -55,35 +55,41 @@ python3 scripts/gen-cap-assets.py
 npx capacitor-assets generate --android --assetPath assets
 ```
 
-## 4. Notifications push (Firebase Cloud Messaging)
+## 4. Notifications — état du canal push (ADR-009 : AUCUN projet Firebase)
 
-Le canal push est **optionnel au build** mais requis pour la mise en production
-(les notifications InApp + rappels locaux marchent sans lui).
+**Décision PO (2026-10-05) : pas de Firebase.** Les canaux de notification
+actifs sont :
 
-> **⚠️ Incident du 2026-10-05 (Task 38)** — sur un APK **sans** `google-services.json`,
-> accepter la permission notifications **fermait l'app** : le plugin
-> `@capacitor/push-notifications` 8.x appelle `FirebaseMessaging.getInstance()` sans
-> garde et l'`IllegalStateException` (Firebase non initialisé) est re-propagée par le
-> bridge → crash. Depuis, `src/lib/native.ts` interroge le plugin natif local
-> **Diagnostics** (`DiagnosticsPlugin.java`) AVANT toute demande de permission :
-> sans Firebase initialisé, le canal push est silencieusement ignoré (plus de dialogue,
-> plus de crash) — InApp et rappels locaux restent fonctionnels. **Un APK livré sans
-> `google-services.json` ne doit donc jamais afficher le dialogue notifications.**
-> `Diagnostics.lastCrash()` renvoie aussi le stack trace du dernier crash (journal
-> `files/last_crash.txt` écrit par `MainActivity`) — utile sans accès adb.
+- **InApp** — panneau notifications + badge, créés DANS les transactions
+  métier (Task 35) : recharges, RDV domicile, missions, rappel 24 h.
+- **Notifications locales** (`@capacitor/local-notifications`) — rappels RDV
+  H-24/H-1 planifiés sur l'appareil à la réservation ; le tap navigue vers la
+  vue Rendez-vous (`initLocalNotificationTap`, enregistré au boot du shell).
 
-1. Console Firebase → « Ajouter un projet » → ex. `mondocpro`.
-2. Ajouter une app **Android** avec le package `ci.mondopro.app` (identique au `appId`).
-3. Télécharger `google-services.json` → le déposer dans **`android/app/`** (gitigné — ne jamais le commiter).
-4. Créer un **compte de service** : Console Google Cloud → IAM & Admin → Comptes de service → Firebase Admin SDK → « Générer une nouvelle clé privée » (JSON).
-5. Sur **Vercel** → Settings → Environment Variables (Production + Preview) :
-   - `FIREBASE_SERVICE_ACCOUNT_JSON` = le JSON entier du compte de service (valeur sur une ligne),
-   - ou les 3 variables décomposées : `FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL`, `FIREBASE_PRIVATE_KEY` (conserver les `\n` littéraux).
-6. Redéployer. Vérifier dans les logs Vercel : plus de message `[push] Firebase non configuré`.
+Le plugin **`@capacitor/push-notifications` reste embarqué** dans l'APK (il
+porte ses bibliothèques Firebase — aucun projet, compte ou
+`google-services.json` requis) mais le **canal push distant est DORMANT** :
 
-Validation de bout en bout : connexion dans l'APK → accepter la permission notifications →
-déclencher un événement métier (recharge, RDV domicile, dispatch) → la push arrive.
-Le serveur écrème automatiquement les jetons invalides (`[push] … jetons purgés` dans les logs).
+> **Garde anti-crash (Task 38 / ADR-009)** — `src/lib/native.ts` interroge le
+> plugin natif local **Diagnostics** (`DiagnosticsPlugin.java`) avant toute
+> activation du canal : sans Firebase initialisé, `register()` n'est jamais
+> appelé — aucun dialogue push, aucun crash. La **permission notifications**
+> (Android 13+) est demandée via `LocalNotifications` (même permission OS) au
+> démarrage de session — utile sans Firebase (rappels + InApp).
+> **Un APK sans `google-services.json` n'affiche jamais le dialogue push** ;
+> `Diagnostics.lastCrash()` renvoie le stack trace du dernier plantage
+> (`files/last_crash.txt`, écrit par `MainActivity`) — utile sans adb.
+
+Le serveur ne contient plus `firebase-admin` ni aucun code d'envoi FCM
+(`src/lib/push.ts` = registre de jetons seulement). Les routes
+`/api/push/register` et `/api/push/unregister` restent saines (401/400/200)
+mais ne sont plus appelées en pratique (client dormant).
+
+**Ré-activation éventuelle du push distant** (si la décision change un jour) :
+1. Projet Firebase + `google-services.json` dans `android/app/` (gitigné).
+2. `FIREBASE_SERVICE_ACCOUNT_JSON` sur Vercel (Production + Preview).
+3. `git revert` du commit « ADR-009 » (rétablit l'envoi `src/lib/push.ts` +
+   les jumeaux push dans les services métier), puis rebuild APK + cap sync.
 
 ## 5. Build release (signé)
 
@@ -108,8 +114,8 @@ cd android && ./gradlew assembleRelease   # APK signé
 | Symptôme | Cause probable | Correctif |
 |---|---|---|
 | Splash figé sur « Chargement » | serveur injoignable (avion, DNS) | le shell bascule sur le message hors-ligne ; vérifier https://mondocpro.vercel.app/api/health |
-| Aucune push reçue | `google-services.json` absent du build, ou FIREBASE_* absentes de Vercel | §4 (les logs affichent `[native] registration FCM` / `[push] Firebase non configuré`) |
-| L'app se ferme à l'acceptation des notifications | APK v1 sans `google-services.json` : crash `IllegalStateException: Default FirebaseApp is not initialized` via le bridge | Installer un APK ≥ v2 (garde `Diagnostics.firebaseAvailable()`) ; pour activer le push, suivre §4 puis rebuilder |
-| Permission notifications jamais demandée | Android 13+ : demandée à la 1re ouverture après connexion ; sur un build sans Firebase, elle n'est **jamais** demandée (garde anti-crash) | se déconnecter/reconnecter, ou réinstaller ; si push attendu → §4 d'abord |
+| Aucune push reçue | **Comportement attendu** : canal push distant DORMANT sans projet Firebase (ADR-009) — notifications InApp + rappels locaux actifs | §4 (ré-activation : projet Firebase + revert ADR-009) |
+| L'app se ferme à l'acceptation des notifications | APK v1 sans `google-services.json` : crash `IllegalStateException: Default FirebaseApp is not initialized` via le bridge | Installer un APK ≥ v2 (garde `Diagnostics.firebaseAvailable()`) ; depuis le correctif web ADR-009, le canal push distant n'est plus jamais activé sans Firebase |
+| Permission notifications jamais demandée | Android 13+ : demandée à la 1re ouverture après connexion **via LocalNotifications** (rappels RDV) — indépendante de Firebase depuis ADR-009 | se déconnecter/reconnecter, ou réinstaller ; vérifier les permissions système de l'app |
 | Rappels RDV avec quelques minutes de retard | alarmes inexactes (politique Play, pas de SCHEDULE_EXACT_ALARM) | comportement documenté (ADR-008) — le pipeline serveur 24 h double le rappel |
 | `cap sync` échoue | dépendances natives désynchronisées | `bun install` puis `npx cap sync android` |
