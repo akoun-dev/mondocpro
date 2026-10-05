@@ -1369,3 +1369,28 @@ Stage Summary:
 - Contrats GET|POST + PATCH|DELETE /api/admin/sensibilisations documentés ; schéma zod partagé client/serveur = zéro divergence de validation
 - Zéro migration, zéro natif : livraison purement web (Vercel), APK v1.0.4 inchangé et déjà à jour
 - Reste au backlog PO : Task 26 (Tokens/Wallet avancé) ; secrets exposés à réinitialiser (renouvelés côté PO le 2026-10-05)
+
+---
+
+Task ID: 46
+Agent: Super Z (principal)
+Task: « propose une meilleure dashboard pour admin, avec des card et states » (PO, 2026-10-05) — FEATURE-ADMIN-DASHBOARD
+
+Work Log:
+
+- Point de départ : arbre propre sur a93fd82 (Task 45 Conseils & Sensibilisations poussée) ; l'ancien accueil admin = héros + 4 raccourcis pleine largeur + cartes fonctionnalités statiques, seuls 2 compteurs de file (useAdminCounters, 2 fetchs) apportés du réel
+- Conception : photosynthèse en UN appel — nouvelle API GET /api/admin/overview (requireRole ADMIN) agrégeant ~10 requêtes bon marché (user.groupBy rôle×isActive, nurseMission.groupBy statut, appointment.count file de dispatch + count RDV du jour, nurseMission.findMany visites terminées 7 j bucketed en JS, groupBy zone des missions actives, tokenTransaction findMany/aggregate recharges PENDING, 5 dernières missions via missionInclude + serializeMission réutilisés, listDispatchQueue() réutilisée — source unique des vues Équipes/Missions) ; bornes de journée UTC = Abidjan UTC+0 (convention reminders/schedule)
+- Types partagés client-safe src/lib/admin-overview-schemas.ts (AdminOverview/Kpis/DayBucket/ZoneStat/PendingRecharge/UpcomingVisit) ; DTO admin-overview.ts server-side ; fix TS : amountFcfa nullable Prisma → ?? 0
+- Vue src/components/admin/admin-home-view.tsx : héros gradient (date, « Actualisé à HH:mm », bouton Actualiser) ; 6 cartes KPI CLIQUABLES (Patients, Infirmiers, Missions actives, À affecter, Recharges, RDV du jour — badge « ACTION » + teinte warning quand une file exige une décision) ; graphique recharts « Visites terminées — 7 derniers jours » via le wrapper shadcn ChartContainer (config var(--chart-1), tooltip fr, XAxis jours courts) ; « Missions actives par zone » en barres de progression (4 zones toujours présentes, badge « +N à affecter ») ; 3 files d'action : Dernières missions (badges statut = mêmes classes que nurse-missions-view), À affecter (créneaux formatCardSlotUTC), Recharges à valider (FCFA + tokens) — états vides distincts, squelettes, erreur + Réessayer ; grille responsive 2/3/6 colonnes, header admin w-full exploité (xl:grid-cols-2/3)
+- Wiring user-dashboard.tsx : import AdminHomeView + branche `user.role === "ADMIN" ? <AdminHomeView userName={user.fullName} onNavigate={setTab} />` dans l'accueil ; SUPPRESSION du hook useAdminCounters, du type AdminCounters et des 4 raccourcis admin devenus redondants (Missions & Dispatch, Recharges, Spécialités, Tarifs) — l'accueil infirmier (héros + raccourci Mes missions + cartes Espace) strictement inchangé ; Types/imports morts nettoyés (Tags retiré, Stethoscope conservé pour ROLE_SPACE_ICON)
+- FIX copy : « Bonjour Dr {prénom} » rendait « Dr Dr » (fullName « Dr Kadjane ») → « Bonjour, {fullName} »
+- Contrat : API_CONTRACTS.md — section [GET] /api/admin/overview (response complète documentée, notes agrégation + source unique dispatch) + ligne tableau récapitulatif ; CHANGELOG entrée Ajouté
+- Validation : bun run lint 0 ; tsc 0 erreur dans src/ ; API vérifiée curl (login 200 → overview 200 avec KPI réels : 2 patients, 1 infirmier, 16 missions actives, 0 à affecter, 2 RDV du jour, buckets mar→lun ; 401 sans session) ; audits non-régression 23/23 + PASS=47 FAIL=0 + 17/17 ; E2E navigateur (agent-browser) : desktop 1600×900 — héros « Bonjour, Dr Kadjane », 6 KPI rendus avec vraies valeurs, graphique présent (application mar-mer-jeu-ven-sam-dim-lun), zones Yopougon 16/Songon 0/PK22 0/N'Dotré 0, dernières missions avec statuts « En cours », navigation carte Patients → ?tab=patients OK ; mobile 390×844 — grille KPI 2 colonnes (largeur carte 173 px) ; accueil infirmier vérifié intact après déconnexion/relogin ; 0 erreur console / 0 erreur page
+- Purement web : aucun rebuild APK requis (Vercel atteint les APK installés)
+
+Stage Summary:
+
+- L'accueil du Médecin Chef est un vrai tableau de bord : 6 cartes KPI cliquables (patients, infirmiers, missions, à affecter, recharges, RDV du jour), graphique des visites terminées sur 7 jours, charge par zone avec file d'affectation, et trois files d'action prêtes à traiter — le tout chargé en une seule requête
+- GET /api/admin/overview documenté ; la file de dispatch du dashboard partage la source unique listDispatchQueue() (zéro divergence avec Équipes/Missions)
+- Code mort retiré (useAdminCounters + 4 raccourcis) ; accueil patient et infirmier inchangés ; APK v1.0.4 inchangé
+- Reste au backlog PO : Task 26 (Tokens/Wallet avancé) ; secrets exposés à réinitialiser

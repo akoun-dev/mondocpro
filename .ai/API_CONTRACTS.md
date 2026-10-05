@@ -134,6 +134,14 @@ Validation: schéma zod de référence (src/lib/<domaine>.ts)
 - Errors: 400 `{ error, details }` · 401 · 403 hors ADMIN · 404 `{ error }` (absente ou déjà supprimée — indistinguables) · 500
 - Notes: suppression définitive (pas de soft delete) — la confirmation UI rappelle l'alternative (modifier ciblage/contenu) ; `updatedAt` alimente le repère « modifiée » de la vue admin.
 
+### [GET] /api/admin/overview — Tableau de bord du Médecin Chef
+
+- Feature: FEATURE-ADMIN-DASHBOARD | Owner: Backend | Statut: **IMPLÉMENTÉ** (demande PO 2026-10-05 : « propose une meilleure dashboard pour admin, avec des cards et stats »)
+- Request: — (cookie de session) — un seul aller-retour pour toute la photosynthèse
+- Response: 200 `{ "overview": { "kpis": { "patientsTotal", "patientsActive", "nursesTotal", "nursesActive", "missionsActive" (ASSIGNED+ACCEPTED+IN_PROGRESS), "toDispatch" (RDV domicile actifs sans mission), "rechargesPending", "rechargesPendingFcfa" (somme déclarée), "appointmentsToday" (PENDING/CONFIRMED du jour) }, "completedByDay": [{ "date": "AAAA-MM-JJ", "label": jour court fr-FR, "count" }] (7 buckets glissants, aujourd'hui inclus, bornes UTC = Abidjan UTC+0), "activeByZone": [{ "zone", "active", "queue" }] (les 4 zones toujours présentes), "recentMissions": MissionDto[] (5 dernières, DTO board dispatch), "pendingRecharges": [{ "id", "patientName", "patientPhone", "tokens", "amountFcfa", "createdAt" }] (5 plus anciennes), "upcomingVisits": [{ "id", "patientName", "zone", "scheduledAt", "specialtyName" }] (4 prochains créneaux de la file), "generatedAt": ISO } }`
+- Errors: 401 · 403 hors ADMIN · 500
+- Notes: agrégation ~10 requêtes bon marché (groupBy/count/aggregate — aucun rapatriement d'historique complet) via `src/lib/admin-overview.ts` ; la file de dispatch réutilise la source unique `listDispatchQueue()` (même définition que les vues Équipes/Missions) ; types partagés client/serveur dans `admin-overview-schemas.ts` (client-safe) ; consommé par `AdminHomeView` (nouvel accueil admin — remplace les raccourcis + hook `useAdminCounters` supprimé).
+
 ### [POST] /api/auth/register — Inscription (Patient)
 
 - Feature: FEATURE-AUTH (SYS-010) | Owner: Backend | Statut: **VALIDÉ** (ADR-004, maj PO 2026-10)
@@ -390,3 +398,4 @@ _(Le tableau se remplira au fil des features. Format exigé ci-dessus.)_
 | [POST] /api/tokens/topup           | FEATURE-TOKENS (P2)   | À venir — crédit manuel ADMIN au MVP ; paiement Mobile Money suspendu à l'ADR-005 |
 | [GET|POST] /api/admin/sensibilisations | FEATURE-SENSO phase 2 | **IMPLÉMENTÉ** — rédaction ADMIN (publication immédiate, ciblage zones)       |
 | [PATCH|DELETE] /api/admin/sensibilisations/:id | FEATURE-SENSO phase 2 | **IMPLÉMENTÉ** — édition partielle + suppression définitive             |
+| [GET] /api/admin/overview         | FEATURE-ADMIN-DASHBOARD | **IMPLÉMENTÉ** — KPI + séries 7 jours + files d'action en un appel       |

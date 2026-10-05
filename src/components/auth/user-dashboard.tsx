@@ -85,6 +85,7 @@ import { AdminTeamsView } from "@/components/admin/teams-view"
 import { AdminPatientsView } from "@/components/admin/patients-view"
 import { AdminNursesView } from "@/components/admin/nurses-view"
 import { SensibilisationsAdminView } from "@/components/admin/sensibilisations-view"
+import { AdminHomeView } from "@/components/admin/admin-home-view"
 import { NurseMissionsView } from "@/components/nurse/nurse-missions-view"
 import { NurseProfileView } from "@/components/nurse/nurse-profile-view"
 import { AdminProfileView } from "@/components/profile/admin-profile-view"
@@ -426,57 +427,10 @@ function NotificationGroupLabel({
     )
 }
 
-// Compteurs de travail du Médecin Chef (accueil admin) — files RÉELLES des
-// deux piliers opérationnels : recharges à valider (GET /api/admin/recharges)
-// et consultations à domicile à affecter (GET /api/admin/missions —
-// dispatchQueue, Task 35). Chargement une fois au montage ; les vues
-// elles-mêmes rechargent à l'ouverture (source de vérité fraîche). Échec =
-// compteurs absents (les raccourcis restent utilisables).
-type AdminCounters = {
-    rechargesPending: number
-    toDispatch: number
-    activeMissions: number
-} | null
-
-function useAdminCounters(enabled: boolean): AdminCounters {
-    const [counters, setCounters] = useState<AdminCounters>(null)
-    useEffect(() => {
-        if (!enabled) return
-        let cancelled = false
-        ;(async () => {
-            try {
-                const [rechargesRes, missionsRes] = await Promise.all([
-                    fetch("/api/admin/recharges", { cache: "no-store" }),
-                    fetch("/api/admin/missions", { cache: "no-store" }),
-                ])
-                if (!rechargesRes.ok || !missionsRes.ok) return
-                const recharges = (await rechargesRes.json()) as {
-                    pending?: unknown[]
-                }
-                const board = (await missionsRes.json()) as {
-                    dispatchQueue?: unknown[]
-                    missions?: Array<{ status: string }>
-                }
-                if (cancelled) return
-                setCounters({
-                    rechargesPending: recharges.pending?.length ?? 0,
-                    toDispatch: board.dispatchQueue?.length ?? 0,
-                    activeMissions: (board.missions ?? []).filter(m =>
-                        ["ASSIGNED", "ACCEPTED", "IN_PROGRESS"].includes(
-                            m.status
-                        )
-                    ).length,
-                })
-            } catch {
-                // silencieux — compteurs non critiques
-            }
-        })()
-        return () => {
-            cancelled = true
-        }
-    }, [enabled])
-    return counters
-}
+// Compteurs de travail du Médecin Chef — SUPPRIMÉS (FEATURE-ADMIN-DASHBOARD) :
+// l'ancien hook useAdminCounters alimentait les badges des deux raccourcis de
+// l'accueil admin ; le tableau de bord couvre désormais ces files (et plus)
+// via GET /api/admin/overview, une seule requête.
 
 export function UserDashboard() {
     const { user, logout } = useAuth()
@@ -510,8 +464,8 @@ export function UserDashboard() {
     // garde reste dans l'effet pour couvrir le premier rendu de transition.
     const isNotificationUser = true
     const patientData: PatientData = usePatientData(isPatient)
-    // Task 35 — compteurs de travail du Médecin Chef (files réelles, accueil).
-    const adminCounters = useAdminCounters(isAdmin)
+    // (Les compteurs de l'accueil admin vivent désormais dans AdminHomeView
+    // via GET /api/admin/overview — FEATURE-ADMIN-DASHBOARD.)
 
     // ——— Notifications InApp (Task 24) — rappels de RDV persistés ———
     // Fetch au montage (badge visible sans ouvrir le panneau), toutes les
@@ -1065,6 +1019,15 @@ export function UserDashboard() {
                                             setTab("wallet")
                                         }}
                                     />
+                                ) : user.role === "ADMIN" ? (
+                                    /* FEATURE-ADMIN-DASHBOARD — tableau de bord
+                                        du Médecin Chef : KPI réels, statistiques
+                                        7 jours, répartition par zone et files
+                                        d'action (replaces les raccourcis). */
+                                    <AdminHomeView
+                                        userName={user.fullName}
+                                        onNavigate={setTab}
+                                    />
                                 ) : (
                                     <>
                                         {/* Hero de bienvenue — dégradé médical, texte blanc AA sur primary/dark */}
@@ -1122,92 +1085,8 @@ export function UserDashboard() {
                                             </div>
                                         </div>
 
-                                        {/* Raccourci ADMIN — Missions & Dispatch (Task 35 :
-                                FEATURE-NURSE exposée au Médecin Chef) + validation des
-                                recharges de Tokens (FEATURE-TOKENS) — les deux piliers
-                                opérationnels, avec compteurs de file RÉELS. */}
-                                        {user.role === "ADMIN" && (
-                                            <button
-                                                type="button"
-                                                onClick={() =>
-                                                    setTab("missions")
-                                                }
-                                                className="mb-6 flex w-full items-center gap-3 rounded-2xl border bg-card p-4 text-left shadow-sm transition-colors hover:border-primary/40 hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:p-5"
-                                            >
-                                                <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                                                    <ClipboardCheck
-                                                        className="size-5"
-                                                        aria-hidden="true"
-                                                    />
-                                                </span>
-                                                <span className="min-w-0 flex-1">
-                                                    <span className="block text-sm font-bold">
-                                                        Missions &amp; Dispatch
-                                                    </span>
-                                                    <span className="block text-xs text-muted-foreground">
-                                                        Affectez les
-                                                        consultations à domicile
-                                                        et suivez les équipes
-                                                    </span>
-                                                    {adminCounters &&
-                                                        adminCounters.toDispatch >
-                                                            0 && (
-                                                            <Badge className="mt-1.5 bg-warning text-warning-foreground">
-                                                                {
-                                                                    adminCounters.toDispatch
-                                                                }{" "}
-                                                                à affecter
-                                                            </Badge>
-                                                        )}
-                                                </span>
-                                                <ChevronRight
-                                                    className="size-5 shrink-0 text-muted-foreground"
-                                                    aria-hidden="true"
-                                                />
-                                            </button>
-                                        )}
-
-                                        {user.role === "ADMIN" && (
-                                            <button
-                                                type="button"
-                                                onClick={() =>
-                                                    setTab("recharges")
-                                                }
-                                                className="mb-6 flex w-full items-center gap-3 rounded-2xl border bg-card p-4 text-left shadow-sm transition-colors hover:border-primary/40 hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:p-5"
-                                            >
-                                                <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                                                    <Wallet
-                                                        className="size-5"
-                                                        aria-hidden="true"
-                                                    />
-                                                </span>
-                                                <span className="min-w-0 flex-1">
-                                                    <span className="block text-sm font-bold">
-                                                        Recharges de Tokens
-                                                    </span>
-                                                    <span className="block text-xs text-muted-foreground">
-                                                        Valider les paiements
-                                                        patients (Wave, OM, MTN,
-                                                        Visa)
-                                                    </span>
-                                                    {adminCounters &&
-                                                        adminCounters.rechargesPending >
-                                                            0 && (
-                                                            <Badge className="mt-1.5 bg-warning text-warning-foreground">
-                                                                {
-                                                                    adminCounters.rechargesPending
-                                                                }{" "}
-                                                                en attente
-                                                            </Badge>
-                                                        )}
-                                                </span>
-                                                <ChevronRight
-                                                    className="size-5 shrink-0 text-muted-foreground"
-                                                    aria-hidden="true"
-                                                />
-                                            </button>
-                                        )}
-
+                                        {/* Raccourci infirmier — missions du jour (l'accueil
+                                admin est désormais le tableau de bord dédié) */}
                                         {user.role === "NURSE" && (
                                             <button
                                                 type="button"
@@ -1236,77 +1115,6 @@ export function UserDashboard() {
                                                     className="size-5 shrink-0 text-muted-foreground"
                                                     aria-hidden="true"
                                                 />
-                                            </button>
-                                        )}
-
-                                        {/* Raccourci ADMIN — gestion du catalogue de spécialités
-                                consommé par l'étape 2 du wizard patient (feature live,
-                                contrairement aux modules « à venir » ci-dessous) */}
-                                        {user.role === "ADMIN" && (
-                                            <button
-                                                type="button"
-                                                onClick={() =>
-                                                    setTab("specialties")
-                                                }
-                                                className="mb-6 flex w-full items-center gap-3 rounded-2xl border bg-card p-4 text-left shadow-sm transition-colors hover:border-primary/40 hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:p-5"
-                                            >
-                                                <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                                                    <Stethoscope
-                                                        className="size-5"
-                                                        aria-hidden="true"
-                                                    />
-                                                </span>
-                                                <span className="min-w-0 flex-1">
-                                                    <span className="block text-sm font-bold">
-                                                        Gérer les spécialités
-                                                    </span>
-                                                    <span className="block text-xs text-muted-foreground">
-                                                        Catalogue proposé aux
-                                                        patients à la prise de
-                                                        RDV
-                                                    </span>
-                                                </span>
-                                                <span className="flex shrink-0 items-center gap-0.5 text-sm font-semibold text-primary">
-                                                    Ouvrir
-                                                    <ChevronRight
-                                                        className="size-4"
-                                                        aria-hidden="true"
-                                                    />
-                                                </span>
-                                            </button>
-                                        )}
-
-                                        {/* Raccourci ADMIN — grille tarifaire des consultations
-                                (FEATURE-TOKENS : tarifs configurables, demande PO
-                                2026-10-03 — le Médecin Chef fixe le prix en Tokens) */}
-                                        {user.role === "ADMIN" && (
-                                            <button
-                                                type="button"
-                                                onClick={() => setTab("tarifs")}
-                                                className="mb-6 flex w-full items-center gap-3 rounded-2xl border bg-card p-4 text-left shadow-sm transition-colors hover:border-primary/40 hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:p-5"
-                                            >
-                                                <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                                                    <Tags
-                                                        className="size-5"
-                                                        aria-hidden="true"
-                                                    />
-                                                </span>
-                                                <span className="min-w-0 flex-1">
-                                                    <span className="block text-sm font-bold">
-                                                        Tarifs des consultations
-                                                    </span>
-                                                    <span className="block text-xs text-muted-foreground">
-                                                        Fixer le prix en Tokens
-                                                        de chaque consultation
-                                                    </span>
-                                                </span>
-                                                <span className="flex shrink-0 items-center gap-0.5 text-sm font-semibold text-primary">
-                                                    Ouvrir
-                                                    <ChevronRight
-                                                        className="size-4"
-                                                        aria-hidden="true"
-                                                    />
-                                                </span>
                                             </button>
                                         )}
 
