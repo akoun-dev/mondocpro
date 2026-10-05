@@ -84,6 +84,7 @@ import { AdminMissionsView } from "@/components/admin/missions-view"
 import { AdminTeamsView } from "@/components/admin/teams-view"
 import { AdminPatientsView } from "@/components/admin/patients-view"
 import { AdminNursesView } from "@/components/admin/nurses-view"
+import { SensibilisationsAdminView } from "@/components/admin/sensibilisations-view"
 import { NurseMissionsView } from "@/components/nurse/nurse-missions-view"
 import { NurseProfileView } from "@/components/nurse/nurse-profile-view"
 import { AdminProfileView } from "@/components/profile/admin-profile-view"
@@ -220,6 +221,7 @@ type DashboardTab =
     | "equipes"
     | "patients"
     | "infirmiers"
+    | "sensibilisations"
     | "wallet"
     | "senso"
     | "specialties"
@@ -277,6 +279,13 @@ function viewHeading(
             return {
                 title: "Infirmiers",
                 subtitle: "Annuaire des soignants, charge de travail et historique de missions",
+            }
+        // FEATURE-SENSO phase 2 — rédaction éditoriale du Médecin Chef
+        // (le fil lu par les patients est l'onglet « senso »).
+        case "sensibilisations":
+            return {
+                title: "Conseils & Sensibilisations",
+                subtitle: "Publiez des conseils et alertes santé pour vos patients — par zone ou partout",
             }
         case "wallet":
             return {
@@ -575,6 +584,7 @@ export function UserDashboard() {
                 "equipes",
                 "patients",
                 "infirmiers",
+                "sensibilisations",
                 "tarifs",
             ],
         }
@@ -1473,6 +1483,23 @@ export function UserDashboard() {
                                 aria-label="Annuaire des infirmiers"
                             >
                                 <AdminNursesView />
+                            </motion.section>
+                        )}
+
+                        {/* FEATURE-SENSO phase 2 — rédaction des conseils et
+                            alertes santé (le fil patient reste l'onglet
+                            « senso », l'admin gère ici la publication). */}
+                        {tab === "sensibilisations" &&
+                            user.role === "ADMIN" && (
+                            <motion.section
+                                key="sensibilisations"
+                                variants={tabVariants}
+                                initial="enter"
+                                animate="center"
+                                exit="exit"
+                                aria-label="Conseils et sensibilisations"
+                            >
+                                <SensibilisationsAdminView />
                             </motion.section>
                         )}
 

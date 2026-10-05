@@ -106,7 +106,7 @@ Validation: schéma zod de référence (src/lib/<domaine>.ts)
 - Request: — (cookie de session, tous rôles) — filtrage par la zone du lecteur
 - Response: 200 `{ "sensibilisations": [{ "id": string, "title": string, "body": string, "category": "ADVICE" | "ALERT", "zones": Zone[], "publishedAt": string }] }` — tri décroissant publication, 50 derniers
 - Errors: 401 · 500
-- Notes: ciblage vide (`zones: []`) = visible de toutes les zones ; contenu éditorial seedé (6 contenus référence) jusqu'à la rédaction ADMIN (phase 2).
+- Notes: ciblage vide (`zones: []`) = visible de toutes les zones ; le fil est alimenté par la rédaction Médecin Chef (voir `/api/admin/sensibilisations`).
 
 ### [GET] /api/sensibilisations/:id — Détail d'une sensibilisation
 
@@ -114,6 +114,25 @@ Validation: schéma zod de référence (src/lib/<domaine>.ts)
 - Request: — (cookie de session, tous rôles)
 - Response: 200 `{ "sensibilisation": { ...idem liste } }`
 - Errors: 401 · 404 `{ error }` introuvable **ou** hors ciblage de zone du lecteur (indistinguables — pas de fuite d'existence) · 500
+
+### [GET|POST] /api/admin/sensibilisations — Annuaire éditorial + publication
+
+- Feature: FEATURE-SENSO phase 2 | Owner: Backend | Statut: **IMPLÉMENTÉ** (demande PO 2026-10-05 : « menu pour faire ou publier des conseils et sensibilisations »)
+- GET Request: — (cookie de session) — **toutes zones confondues** (le Médecin Chef gère le contenu national)
+- GET Response: 200 `{ "sensibilisations": [{ "id", "title", "body", "category": "ADVICE"|"ALERT", "zones": Zone[], "publishedAt", "updatedAt" }] }` — tri décroissant publication, 100 dernières
+- POST Request: `{ "title": string(4–120), "body": string(10–8000), "category": "ADVICE"|"ALERT", "zones": Zone[] }` — `zones` vide = publié pour toutes les zones ; dédupliquée côté serveur
+- POST Response: 201 `{ "sensibilisation": { ...dto complet + updatedAt } }`
+- Errors: 400 `{ error, details }` (zod, client et serveur partagent le même schéma `src/lib/sensibilisations-schemas.ts`) · 401 · 403 hors ADMIN · 500
+- Notes: publication immédiate (pas de brouillon) — le contenu apparaît instantanément dans `GET /api/sensibilisations` des lecteurs ciblés ; catégorie ALERT mise en avant en rouge côté fil patient.
+
+### [PATCH|DELETE] /api/admin/sensibilisations/:id — Édition / suppression
+
+- Feature: FEATURE-SENSO phase 2 | Owner: Backend | Statut: **IMPLÉMENTÉ** (demande PO 2026-10-05)
+- PATCH Request: `{ "title"?: string(4–120), "body"?: string(10–8000), "category"?: "ADVICE"|"ALERT", "zones"?: Zone[] }` — au moins un champ
+- PATCH Response: 200 `{ "sensibilisation": { ...dto complet + updatedAt } }`
+- DELETE Response: 204 (corps vide)
+- Errors: 400 `{ error, details }` · 401 · 403 hors ADMIN · 404 `{ error }` (absente ou déjà supprimée — indistinguables) · 500
+- Notes: suppression définitive (pas de soft delete) — la confirmation UI rappelle l'alternative (modifier ciblage/contenu) ; `updatedAt` alimente le repère « modifiée » de la vue admin.
 
 ### [POST] /api/auth/register — Inscription (Patient)
 
@@ -369,4 +388,5 @@ _(Le tableau se remplira au fil des features. Format exigé ci-dessus.)_
 | ---------------------------------- | --------------------- | --------------------------------------------------------------------------------- |
 | [GET] /api/tokens                  | FEATURE-TOKENS (P2)   | À venir — contrat à rédiger (ledger `TokenAccount`/`TokenTransaction`, audit §2)  |
 | [POST] /api/tokens/topup           | FEATURE-TOKENS (P2)   | À venir — crédit manuel ADMIN au MVP ; paiement Mobile Money suspendu à l'ADR-005 |
-| [POST] /api/admin/sensibilisations | FEATURE-SENSO phase 2 | À venir — rédaction ADMIN (au MVP : seed éditorial)                               |
+| [GET|POST] /api/admin/sensibilisations | FEATURE-SENSO phase 2 | **IMPLÉMENTÉ** — rédaction ADMIN (publication immédiate, ciblage zones)       |
+| [PATCH|DELETE] /api/admin/sensibilisations/:id | FEATURE-SENSO phase 2 | **IMPLÉMENTÉ** — édition partielle + suppression définitive             |

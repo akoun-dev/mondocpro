@@ -5,6 +5,7 @@ import {
     ClipboardCheck,
     LayoutDashboard,
     LogOut,
+    Megaphone,
     Menu,
     Tags,
     X,
@@ -23,6 +24,7 @@ export type AdminTab =
     | "equipes"
     | "patients"
     | "infirmiers"
+    | "sensibilisations"
     | "recharges"
     | "specialties"
     | "tarifs"
@@ -35,12 +37,15 @@ export type AdminTab =
 // et les deux annuaires Patients / Infirmiers viennent s'ajouter au pilotage
 // opérationnel. « Missions » reste le journal des interventions ; « Équipes »
 // est la vue décisionnelle (charge, file à affecter, répartition par zone).
+// FEATURE-SENSO phase 2 : « Sensibilisations » = rédaction éditoriale
+// (conseils et alertes santé publiés dans le fil des patients).
 const ITEMS: { id: AdminTab; label: string; icon: typeof LayoutDashboard }[] = [
     { id: "accueil", label: "Vue d'ensemble", icon: LayoutDashboard },
     { id: "equipes", label: "Équipes", icon: UsersRound },
     { id: "missions", label: "Missions & Dispatch", icon: ClipboardCheck },
     { id: "patients", label: "Patients", icon: UserRound },
     { id: "infirmiers", label: "Infirmiers", icon: Stethoscope },
+    { id: "sensibilisations", label: "Sensibilisations", icon: Megaphone },
     { id: "recharges", label: "Recharges Tokens", icon: Banknote },
     { id: "specialties", label: "Spécialités", icon: Stethoscope },
     { id: "tarifs", label: "Tarifs", icon: Tags },

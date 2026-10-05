@@ -1342,3 +1342,30 @@ Stage Summary:
 - Contrat POST /api/admin/nurses documenté ; la suspension (PATCH /api/admin/users/:id) reste la contrepartie de fin de contrat
 - Leçon d'exploitation consignée : après toute migration Prisma, redémarrer le serveur dev (client périmé = isActive undefined = tous comptes « suspendus » + 500 silencieux) ; les audits étaient verts côté base, seule l'instance longue duréee était périmée
 - Reste au backlog PO : Task 26 (Tokens/Wallet avancé) ; secrets exposés à réinitialiser (le .env a été renouvelé côté PO le 2026-10-05)
+
+---
+
+Task ID: 45
+Agent: Super Z (principal)
+Task: « Ajoute ou permet admin aussi le menu pour faire ou pubier des conseils et sensibilisations » (PO, 2026-10-05) — FEATURE-SENSO phase 2
+
+Work Log:
+
+- Alignement Git : arbre propre sur 86ecb8b (Task 44 w-full + onboarding infirmier déjà poussée), branche à jour avec origin/main — « récupérer le dernier commit » satisfait d'office
+- Découverte : le modèle `Sensibilisation` existait déjà (lot P0/P1 : title 120, body Text, category ADVICE|ALERT, zones[], publishedAt) avec le fil de lecture `GET /api/sensibilisations[/:id]` consommé par patients et infirmiers ; la ligne « À venir » d'API_CONTRACTS.md désignait explicitement la phase 2 (rédaction ADMIN) — AUCUNE migration requise
+- Schéma zod partagé `src/lib/sensibilisations-schemas.ts` (source unique client/serveur, même convention DRY que auth-schemas) : title 4–120, body 10–8000, category enum, zones[] dédupliqué côté service ; updateSensibilisationSchema partiel avec refine « au moins un champ »
+- Service étendu `src/lib/sensibilisations.ts` : `SensibilisationError` (statut HTTP, convention SpecialtyError), `AdminSensibilisationDto` (= DTO patient + updatedAt), `listAllSensibilisations` (toutes zones confondues, 100 dernières), `createSensibilisation` (zones `[...new Set()]`), `updateSensibilisation` (404 idiologique), `deleteSensibilisation` (deleteMany + garde de comptage → 404 en course entre onglets, jamais 500 Prisma)
+- Routes ADMIN : `GET|POST /api/admin/sensibilisations` (guard `guarded()` factorisé, zod 400 {error, details}) et `PATCH|DELETE /api/admin/sensibilisations/:id` (204 corps vide / 404) — requireRole(["ADMIN"]) sur chaque verbe
+- Vue `src/components/admin/sensibilisations-view.tsx` : bouton « Nouvelle sensibilisation » + rafraîchissement (même disposition que nurses-view), filtres segmentés Tout/Conseils/Alertes avec compteurs (langage visuel du fil patient), cartes xl:grid-cols-2 avec pill catégorie rouge/vert, badges zones ou « Toutes les zones », ancienneté relative + repère « modifiée » (updatedAt > publishedAt + 60 s), dialog création/édition unique (titre avec compteur de restants, catégorie deux boutons — Alerte en rouge destructive, textarea avec compteur, 4 cases zones + aide « Aucune zone cochée = publié pour toutes les zones », validation client via le schéma partagé + restitution des details serveur 400), suppression en AlertDialog rappelant l'alternative douce, toast + hapticSuccess/hapticLight
+- Wiring : AdminTab + ITEMS (« Sensibilisations », icône Megaphone, entre Infirmiers et Recharges) dans admin-sidebar ; DashboardTab, liste autorisée ADMIN, viewHeading (« Conseils & Sensibilisations ») et rendu motion.section dans user-dashboard ; deep link ?tab=sensibilisations opérationnel
+- Contrats : API_CONTRACTS.md — deux sections complètes [GET|POST] et [PATCH|DELETE] + tableau récapitulatif mis à jour (ligne « À venir » remplacée par deux lignes IMPLÉMENTÉ) ; CHANGELOG entrée Ajouté
+- FIX au passage : `isEdit` déclaré dans le try mais utilisé dans le catch de handleSubmit (TS2304) — hissé en tête de fonction
+- Validation : bun run lint 0 ; tsc 0 erreur dans src/ ; audits non-régression 23/23 (nurse-profile) + PASS=47 FAIL=0 (admin-notifications) + 17/17 (device-key-poll) ; gardes API 401/401/401 (GET/POST/DELETE sans session) ; E2E navigateur (agent-browser 1600×900, compte admin) : menu présent dans la sidebar, vue chargée avec les 6 contenus seedés, soumission vide → erreurs inline zod, création réelle « E2E — Dormez sous moustiquaire imprégnée » ciblée Yopougon → toast + compteurs 7/5/2 + carte rendue « Conseil santé · À l'instant », édition → pré-remplissage exact, bascule Alerte santé → PATCH 200 → carte « Alerte santé », suppression → alertdialog de confirmation → 204 → compteurs 6/4/2 + carte disparue ; 0 erreur console / 0 erreur page / 0 warning hydratation
+- Changement purement web : AUCUN rebuild APK requis (le web Vercel atteint les APK installés — seuls les changements natifs exigent un bump versionCode)
+
+Stage Summary:
+
+- Le Médecin Chef publie désormais lui-même les conseils et alertes santé : nouvelle entrée « Sensibilisations » dans la sidebar admin, publication immédiate dans le fil des patients ciblés (par zone ou national), édition et suppression complètes — le seed éditorial n'est plus la seule source
+- Contrats GET|POST + PATCH|DELETE /api/admin/sensibilisations documentés ; schéma zod partagé client/serveur = zéro divergence de validation
+- Zéro migration, zéro natif : livraison purement web (Vercel), APK v1.0.4 inchangé et déjà à jour
+- Reste au backlog PO : Task 26 (Tokens/Wallet avancé) ; secrets exposés à réinitialiser (renouvelés côté PO le 2026-10-05)
