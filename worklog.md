@@ -1246,3 +1246,27 @@ Stage Summary:
 - Plugin Network intégré COMPLET selon les docs : état initial (getStatus) + suivi des changements + type de connexion exposé + garde réseau du runner « app fermée »
 - Les APK ≥ v1.0.3 gaspillent zéro sonde hors ligne ; le bandeau hors-ligne s'affiche dès l'ouverture même en mode avion
 - APK v1.0.3 = artefact courant (download/mondocpro-v1.0.3-debug.apk) ; le web (bandeau initial + détail enrichi) atteint les APK existants dès le déploiement Vercel
+
+---
+Task ID: 43
+Agent: Super Z (principal)
+Task: « Active aussi les action retour android » + liens docs /apis/action-sheet, /apis/app, /plugins/web, /plugins/tutorial/android-implementation (PO, 2026-10-05)
+
+Work Log:
+- Lecture worklog (Tasks 40/41/42 déjà poussées : ADR-009 sans Firebase, ADR-010 runner app fermée, Network complet — arbre propre sur c4750d4)
+- Interprétation du besoin : « les actions » = plugin **ActionSheet** (feuille d'actions native Android) ; « retour » = **bouton retour Android** via le listener `backButton` du plugin **App** ; les liens /plugins/web + /plugins/tutorial/android-implementation = s'assurer que le pont custom suit le pattern officiel (déjà le cas : DiagnosticsPlugin.java Task 38 = @CapacitorPlugin + registerPlugin MainActivity + interface registerPlugin côté web)
+- @capacitor/action-sheet@8.1.1 installé (bun add) ; `npx cap sync android` → plugin enregistré (capacitor.settings.gradle + capacitor.build.gradle) — AUCUN custom natif requis
+- src/lib/native.ts — bouton retour RÉÉCRIT (levée de la limite MVP documentée en tête d'ancien listener) : priorité 1 = **Escape synthétique** (`dismissTopRadixLayer`, sélecteur `[role="dialog"][data-state="open"], [role="alertdialog"][data-state="open"], [data-radix-popper-content-wrapper]`) — le top layer Radix (DismissableLayer empilé) consomme l'event via preventDefault → un appui = fermeture de LA modale la plus haute (dialog/alert-dialog/sheet/select/dropdown/popover) ; priorité 2 = history.back() ; priorité 3 = **double-appui pour quitter** (grâce 2,5 s : 1er appui = hapticLight + Toast natif « Appuyez à nouveau sur Retour pour quitter », 2e = App.exitApp()) — plus de sortie accidentelle depuis l'accueil
+- src/lib/native.ts — `showNativeActions(title, message, actions): Promise<number | null>` (docs ActionSheet : index -1 si fermeture sans choix → null ; borne l'index ; style DESTRUCTIVE pour les actions irréversibles ; null hors native = fallback web naturel)
+- src/components/nurse/nurse-missions-view.tsx — sur APK, les cartes mission remplacent leurs boutons dispersés par UN bouton « Actions » (icône Ellipsis) qui ouvre la feuille native : Appeler le patient (tel: via location.assign — même mécanisme que l'ancre web), Voir le détail, transitions de statut avec « Refuser » en DESTRUCTIVE ; handlers parallèles indexés ; détection native via useState + useEffect APRÈS hydratation (l'APK consomme le HTML SSR de Vercel où isNative()=false — rendu conditionnel immédiat = mismatch) ; le web garde les boutons inline à l'identique
+- FIX LATENT au passage : les boutons « Refuser » (action CANCELLED) testaient `item.action === "REJECT"` (valeur inexistante dans nextActions) → jamais rouges ; corrigé en "CANCELLED" (carte web + dialog détail), aligné avec le style DESTRUCTIVE de la feuille native ; bouton « Appeler » ajouté au dialog détail (même action que la carte)
+- Version : android/app/build.gradle → versionCode 5 / versionName "1.0.4" ; build:runner rejoué ; cap sync vérifié
+- APK v1.0.4 buildé (assembleDebug 1 min 21 s) + vérifié : aapt2 = ci.mondopro.app v5/1.0.4, permissions inchangées (11 attendues) ; apksigner SHA-256 050993fe… = keystore versionné → upgrade SANS désinstallation ; `ActionSheetPlugin` présent dans classes3.dex ; artefact download/mondocpro-v1.0.4-debug.apk (17,8 Mo)
+- Validation : bun run lint 0 erreur ; tsc 0 erreur dans src/ (le seul rapport tsc hors src = skills/stock-analysis-skill, préexistant hors périmètre) ; audits non-régression : Task 34 23/23 PASS, Task 35 PASS=47 FAIL=0, canal app fermée 17/17 PASS ; navigateur (agent-browser, 390×844, compte infirmier) : missions chargées, fallback web intact (Appeler + Voir le détail inline), dialog détail role="dialog" rendu (= cible de l'Escape synthétique sur APK), 0 erreur console/hydratation
+- Docs : .ai/APK_BUILD.md — historique v1.0.4 + tableau §3 (5/"1.0.4") + NOUVELLE section §4bis « Interactions natives » (ordre de priorité du retour + feuille d'actions missions) + 2 lignes dépannage (retour ferme l'app depuis une modale → v1.0.4+ ; pas de bouton Actions → v1.0.4+) ; .ai/CHANGELOG.md entrée Ajouté Task 43 ; ADR-007 intact (il porte les Tokens, la limite retour était documentée dans le code — remplacée par le nouveau commentaire)
+
+Stage Summary:
+- Les « actions retour Android » sont actives : le bouton retour ferme d'abord les modales (limite ADR historique levée), remonte la navigation, puis exige un double-appui confirmé par toast pour quitter — UX native complète via les plugins OFFICIELS App + ActionSheet, zéro code natif custom ajouté
+- La feuille d'actions native concentre les actions des missions infirmier dans un bottom sheet système (Refuser en rouge DESTRUCTIVE) ; le web reste inchangé
+- APK v1.0.4 (versionCode 5) = SEUL artefact livrable (le plugin ActionSheet vit dans le natif ; le web distant apporte le fallback) ; téléchargeable en download/mondocpro-v1.0.4-debug.apk
+- Reste au backlog PO : Task 26 (Tokens/Wallet avancé) ; secrets exposés à réinitialiser

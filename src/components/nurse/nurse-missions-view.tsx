@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { CalendarClock, ChevronRight, Loader2, MapPin, Phone, RefreshCw } from "lucide-react"
+import { CalendarClock, ChevronRight, Ellipsis, Loader2, MapPin, Phone, RefreshCw } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Textarea } from "@/components/ui/textarea"
 import { toast } from "@/hooks/use-toast"
 import { ZONE_LABELS } from "@/lib/auth-schemas"
+import { hapticLight, isNative, showNativeActions, type NativeAction } from "@/lib/native"
 
 type MissionStatus = "ASSIGNED" | "ACCEPTED" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED"
 type Mission = {
@@ -49,6 +50,12 @@ export function NurseMissionsView() {
     const [reportOpen, setReportOpen] = useState(false)
     const [report, setReport] = useState({ observations: "", actsPerformed: "", recommendations: "" })
     const [saving, setSaving] = useState(false)
+    // Plateforme native détectée APRÈS hydratation (l'APK consomme le HTML
+    // servi par Vercel où isNativePlatform() est faux — un rendu conditionnel
+    // immédiat créerait une erreur d'hydratation ; pattern identique au
+    // bandeau réseau de NativeBootstrap).
+    const [native, setNative] = useState(false)
+    useEffect(() => { setNative(isNative()) }, [])
 
     async function refresh() {
         setLoading(true); setError(false)
@@ -84,6 +91,33 @@ export function NurseMissionsView() {
         } catch { toast({ title: "Compte rendu non enregistré", description: "Vérifiez les champs puis réessayez.", variant: "destructive" }) } finally { setSaving(false) }
     }
 
+    // Feuille d'actions ANDROID native (plugin ActionSheet) : sur APK, les
+    // boutons dispersés de la carte deviennent UNE entrée « Actions » qui
+    // ouvre le bottom sheet système (style DESTRUCTIVE pour Refuser). Le web
+    // garde les boutons inline — showNativeActions retourne null hors native.
+    async function openNativeActions(mission: Mission) {
+        const actions: NativeAction[] = []
+        const handlers: Array<() => void> = []
+        if (mission.patient?.phone) {
+            actions.push({ label: "Appeler le patient" })
+            handlers.push(() => { window.location.assign(`tel:${mission.patient!.phone}`) })
+        }
+        actions.push({ label: "Voir le détail" })
+        handlers.push(() => setSelected(mission))
+        for (const item of nextActions(mission.status)) {
+            actions.push({ label: item.label, destructive: item.action === "CANCELLED" })
+            handlers.push(() => { void transition(mission, item.action) })
+        }
+        void hapticLight()
+        const index = await showNativeActions(
+            `Mission — ${mission.patient?.fullName ?? "Patient"}`,
+            formatSlot(mission.scheduledAt),
+            actions,
+        )
+        if (index === null) return
+        handlers[index]?.()
+    }
+
     return <section aria-label="Mes missions" className="space-y-5">
         <div className="flex items-start justify-between gap-3">
             <div><h2 className="text-2xl font-bold tracking-tight">Mes missions</h2><p className="text-sm text-muted-foreground">Consultez vos interventions et mettez à jour leur avancement.</p></div>
@@ -92,9 +126,9 @@ export function NurseMissionsView() {
         {loading && <div className="flex items-center justify-center rounded-2xl border bg-card py-16 text-sm text-muted-foreground"><Loader2 className="mr-2 size-4 animate-spin" />Chargement des missions…</div>}
         {error && !loading && <Card><CardContent className="flex flex-col items-center gap-3 py-12 text-center"><p className="text-sm text-muted-foreground">Impossible de charger vos missions.</p><Button variant="outline" onClick={() => void refresh()}>Réessayer</Button></CardContent></Card>}
         {!loading && !error && missions.length === 0 && <Card><CardContent className="flex flex-col items-center gap-2 py-14 text-center"><CalendarClock className="size-8 text-muted-foreground/60" /><p className="font-medium">Aucune mission pour le moment</p><p className="max-w-sm text-sm text-muted-foreground">Les missions qui vous seront affectées apparaîtront ici.</p></CardContent></Card>}
-        {!loading && !error && missions.length > 0 && <div className="grid gap-4">{missions.map(mission => <Card key={mission.id} className="rounded-2xl"><CardHeader className="flex-row items-start justify-between gap-3 space-y-0"><div><CardTitle className="text-base">{mission.patient?.fullName ?? "Patient"}</CardTitle><CardDescription className="mt-1 capitalize">{formatSlot(mission.scheduledAt)}</CardDescription></div><Badge className={STATUS_CLASSES[mission.status]}>{STATUS_LABELS[mission.status]}</Badge></CardHeader><CardContent className="space-y-4"><div className="grid gap-2 text-sm text-muted-foreground sm:grid-cols-2"><span><MapPin className="mr-1.5 inline size-4" />{mission.type === "DOMICILE" ? "À domicile" : "Au cabinet"} · {ZONE_LABELS[mission.zone] ?? mission.zone}</span><span>{mission.appointment?.specialty?.name ?? "Consultation"}</span></div>{mission.appointment?.reason && <p className="rounded-lg bg-muted/50 p-3 text-sm">Motif : {mission.appointment.reason}</p>}<div className="flex flex-wrap gap-2">{mission.patient?.phone && <Button variant="outline" size="sm" asChild><a href={`tel:${mission.patient.phone}`}><Phone className="mr-1.5 size-4" />Appeler</a></Button>}<Button variant="ghost" size="sm" onClick={() => setSelected(mission)}>Voir le détail<ChevronRight className="ml-1 size-4" /></Button>{nextActions(mission.status).map(item => <Button key={item.action} size="sm" variant={item.action === "REJECT" ? "destructive" : "default"} onClick={() => void transition(mission, item.action)}>{item.label}</Button>)}</div></CardContent></Card>)}</div>}
+        {!loading && !error && missions.length > 0 && <div className="grid gap-4">{missions.map(mission => <Card key={mission.id} className="rounded-2xl"><CardHeader className="flex-row items-start justify-between gap-3 space-y-0"><div><CardTitle className="text-base">{mission.patient?.fullName ?? "Patient"}</CardTitle><CardDescription className="mt-1 capitalize">{formatSlot(mission.scheduledAt)}</CardDescription></div><Badge className={STATUS_CLASSES[mission.status]}>{STATUS_LABELS[mission.status]}</Badge></CardHeader><CardContent className="space-y-4"><div className="grid gap-2 text-sm text-muted-foreground sm:grid-cols-2"><span><MapPin className="mr-1.5 inline size-4" />{mission.type === "DOMICILE" ? "À domicile" : "Au cabinet"} · {ZONE_LABELS[mission.zone] ?? mission.zone}</span><span>{mission.appointment?.specialty?.name ?? "Consultation"}</span></div>{mission.appointment?.reason && <p className="rounded-lg bg-muted/50 p-3 text-sm">Motif : {mission.appointment.reason}</p>}<div className="flex flex-wrap gap-2">{native ? <Button size="sm" onClick={() => void openNativeActions(mission)}><Ellipsis className="mr-1 size-4" />Actions</Button> : <>{mission.patient?.phone && <Button variant="outline" size="sm" asChild><a href={`tel:${mission.patient.phone}`}><Phone className="mr-1.5 size-4" />Appeler</a></Button>}<Button variant="ghost" size="sm" onClick={() => setSelected(mission)}>Voir le détail<ChevronRight className="ml-1 size-4" /></Button>{nextActions(mission.status).map(item => <Button key={item.action} size="sm" variant={item.action === "CANCELLED" ? "destructive" : "default"} onClick={() => void transition(mission, item.action)}>{item.label}</Button>)}</>}</div></CardContent></Card>)}</div>}
 
-        <Dialog open={Boolean(selected) && !reportOpen} onOpenChange={open => { if (!open) setSelected(null) }}><DialogContent><DialogHeader><DialogTitle>Détail de la mission</DialogTitle><DialogDescription>{selected?.patient?.fullName ?? "Patient"} · {selected && formatSlot(selected.scheduledAt)}</DialogDescription></DialogHeader>{selected && <div className="space-y-3 text-sm"><p><strong>Lieu :</strong> {selected.type === "DOMICILE" ? "À domicile" : "Au cabinet"} · {ZONE_LABELS[selected.zone] ?? selected.zone}</p><p><strong>Spécialité :</strong> {selected.appointment?.specialty?.name ?? "Consultation"}</p>{selected.appointment?.reason && <p><strong>Motif :</strong> {selected.appointment.reason}</p>}<div className="flex flex-wrap gap-2">{nextActions(selected.status).map(item => <Button key={item.action} onClick={() => void transition(selected, item.action)} variant={item.action === "REJECT" ? "destructive" : "default"}>{item.label}</Button>)}</div></div>}</DialogContent></Dialog>
+        <Dialog open={Boolean(selected) && !reportOpen} onOpenChange={open => { if (!open) setSelected(null) }}><DialogContent><DialogHeader><DialogTitle>Détail de la mission</DialogTitle><DialogDescription>{selected?.patient?.fullName ?? "Patient"} · {selected && formatSlot(selected.scheduledAt)}</DialogDescription></DialogHeader>{selected && <div className="space-y-3 text-sm"><p><strong>Lieu :</strong> {selected.type === "DOMICILE" ? "À domicile" : "Au cabinet"} · {ZONE_LABELS[selected.zone] ?? selected.zone}</p><p><strong>Spécialité :</strong> {selected.appointment?.specialty?.name ?? "Consultation"}</p>{selected.appointment?.reason && <p><strong>Motif :</strong> {selected.appointment.reason}</p>}<div className="flex flex-wrap gap-2">{selected.patient?.phone && <Button variant="outline" asChild><a href={`tel:${selected.patient.phone}`}><Phone className="mr-1.5 size-4" />Appeler</a></Button>}{nextActions(selected.status).map(item => <Button key={item.action} onClick={() => void transition(selected, item.action)} variant={item.action === "CANCELLED" ? "destructive" : "default"}>{item.label}</Button>)}</div></div>}</DialogContent></Dialog>
         <Dialog open={reportOpen} onOpenChange={setReportOpen}><DialogContent><DialogHeader><DialogTitle>Compte rendu de visite</DialogTitle><DialogDescription>Documentez l’intervention avant de la clôturer.</DialogDescription></DialogHeader><div className="space-y-4"><label className="grid gap-1.5 text-sm font-medium">Observations <Textarea value={report.observations} onChange={event => setReport(prev => ({ ...prev, observations: event.target.value }))} placeholder="Décrivez les observations utiles…" maxLength={2000} /></label><label className="grid gap-1.5 text-sm font-medium">Actes réalisés <Textarea value={report.actsPerformed} onChange={event => setReport(prev => ({ ...prev, actsPerformed: event.target.value }))} maxLength={2000} /></label><label className="grid gap-1.5 text-sm font-medium">Recommandations <Textarea value={report.recommendations} onChange={event => setReport(prev => ({ ...prev, recommendations: event.target.value }))} maxLength={2000} /></label></div><DialogFooter><Button variant="outline" onClick={() => setReportOpen(false)}>Annuler</Button><Button onClick={() => void submitReport()} disabled={saving || report.observations.trim().length < 3}>{saving && <Loader2 className="mr-2 size-4 animate-spin" />}Enregistrer le compte rendu</Button></DialogFooter></DialogContent></Dialog>
         </section>
 }

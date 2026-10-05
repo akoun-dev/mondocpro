@@ -26,6 +26,7 @@
 //  les canaux « critical » / « updates ». Ce fichier provisionne la clé au
 //  démarrage de session (provisionNotificationSync) et la purge au logout
 //  (unregisterPush + wipe du KV natif du runner).
+import { ActionSheet, ActionSheetButtonStyle } from "@capacitor/action-sheet";
 import { Capacitor, registerPlugin } from "@capacitor/core";
 import { BackgroundRunner } from "@capacitor/background-runner";
 import { App } from "@capacitor/app";
@@ -37,6 +38,7 @@ import { Preferences } from "@capacitor/preferences";
 import { PushNotifications } from "@capacitor/push-notifications";
 import { SplashScreen } from "@capacitor/splash-screen";
 import { StatusBar, Style } from "@capacitor/status-bar";
+import { Toast } from "@capacitor/toast";
 
 // ——— Détection ———
 
@@ -101,23 +103,109 @@ export async function listenNetwork(): Promise<void> {
     }
 }
 
-// ——— Bouton retour Android ———
+// ——— Bouton retour Android (plugin App — docs apis/app) ———
 
-// Historique dispo → retour ; sinon on quitte proprement (pas d'écran figé).
-// Limitation MVP documentée (ADR-007) : les dialogs Radix n'empilent pas
-// l'historique — le retour système remonte la navigation, pas la modale.
+// Comportement complet du bouton retour (levée de la limite MVP ADR-007) :
+//  1. Couche Radix ouverte (dialog, alert-dialog, sheet, select, dropdown,
+//     popover…) → un Escape SYNTHÉTIQUE ferme la couche LA PLUS HAUTE.
+//     Radix DismissableLayer empile les couches : le top layer consomme
+//     l'Escape (event.preventDefault) — un appui = une fermeture, comme en
+//     navigation native. Les modales n'empilent PAS l'historique : sans ce
+//     pont, le retour système ignorait la modale ouverte.
+//  2. Historique dispo → retour de navigation.
+//  3. Sinon (accueil) → QUITTEMENT CONFIRMÉE : 1er appui = toast natif
+//     « Appuyez à nouveau… » (+ haptique), 2e appui sous 2,5 s = exitApp.
+//     Jamais de sortie accidentelle depuis l'écran d'accueil.
+const OPEN_LAYER_SELECTOR =
+    '[role="dialog"][data-state="open"], ' +
+    '[role="alertdialog"][data-state="open"], ' +
+    "[data-radix-popper-content-wrapper]";
+
+function dismissTopRadixLayer(): boolean {
+    if (!document.querySelector(OPEN_LAYER_SELECTOR)) return false;
+    const active = document.activeElement;
+    const target =
+        active instanceof HTMLElement && document.contains(active)
+            ? active
+            : document.body;
+    target.dispatchEvent(
+        new KeyboardEvent("keydown", {
+            key: "Escape",
+            bubbles: true,
+            cancelable: true,
+        }),
+    );
+    return true;
+}
+
+const EXIT_GRACE_MS = 2_500;
+let lastBackPress = 0;
+
 export async function listenBackButton(): Promise<void> {
     if (!isNative()) return;
     try {
         await App.addListener("backButton", () => {
+            if (dismissTopRadixLayer()) return;
             if (window.history.length > 1) {
                 window.history.back();
-            } else {
-                void App.exitApp();
+                return;
             }
+            const now = Date.now();
+            if (now - lastBackPress <= EXIT_GRACE_MS) {
+                void App.exitApp();
+                return;
+            }
+            lastBackPress = now;
+            void hapticLight();
+            void Toast.show({
+                text: "Appuyez à nouveau sur Retour pour quitter",
+                duration: "short",
+            }).catch(() => {
+                // toasts indisponibles (APK ancien) — l'appui suivant quitte
+            });
         });
     } catch {
         // no-op
+    }
+}
+
+// ——— Feuille d'actions native (plugin ActionSheet — docs apis/action-sheet) ———
+
+export type NativeAction = {
+    label: string;
+    /** Style DESTRUCTIVE (rouge) pour les actions irréversibles (refuser…). */
+    destructive?: boolean;
+};
+
+/**
+ * Ouvre la feuille d'actions ANDROID native (bottom sheet système).
+ * Retourne l'index de l'action choisie, ou null si annulée, hors native
+ * (fallback web : les vues gardent leurs boutons inline) ou en cas d'échec.
+ * Les vues appelantes mappent l'index sur leur propre tableau de handlers.
+ */
+export async function showNativeActions(
+    title: string,
+    message: string | undefined,
+    actions: NativeAction[],
+): Promise<number | null> {
+    if (!isNative() || actions.length === 0) return null;
+    try {
+        const result = await ActionSheet.showActions({
+            title,
+            message,
+            options: actions.map(action => ({
+                title: action.label,
+                style: action.destructive
+                    ? ActionSheetButtonStyle.Destructive
+                    : ActionSheetButtonStyle.Default,
+            })),
+        });
+        // Android : -1 si la feuille est fermée sans choix (retour/step hors
+        // zone) — cf. docs. On borne aussi l'index au tableau fourni.
+        if (result.index < 0 || result.index >= actions.length) return null;
+        return result.index;
+    } catch {
+        return null;
     }
 }
 

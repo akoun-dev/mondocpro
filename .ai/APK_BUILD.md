@@ -9,9 +9,12 @@
 > Runner + canaux enrichis + SCHEDULE_EXACT_ALARM) → **v1.0.3** (versionCode 4,
 > Task 41 : garde réseau du runner via `CapacitorDevice.getNetworkStatus` —
 > docs /apis/network — + état réseau initial du bandeau hors-ligne via
-> `Network.getStatus()`). Keystore debug **versionné**
-> `android/keys/debug.keystore` (SHA-256 `050993fe…`) → installation par-dessus
-> les versions antérieures SANS désinstallation.
+> `Network.getStatus()`) → **v1.0.4** (versionCode 5, Task 43 : plugin
+> **ActionSheet** — feuille d'actions native des missions — + **bouton retour
+> Android** complet — fermeture des modales Radix puis double-appui pour
+> quitter avec toast — docs /apis/action-sheet et /apis/app). Keystore debug
+> **versionné** `android/keys/debug.keystore` (SHA-256 `050993fe…`) →
+> installation par-dessus les versions antérieures SANS désinstallation.
 
 ## 1. Prérequis (une seule fois)
 
@@ -58,7 +61,7 @@ privilégier la prod (HTTPS) pour tester les flux authentifiés, ou `adb reverse
 |---|---|---|
 | `appId` (package) | `ci.mondopro.app` | **immuable** après publication Play Store |
 | `appName` | `Mon doc Pro` | affiché sous l'icône |
-| `versionCode` / `versionName` | `4` / `"1.0.3"` | `android/app/build.gradle` — incrémenter à chaque release |
+| `versionCode` / `versionName` | `5` / `"1.0.4"` | `android/app/build.gradle` — incrémenter à chaque release |
 
 Icônes et splash : sources dans `assets/` (générées par `scripts/gen-cap-assets.py`
 depuis `public/img/logo.png`), régénérer via :
@@ -114,6 +117,32 @@ mais ne sont plus appelées en pratique (client dormant).
 3. `git revert` du commit « ADR-009 » (rétablit l'envoi `src/lib/push.ts` +
    les jumeaux push dans les services métier), puis rebuild APK + cap sync.
 
+## 4bis. Interactions natives — bouton retour + feuille d'actions (v1.0.4, docs /apis/app et /apis/action-sheet)
+
+Deux plugins d'interaction Android activés en Task 43 (aucun custom natif requis :
+les plugins officiels suffisent — le seul plugin custom reste **Diagnostics**,
+`DiagnosticsPlugin.java`, qui suit le pattern officiel /plugins/web +
+/plugins/tutorial/android-implementation) :
+
+- **Bouton retour Android** (`@capacitor/app`, listener `backButton` dans
+  `src/lib/native.ts`) — ordre de priorité :
+  1. **Modale/popover Radix ouverte** (dialog, alert-dialog, sheet, select,
+     dropdown…) → **Escape synthétique** (`dismissTopRadixLayer`) : la couche
+     LA PLUS HAUTE se ferme — un appui = une fermeture (le top layer Radix
+     consomme l'event via `preventDefault`). Lève la limite historique « les
+     modales n'empilent pas l'historique ».
+  2. **Historique de navigation dispo** → `history.back()`.
+  3. **Sinon (accueil)** → **double-appui pour quitter** : 1er appui = toast
+     natif « Appuyez à nouveau sur Retour pour quitter » + haptique légère ;
+     2e appui sous 2,5 s = `App.exitApp()`. Jamais de sortie accidentelle.
+- **Feuille d'actions native** (`@capacitor/action-sheet`, `showNativeActions`
+  dans `src/lib/native.ts`) — sur APK, les cartes **Mes missions** (infirmier)
+  affichent UN bouton « Actions » qui ouvre le bottom sheet système
+  (Appeler / Voir le détail / transitions de statut, style DESTRUCTIVE pour
+  « Refuser »). Le web garde les boutons inline (`showNativeActions` retourne
+  `null` hors native). Détection native APRÈS hydratation (state + useEffect)
+  pour éviter tout mismatch — l'APK consomme le HTML servi par Vercel.
+
 ## 5. Build release (signé)
 
 ```bash
@@ -143,4 +172,6 @@ cd android && ./gradlew assembleRelease   # APK signé
 | L'app se ferme à l'acceptation des notifications | APK v1 sans `google-services.json` : crash `IllegalStateException: Default FirebaseApp is not initialized` via le bridge | Installer un APK ≥ v2 (garde `Diagnostics.firebaseAvailable()`) ; depuis le correctif web ADR-009, le canal push distant n'est plus jamais activé sans Firebase |
 | Permission notifications jamais demandée | Android 13+ : demandée à la 1re ouverture après connexion **via LocalNotifications** (rappels RDV) — indépendante de Firebase depuis ADR-009 | se déconnecter/reconnecter, ou réinstaller ; vérifier les permissions système de l'app |
 | Rappels RDV avec quelques minutes de retard | alarmes inexactes | **corrigé v1.0.2** : `SCHEDULE_EXACT_ALARM` ajouté (Android 12+) — sur Android ≤ 11 le comportement reste à ±quelques minutes |
+| Le retour système ferme l'app alors qu'une modale est ouverte | APK < v1.0.4 (ancien handler retour MVP) | installer v1.0.4+ — le retour ferme d'abord la modale, puis remonte la navigation, puis double-appui pour quitter |
+| Pas de bouton « Actions » sur les cartes mission | APK < v1.0.4 (plugin ActionSheet absent du natif) | installer v1.0.4+ ; le web garde les boutons inline (comportement normal) |
 | `cap sync` échoue | dépendances natives désynchronisées | `bun install` puis `npx cap sync android` |

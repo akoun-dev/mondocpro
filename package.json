@@ -17,6 +17,7 @@
     "db:diff": "npx supabase db diff --linked"
   },
   "dependencies": {
+    "@capacitor/action-sheet": "^8.1.1",
     "@capacitor/android": "^8.5.2",
     "@capacitor/app": "^8.1.2",
     "@capacitor/background-runner": "^3.0.0",
