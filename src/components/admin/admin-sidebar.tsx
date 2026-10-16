@@ -11,7 +11,6 @@ import {
     X,
     Stethoscope,
     UserRound,
-    UsersRound,
 } from "lucide-react"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
@@ -21,7 +20,6 @@ import type { AppUser } from "@/stores/auth-store"
 export type AdminTab =
     | "accueil"
     | "missions"
-    | "equipes"
     | "patients"
     | "infirmiers"
     | "sensibilisations"
@@ -31,17 +29,14 @@ export type AdminTab =
     | "profil"
 
 // Navigation latérale du Médecin Chef — Task 35 : « Missions & Dispatch »
-// rejoint la barre (file à affecter + supervision), à côté des recharges de
-// Tokens dont la validation est le second pilier opérationnel.
-// FEATURE-ANNUAIRE-ADMIN : « Équipes » (supervision + dispatch des effectifs)
-// et les deux annuaires Patients / Infirmiers viennent s'ajouter au pilotage
-// opérationnel. « Missions » reste le journal des interventions ; « Équipes »
-// est la vue décisionnelle (charge, file à affecter, répartition par zone).
+// (file à affecter + supervision) est le pilier opérationnel, à côté des
+// recharges de Tokens dont la validation est le second pilier.
+// FEATURE-ANNUAIRE-ADMIN : les deux annuaires Patients / Infirmiers viennent
+// s'ajouter au pilotage (« Missions » reste le journal des interventions).
 // FEATURE-SENSO phase 2 : « Sensibilisations » = rédaction éditoriale
 // (conseils et alertes santé publiés dans le fil des patients).
 const ITEMS: { id: AdminTab; label: string; icon: typeof LayoutDashboard }[] = [
     { id: "accueil", label: "Vue d'ensemble", icon: LayoutDashboard },
-    { id: "equipes", label: "Équipes", icon: UsersRound },
     { id: "missions", label: "Missions & Dispatch", icon: ClipboardCheck },
     { id: "patients", label: "Patients", icon: UserRound },
     { id: "infirmiers", label: "Infirmiers", icon: Stethoscope },

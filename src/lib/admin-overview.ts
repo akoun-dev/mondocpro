@@ -62,7 +62,7 @@ export async function getAdminOverview(): Promise<AdminOverview> {
             _count: { _all: true },
         }),
         // File de dispatch GLOBALE (source unique listDispatchQueue —
-        // même définition que les vues Équipes / Missions).
+        // même définition que la vue Missions).
         db.appointment.count({
             where: {
                 type: "DOMICILE",

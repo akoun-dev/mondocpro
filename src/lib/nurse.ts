@@ -75,8 +75,8 @@ export async function listAdminMissions() {
 /**
  * File "à affecter" : RDV à domicile actifs sans infirmier.
  * Source UNIQUE de la file d'affectation, partagée par GET /api/admin/missions
- * et GET /api/admin/teams — les deux vues doivent voir la même file, sinon le
- * dispatch depuis l'une ne correspond plus à l'affichage de l'autre.
+ * et le tableau de bord Vue d'ensemble — un seul affichage de référence pour
+ * le dispatch, sinon les écrans divergent sur « ce qui reste à affecter ».
  */
 export async function listDispatchQueue() {
   const rows = await db.appointment.findMany({

@@ -1675,3 +1675,25 @@ Stage Summary:
 - Build Vercel débloqué : la version épinglée existe désormais sur le registre, l'arbre npm est complet et verrouillé ; le push déclenche automatiquement un nouveau déploiement Vercel sur main.
 - Leçon : bun.lock sain ≠ package-lock.json sain — tout déploiement Vercel/npm doit être validé par `npm ci --dry-run` avant push.
 - Toutes les vues admin redesignées (missions, patients, vue d'ensemble 09113c4, profil 363fdee + les 4 vues UI-OTHER-3) sont maintenant sur origin/main.
+
+---
+Task ID: RM-TEAMS-1
+Agent: Z.ai Code (session actuelle)
+Task: Retirer complètement le système « Équipes par zone » (demande PO) — vue, API, service, types, et l'entrée de menu.
+
+Work Log:
+- Périmètre cartographié : aucune table dédiée en base (l'« équipe » est un agrégat virtuel) → suppression 100 % code, zéro migration, zéro impact données.
+- Fichiers supprimés : src/components/admin/teams-view.tsx (~950 lignes) + src/app/api/admin/teams/route.ts.
+- admin-sidebar.tsx : « Équipes » retirée de ITEMS et du type AdminTab, import UsersRound nettoyé, commentaire FEATURE-ANNUAIRE-ADMIN réécrit.
+- user-dashboard.tsx : import AdminTeamsView retiré, « equipes » retiré de DashboardTab/viewHeading/allowed.ADMIN et du bloc de rendu ; grille features ADMIN ramenée à un seul raccourci « Missions & Dispatch » (tab missions) + Statistiques ; sous-titres rewordés (« affectez vos soignants », espace « Coordination des soins à domicile ») ; imports Activity nettoyé (UsersRound conservé — ROLE_SPACE_ICON).
+- admin-home-view.tsx : les 2 CTA qui pointaient vers « equipes » (KPI « À affecter » + bouton « Ouvrir le dispatch ») retargetés vers « missions » — le dispatch reste pleinement fonctionnel dans la vue Missions (file + « Affecter un(e) infirmier(ère) » via GET/POST /api/admin/missions, inchangés).
+- admin-users-schemas.ts : types TeamBoard et ZoneLoad supprimés (NurseLoadItem conservé — consommé par l'annuaire infirmiers et NurseDetail) ; commentaires mis à jour.
+- admin-users.ts : getAdminTeamBoard supprimée (~45 lignes), imports listDispatchQueue/TeamBoard/ZoneLoad/ZONE_LABELS nettoyés, commentaires réécrits (listAdminNurseLoads sert la vue Infirmiers + le dispatch Missions).
+- Commentaires de référence mis à jour dans nurse.ts (listDispatchQueue = source unique partagée Missions + Vue d'ensemble), admin-overview.ts, api/admin/nurses/route.ts, admin-directory-shared.tsx, nurses-view.tsx.
+- Copie patient volontairement inchangée (« équipes soignantes » génériques — la mécanique zone → soignants reste vraie via les missions).
+- Vérifications navigateur (session admin Dr Kadjane, AUCUNE écriture métier) : lint 0 erreur ; menu desktop + drawer mobile = 8 entrées sans « Équipes » ; deep-link ?tab=equipes rejeté proprement (aucune vue rendue) ; KPI « À affecter » → ?tab=missions avec file de dispatch chargée (« À dispatcher », « Affecter un(e) infirmier(ère) ») ; CTA « Ouvrir le dispatch » → missions OK ; mobile 390×844 scrollWidth 390 = 390 ; mode sombre testé via le contrôle segmenté du profil puis Clair restauré ; console et dev.log sans erreur.
+- Commit + push vers origin/main ; /home/sync/repo.tar rafraîchi.
+
+Stage Summary:
+- Le système d'équipes par zone n'existe plus dans l'app : plus de menu, plus de vue, plus d'API, plus de types — le dispatch des soins à domicile est consolidé dans « Missions & Dispatch » (source unique de la file : listDispatchQueue, partagée avec la Vue d'ensemble).
+- Aucun impact base de données (aucune table équipe), aucune écriture métier, aucune dépendance nouvelle.

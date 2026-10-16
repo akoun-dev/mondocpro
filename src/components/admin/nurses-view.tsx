@@ -288,7 +288,7 @@ function FilterChip({
  *    immédiatement avec son numéro (aucune étape d'activation) ;
  * 3. le mot de passe généré n'est affiché qu'une fois, prêt à communiquer ;
  *    l'annuaire se recharge en arrière-plan et l'infirmier est déjà affectable
- *    par le dispatch (vue Équipes / Missions).
+ *    par le dispatch (vue Missions).
  */
 function CreateNurseDialog({
     open,

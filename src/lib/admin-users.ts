@@ -1,6 +1,6 @@
 // Services annuaire admin — FEATURE-ANNUAIRE-ADMIN
-// Listes patients / infirmiers, dossier patient avec historique filtré, charge
-// par infirmier et tableau de bord des équipes. Les routes API sont minces :
+// Listes patients / infirmiers, dossier patient avec historique filtré et
+// charge par infirmier. Les routes API sont minces :
 // tout le travail de lecture est ici, comme dans les autres services (nurse.ts,
 // appointments.ts).
 //
@@ -13,8 +13,7 @@ import { db } from "@/lib/db";
 import { hashPassword, invalidateUserSessions } from "@/lib/auth";
 import { Prisma } from "@prisma/client";
 
-import { ZONE_LABELS } from "@/lib/auth-schemas";
-import { listDispatchQueue, listNurseMissions } from "@/lib/nurse";
+import { listNurseMissions } from "@/lib/nurse";
 import {
   periodStart,
   type AdminUserListQuery,
@@ -28,8 +27,6 @@ import {
   type PatientHistoryQuery,
   type PatientListItem,
   type PatientSummary,
-  type TeamBoard,
-  type ZoneLoad,
 } from "@/lib/admin-users-schemas";
 
 export class AdminUserError extends Error {
@@ -394,8 +391,8 @@ const ACTIVE_MISSION_STATUSES = ["ASSIGNED", "ACCEPTED", "IN_PROGRESS"] as const
 
 /**
  * Charge par infirmier — une requête d'utilisateurs, trois agrégats de
- * missions. Les compteurs servent la vue Équipes (répartition) ET la vue
- * Infirmiers (fiche individuelle).
+ * missions. Les compteurs servent la vue Infirmiers (fiche individuelle) et
+ * le dispatch de la vue Missions.
  */
 export async function listAdminNurseLoads(
   query: AdminUserListQuery,
@@ -591,51 +588,6 @@ export async function createAdminNurse(
     }
     throw e;
   }
-}
-
-// ——— Vue Équipes : supervision + dispatch ———
-
-/**
- * Tableau de bord des équipes.
- *
- * La file d'affectation vient de `listDispatchQueue()` — la même source que
- * GET /api/admin/missions, pour que la vue Équipes et le dispatch de la vue
- * Missions ne puissent pas diverger sur « ce qui reste à affecter ».
- */
-export async function getAdminTeamBoard(): Promise<TeamBoard> {
-  const [nurses, queue] = await Promise.all([
-    listAdminNurseLoads({ status: "all" }),
-    listDispatchQueue(),
-  ]);
-
-  const zoneLoad: ZoneLoad[] = Object.keys(ZONE_LABELS).map((zone) => {
-    const zoneNurses = nurses.filter((n) => n.zone === zone && n.isActive);
-    return {
-      zone,
-      label: ZONE_LABELS[zone as keyof typeof ZONE_LABELS],
-      activeMissions: nurses
-        .filter((n) => n.zone === zone)
-        .reduce((sum, n) => sum + n.activeMissions, 0),
-      unassigned: queue.filter((q) => q.zone === zone).length,
-      activeNurses: zoneNurses.length,
-    };
-  });
-
-  return {
-    nurses,
-    queue,
-    zoneLoad,
-    totals: {
-      activeNurses: nurses.filter((n) => n.isActive).length,
-      inactiveNurses: nurses.filter((n) => !n.isActive).length,
-      activeMissions: nurses.reduce((sum, n) => sum + n.activeMissions, 0),
-      unassigned: queue.length,
-      completedThisMonth: nurses.reduce(
-        (sum, n) => sum + n.completedThisMonth,
-        0,
-      ),
-    },
-  };
 }
 
 // ——— Suspension / réactivation d'un compte ———

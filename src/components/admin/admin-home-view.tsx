@@ -483,7 +483,7 @@ export function AdminHomeView({ userName, onNavigate }: Props) {
                             value={String(kpis.toDispatch)}
                             sub="RDV à domicile sans soignant"
                             alert={kpis.toDispatch > 0}
-                            onClick={() => onNavigate("equipes")}
+                            onClick={() => onNavigate("missions")}
                         />
                         <KpiCard
                             icon={Banknote}
@@ -811,7 +811,7 @@ export function AdminHomeView({ userName, onNavigate }: Props) {
                                         <Button
                                             type="button"
                                             onClick={() =>
-                                                onNavigate("equipes")
+                                                onNavigate("missions")
                                             }
                                             className="mt-auto h-10 w-full justify-center gap-1.5 rounded-full bg-warning text-xs font-bold text-warning-foreground hover:bg-warning/90"
                                         >

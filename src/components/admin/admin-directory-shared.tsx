@@ -2,8 +2,8 @@
 
 // Briques partagées par les vues admin de l'annuaire (FEATURE-ANNUAIRE-ADMIN) :
 // chargement d'une ressource, suspension d'un compte, ligne de compte.
-// Vues Patients / Infirmiers + Équipes — un seul endroit pour la logique
-// d'appel et le rendu d'une ligne de compte, sinon les trois écrans divergeraient
+// Vues Patients / Infirmiers — un seul endroit pour la logique
+// d'appel et le rendu d'une ligne de compte, sinon les deux écrans divergeraient
 // sur le libellé du bouton et la couleur du badge.
 
 import { useCallback, useEffect, useState } from "react";

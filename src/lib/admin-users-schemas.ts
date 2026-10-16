@@ -1,5 +1,5 @@
 // DTO + schémas de validation — FEATURE-ANNUAIRE-ADMIN
-// Annuaire Patients / Infirmiers et supervision des équipes, côté Médecin Chef.
+// Annuaire Patients / Infirmiers et supervision, côté Médecin Chef.
 //
 // Tout est client-safe (aucun Date, aucun passwordHash) : ces types sont
 // consommés par les vues admin comme par les scripts d'audit, sur le modèle de
@@ -169,7 +169,7 @@ export type PatientDetail = {
 // ——— Annuaire infirmiers ———
 
 /**
- * Charge d'un infirmier — le cœur de la vue « Équipes ».
+ * Charge d'un infirmier — le cœur de l'annuaire infirmiers.
  * `pendingAcceptance` est l'indicateur de supervision : une mission affectée
  * que l'infirmier n'a pas acceptée signale un effectif qui ne suit pas.
  */
@@ -195,30 +195,6 @@ export type NurseDetail = {
   nurse: NurseLoadItem;
   /** Missions de l'infirmier, plus récentes d'abord (MissionDto). */
   missions: import("@/lib/nurse-schemas").MissionDto[];
-};
-
-/** Répartition par zone — où la charge ne suit pas la demande. */
-export type ZoneLoad = {
-  zone: string;
-  label: string;
-  activeMissions: number;
-  unassigned: number;
-  activeNurses: number;
-};
-
-/** GET /api/admin/teams — supervision + dispatch. */
-export type TeamBoard = {
-  nurses: NurseLoadItem[];
-  /** File « à affecter » : RDV à domicile actifs sans infirmier. */
-  queue: import("@/lib/nurse-schemas").DispatchQueueItem[];
-  zoneLoad: ZoneLoad[];
-  totals: {
-    activeNurses: number;
-    inactiveNurses: number;
-    activeMissions: number;
-    unassigned: number;
-    completedThisMonth: number;
-  };
 };
 
 // ——— Libellés des filtres (partagés vues + scripts) ———

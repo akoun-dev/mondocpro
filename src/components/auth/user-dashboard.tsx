@@ -9,7 +9,6 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import { AnimatePresence, motion } from "framer-motion"
 import {
-    Activity,
     BarChart3,
     BellRing,
     CalendarCheck,
@@ -74,7 +73,6 @@ import { RechargesView } from "@/components/admin/recharges-view"
 import { WalletSection } from "@/components/patient/wallet-section"
 import { TariffsView } from "@/components/admin/tariffs-view"
 import { AdminMissionsView } from "@/components/admin/missions-view"
-import { AdminTeamsView } from "@/components/admin/teams-view"
 import { AdminPatientsView } from "@/components/admin/patients-view"
 import { AdminNursesView } from "@/components/admin/nurses-view"
 import { NotificationsBell } from "@/components/auth/notifications-panel"
@@ -174,26 +172,16 @@ const ROLE_SPACE: Record<
     },
     ADMIN: {
         title: "Espace Médecin Chef",
-        description: "Supervision et dispatch des équipes",
+        description: "Coordination des soins à domicile",
         features: [
-            // FEATURE-ANNUAIRE-ADMIN : Supervision et Dispatch pointaient
-            // toutes deux vers « missions », donc deux cartes pour un seul
-            // écran. Dispatch va desormais sur la vue Équipes (la file
-            // d'affectation y est utilisable sans changer d'onglet) ;
-            // Supervision y trouve la charge et la répartition par zone.
+            // Le dispatch vit uniquement dans « Missions » (retrait de la
+            // vue « Équipes » — demande PO) : un seul raccourci.
             {
-                icon: Activity,
-                title: "Supervision",
-                description: "Suivez l'activité des équipes soignantes.",
+                icon: ClipboardCheck,
+                title: "Missions & Dispatch",
+                description: "Suivez l'activité et affectez les soins.",
                 live: true,
-                tab: "equipes",
-            },
-            {
-                icon: UsersRound,
-                title: "Dispatch",
-                description: "Affectez les missions entre infirmiers.",
-                live: true,
-                tab: "equipes",
+                tab: "missions",
             },
             {
                 icon: BarChart3,
@@ -213,7 +201,6 @@ type DashboardTab =
     | "accueil"
     | "rdv"
     | "missions"
-    | "equipes"
     | "patients"
     | "infirmiers"
     | "sensibilisations"
@@ -252,19 +239,14 @@ function viewHeading(
                 ? {
                     title: "Missions & Dispatch",
                     subtitle:
-                        "Soins à domicile — affectez vos équipes et suivez les interventions",
+                        "Soins à domicile — affectez vos soignants et suivez les interventions",
                 }
                 : {
                     title: "Mes missions",
                     subtitle:
                         "Consultez vos interventions et mettez à jour leur avancement",
                 }
-        // FEATURE-ANNUAIRE-ADMIN : supervision + dispatch de l'effectif.
-        case "equipes":
-            return {
-                title: "Équipes",
-                subtitle: "Supervision des effectifs et dispatch des soins à domicile",
-            }
+        // FEATURE-ANNUAIRE-ADMIN : annuaires de l'effectif.
         case "patients":
             return {
                 title: "Patients",
@@ -489,7 +471,6 @@ export function UserDashboard() {
                 "recharges",
                 "specialties",
                 "missions",
-                "equipes",
                 "patients",
                 "infirmiers",
                 "sensibilisations",
@@ -733,8 +714,8 @@ export function UserDashboard() {
                 <h1 className="sr-only">Mon espace Mon doc Pro</h1>
 
                 {/* Demande PO 2026-10 : vues admin en pleine largeur (w-full,
-                    plus de max-w-5xl) — les tableaux de supervision (équipes,
-                    annuaires, missions) gagnent la place des grands écrans.
+                    plus de max-w-5xl) — les tableaux (annuaires, missions)
+                    gagnent la place des grands écrans.
                     Patient / infirmier restent bornés à max-w-3xl. */}
                 <div
                     className={`w-full px-4 py-6 sm:py-8 ${user.role === "ADMIN" ? "pb-8" : "mx-auto max-w-3xl pb-32"}`}
@@ -994,22 +975,8 @@ export function UserDashboard() {
                             </motion.section>
                         )}
 
-                        {/* FEATURE-ANNUAIRE-ADMIN — équipes : supervision de
-                    l'effectif + dispatch ; annuaires patients / infirmiers avec
-                    suspension de compte. */}
-                        {tab === "equipes" && user.role === "ADMIN" && (
-                            <motion.section
-                                key="equipes"
-                                variants={tabVariants}
-                                initial="enter"
-                                animate="center"
-                                exit="exit"
-                                aria-label="Supervision et dispatch des équipes"
-                            >
-                                <AdminTeamsView />
-                            </motion.section>
-                        )}
-
+                        {/* FEATURE-ANNUAIRE-ADMIN — annuaires patients /
+                    infirmiers avec suspension de compte. */}
                         {tab === "patients" && user.role === "ADMIN" && (
                             <motion.section
                                 key="patients"

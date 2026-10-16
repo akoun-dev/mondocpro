@@ -2,7 +2,7 @@
 // (FEATURE-ANNUAIRE-ADMIN, demande PO 2026-10). ADMIN uniquement.
 // GET : chaque ligne indique les missions en cours, celles en attente
 // d'acceptation et les visites terminées dans le mois : c'est la matière de la
-// vue Équipes et de la supervision. Mêmes filtres que l'annuaire patients.
+// supervision (vue Infirmiers). Mêmes filtres que l'annuaire patients.
 // POST : workflow complet d'onboarding — identité + zone + téléphone + mot de
 // passe (choisi ou généré). Rôle NURSE forcé côté serveur ; compte actif dès
 // la création, l'infirmier peut se connecter immédiatement.
