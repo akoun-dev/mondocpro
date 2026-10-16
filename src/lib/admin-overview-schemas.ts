@@ -76,7 +76,7 @@ export type AdminNextAppointment = {
 
 export type AdminOverview = {
   kpis: AdminOverviewKpis;
-  nextAppointmentToday: AdminNextAppointment;
+  nextAppointmentToday: AdminNextAppointment | null;
   completedByDay: AdminDayBucket[];
   // Total des visites terminées sur les 7 jours PRÉCÉDANT la fenêtre du
   // graphique — sert au badge de tendance « +X % » de la vue.
