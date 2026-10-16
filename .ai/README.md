@@ -47,3 +47,11 @@ du projet. Il est maintenu par l'équipe virtuelle d'agents spécialisés orches
 3. **Aucune livraison PROD** sans audit global (score ≥ 60/100).
 4. **Intégrité absolue** : jamais déclarer terminé ce qui ne l'est pas — preuves exigées.
 5. Frontend bloqué tant que le contrat API n'est pas validé dans `API_CONTRACTS.md`.
+
+---
+
+## ♻️ Réutilisation dans un autre projet
+
+Le kit portable du système est dans **`ORCHESTRATEUR/`** : prompt système
+(`PROMPT-ORCHESTRATEUR.md`), version skill (`SKILL.md`), gabarits (`templates/`) et
+installation en 1 commande (`scripts/bootstrap.sh`). Voir `ORCHESTRATEUR/README.md`.

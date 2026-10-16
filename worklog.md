@@ -1697,3 +1697,23 @@ Work Log:
 Stage Summary:
 - Le système d'équipes par zone n'existe plus dans l'app : plus de menu, plus de vue, plus d'API, plus de types — le dispatch des soins à domicile est consolidé dans « Missions & Dispatch » (source unique de la file : listDispatchQueue, partagée avec la Vue d'ensemble).
 - Aucun impact base de données (aucune table équipe), aucune écriture métier, aucune dépendance nouvelle.
+
+---
+Task ID: KIT-ORCH-1
+Agent: Z.ai Code (session actuelle)
+Task: Créer un kit portable « orchestrateur » dans .ai/ pour réutiliser le même système multi-agents dans un autre projet (format prompt + format skill).
+
+Work Log:
+- Système existant extrait et généralisé (aucune dépendance Mon doc Pro, exemples marqués) : worklog append-only + Task IDs, boucle autonome, feature lifecycle 8 phases, routage des bugs, règles d'or, conventions dev (frontend-first, API routes, shadcn/UI, responsive, a11y, dark mode), chaîne de vérification navigateur (chemin doré, mobile scrollWidth, clair/sombre, logs), livraison git (commits conventionnels, push, rebase si non-fast-forward, piège des locks bun/npm).
+- .ai/ORCHESTRATEUR/README.md — présentation du kit + 2 modes d'installation (prompt vs skill).
+- .ai/ORCHESTRATEUR/PROMPT-ORCHESTRATEUR.md — LE prompt système (12 sections, {{PLACEHOLDERS}} à personnaliser).
+- .ai/ORCHESTRATEUR/SKILL.md — version skill (frontmatter name/description « pushy », progressive disclosure vers le protocole + templates).
+- .ai/ORCHESTRATEUR/templates/ — 8 gabarits : worklog, README .ai, WORKFLOWS (3 workflows), registre qualité commun (préfixe paramétrable), SPEC feature, ADR, HANDOFF, PROJECT_CONTEXT.
+- .ai/ORCHESTRATEUR/scripts/bootstrap.sh — installation en 1 commande du squelette complet (.ai/ + worklog.md + registres générés avec préfixes BUG/SEC/A11Y/PERF/REG), idempotent (n'écrase jamais).
+- Pointeur ajouté à la fin du .ai/README.md du projet.
+- Vérifié : bash -n OK ; dry-run complet dans /tmp/testrepo (24 fichiers + worklog générés, titres de registres substitués correctement) ; second run = idempotence OK ; fix appliqué au passage : délimiteur sed | (le « / » de « détectées / corrigées » cassait s///).
+- Commit + push vers origin/main ; /home/sync/repo.tar rafraîchi.
+
+Stage Summary:
+- Le système d'orchestration est désormais embarqué dans le repo sous .ai/ORCHESTRATEUR/ : copier le dossier, lancer scripts/bootstrap.sh dans le nouveau projet, remplir PROJECT_CONTEXT.md, pointer l'agent sur PROMPT-ORCHESTRATEUR.md (mode prompt) ou installer SKILL.md dans le dossier de skills (mode skill).
+- Zéro impact produit : uniquement des fichiers de documentation et un script — aucune modification de code applicatif.
