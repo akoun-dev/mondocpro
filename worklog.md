@@ -1509,3 +1509,21 @@ Stage Summary:
 - Vue « Missions & Dispatch » redesignée maquette PO : recherche, synthèses cliquables, chips, carte urgence ambre, avatars initiales, progression visite, Suivi live — même contrat API (GET/POST/PATCH inchangés), zéro migration, zéro nouvelle dépendance.
 - Mot de passe admin constaté : `Admin#MonDocPro2026` (seed-test-accounts) ≠ ADMIN_INITIAL_PASSWORD fourni (`Admin#Mondocpro`) — signaler au PO lequel fait foi.
 - Datos réelles : 21 éléments (1 file + 20 missions actives passées), 0 mission du jour — les sections vides affichent des états dédiés ; l'historique rend les 20 missions visibles.
+
+---
+Task ID: UI-PATIENTS-1
+Agent: Z.ai Code (session actuelle)
+Task: Redesign de la vue admin « Patients » (src/components/admin/patients-view.tsx) selon la maquette mobile fournie par le PO (upload/pasted_image_1792162032602.png).
+
+Work Log:
+- Maquette analysée : header Patients/« Annuaire des dossiers & suivi » (déjà porté par le shell → sous-titre aligné dans user-dashboard.tsx), barre de recherche, chips de zones avec effectifs, ligne « X affichés sur Y dossiers » + tri, cartes patient (avatar initiales, badge Actif, badge zone coloré, âge + n° dossier, téléphone bleu cliquable, bannière ambre motif, bandeau stats 3 colonnes, CTA Ouvrir le dossier + appel + ⋮).
+- API étendue (contrat backward-compatible) : GET /api/admin/patients → { patients, total, zoneCounts } ; PatientListItem.nextVisitReason = motif du prochain RDV PENDING/CONFIRMED le plus proche (findMany ordonné asc, première occurrence par patient). total/zoneCounts calculés SANS filtres (les chips de zone ne bougent pas quand on cherche, fidélité maquette).
+- Référence dossier affichable #PT-<année>-<4 derniers car. de l'ID> dérivée de l'ID réel (la base n'a pas de champ numéro de dossier) ; âge calculé côté client depuis birthDate (UTC) ; pas de champ genre en base → la ligne méta affiche « X ans · Dossier #PT-… ».
+- patients-view.tsx réécrit (~800 lignes) : recherche pillée + bouton X (anti-rebond 300 ms conservé) ; chips de zone scrollables (compteurs globaux, aria-pressed) ; Select compacts « État : Tous/Actifs/Suspendus » et « Tri : Dernier passage/Prochain RDV/Nom (A-Z) » + refresh ; cartes : avatar déterministe (même palette que Missions), badges Actif (vert)/Suspendu (rouge) + zone colorée par zone (Yopougon=primary, Songon=teal, PK22=amber, N'Dotré=violet), téléphone tel: bleu, bannière ambre « Prochain RDV : {motif} » conditionnelle, dl stats grid-cols-3 divide-x (visites / « Aujourd'hui-Hier-date » / « Demain HH:mm »), actions CTA primary-soft + bouton appel + DropdownMenu ⋮ (suspension/réactivation PRÉSERVÉE via SuspendAccountDialog) ; PatientDossier (dialog historique) inchangé.
+- Fix débordement horizontal mobile : le nom en truncate alimentait la largeur intrinsèque de la grille (min-width:auto) → cartes 449 px sous viewport 390. Nom passé en wrap 1-2 lignes (conforme maquette) → scrollWidth 390 = innerWidth vérifié par eval.
+- Vérifications (server via scripts/dev-boot.sh + agent-browser, session admin persistante, AUCUNE écriture métier) : lint 0 erreur ; desktop 1280×800 + mobile 390×844 clair/sombre conformes maquette ; recherche « aboa » → 1 affiché ; X d'effacement → 3 affichés ; chip PK22 → état vide « Aucun patient ne correspond » ; tri Nom (A-Z) → ordre vérifié ; filtre État Suspendus → 0 affiché ; dialog dossier ABOA (0 RDV en base → « Aucune consultation », cohérent — vérifié en DB : seuls Maquette UI 57 RDV et Tokens E2E 2 RDV existent) ; menu ⋮ → dialog « Suspendre le compte » ouvert puis ANNULÉ ; dev.log sans erreur.
+
+Stage Summary:
+- Vue « Patients » redesignée maquette PO : même contrat API étendu (additif), zéro migration, zéro nouvelle dépendance ; suspension de compte conservée via menu ⋮.
+- Bannière ambre « motif du prochain RDV » non observable en prod aujourd'hui (aucun RDV à venir avec motif parmi les 3 patients) — chemin conditionnel identique au pattern Missions, à re-vérifier dès qu'un RDV futur avec motif existera.
+- Commit 1adaa30 (5 fichiers, +961/−489) ; /home/sync/repo.tar rafraîchi (92 Mo, 778 entrées).
