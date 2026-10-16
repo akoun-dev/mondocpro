@@ -101,6 +101,25 @@ export type PatientListItem = {
   /** Prochain RDV PENDING/CONFIRMED, sinon null. */
   nextVisitAt: string | null;
   lastVisitAt: string | null;
+  /**
+   * Motif du prochain RDV actif — alimente la bannière d'alerte de la carte
+   * (maquette Patients : « Contrôle glycémie… »). null si aucun RDV à venir
+   * ou si le motif n'a pas été renseigné à la prise de RDV.
+   */
+  nextVisitReason: string | null;
+};
+
+/**
+ * Réponse GET /api/admin/patients — la liste filtrée + les compteurs globaux
+ * de l'annuaire (maquette Patients : « X affichés sur Y dossiers » et chips
+ * de zone avec leur effectif). Un seul aller-retour pour tout alimenter.
+ */
+export type PatientDirectory = {
+  patients: PatientListItem[];
+  /** Dossiers patients au total, tous filtres confondus. */
+  total: number;
+  /** Dossiers par zone (clé = valeur de l'enum Zone) — compteurs des chips. */
+  zoneCounts: Record<string, number>;
 };
 
 /** Compteurs d'en-tête du dossier, affichés au-dessus de l'historique. */

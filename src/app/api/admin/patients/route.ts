@@ -22,8 +22,10 @@ export async function GET(request: Request) {
   }
 
   try {
-    const patients = await listAdminPatients(query.data);
-    return NextResponse.json({ patients });
+    // Liste filtrée + compteurs globaux de l'annuaire (maquette Patients :
+    // « X affichés sur Y dossiers », chips de zone avec leur effectif).
+    const directory = await listAdminPatients(query.data);
+    return NextResponse.json(directory);
   } catch (e) {
     console.error("[admin/patients/GET] erreur:", e);
     return NextResponse.json(

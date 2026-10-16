@@ -268,7 +268,7 @@ function viewHeading(
         case "patients":
             return {
                 title: "Patients",
-                subtitle: "Annuaire des dossiers et historique des consultations",
+                subtitle: "Annuaire des dossiers & suivi",
             }
         case "infirmiers":
             return {

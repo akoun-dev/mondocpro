@@ -24,6 +24,7 @@ import {
   type NurseLoadItem,
   type PatientConsultation,
   type PatientDetail,
+  type PatientDirectory,
   type PatientHistoryQuery,
   type PatientListItem,
   type PatientSummary,
@@ -78,26 +79,42 @@ function startOfCurrentMonth(): Date {
  */
 export async function listAdminPatients(
   query: AdminUserListQuery,
-): Promise<PatientListItem[]> {
-  const users = await db.user.findMany({
-    where: accountWhere("PATIENT", query),
-    orderBy: { fullName: "asc" },
-    select: {
-      id: true,
-      fullName: true,
-      phone: true,
-      zone: true,
-      birthDate: true,
-      isActive: true,
-      createdAt: true,
-    },
-  });
+): Promise<PatientDirectory> {
+  // total / zoneCounts décrivent l'annuaire ENTIer (tous filtres confondus) :
+  // ils alimentent « X affichés sur Y dossiers » et les chips de zone de la
+  // maquette, qui ne bougent pas quand on cherche.
+  const [users, total, zoneRows] = await Promise.all([
+    db.user.findMany({
+      where: accountWhere("PATIENT", query),
+      orderBy: { fullName: "asc" },
+      select: {
+        id: true,
+        fullName: true,
+        phone: true,
+        zone: true,
+        birthDate: true,
+        isActive: true,
+        createdAt: true,
+      },
+    }),
+    db.user.count({ where: { role: "PATIENT" } }),
+    db.user.groupBy({
+      by: ["zone"],
+      where: { role: "PATIENT" },
+      _count: { _all: true },
+    }),
+  ]);
+
+  const zoneCounts: Record<string, number> = {};
+  for (const row of zoneRows) {
+    zoneCounts[row.zone] = row._count._all;
+  }
+
+  if (users.length === 0) return { patients: [], total, zoneCounts };
 
   const ids = users.map((u) => u.id);
-  if (ids.length === 0) return [];
-
   const now = new Date();
-  const [byStatus, lastDone, nextUp] = await Promise.all([
+  const [byStatus, lastDone, nextUp, nextReasons] = await Promise.all([
     db.appointment.groupBy({
       by: ["patientId", "status"],
       where: { patientId: { in: ids } },
@@ -117,6 +134,18 @@ export async function listAdminPatients(
       },
       _min: { scheduledAt: true },
     }),
+    // Motif du PROCHAIN RDV actif (le plus proche) — bannière d'alerte de la
+    // carte (maquette). findMany ordonné asc : la première occurrence par
+    // patient est bien le créneau le plus proche.
+    db.appointment.findMany({
+      where: {
+        patientId: { in: ids },
+        status: { in: ["PENDING", "CONFIRMED"] },
+        scheduledAt: { gte: now },
+      },
+      orderBy: { scheduledAt: "asc" },
+      select: { patientId: true, reason: true },
+    }),
   ]);
 
   const statusIndex = new Map<string, Record<string, number>>();
@@ -127,23 +156,34 @@ export async function listAdminPatients(
   }
   const lastDoneIndex = new Map(lastDone.map((r) => [r.patientId, r._max.scheduledAt]));
   const nextUpIndex = new Map(nextUp.map((r) => [r.patientId, r._min.scheduledAt]));
+  const nextReasonIndex = new Map<string, string | null>();
+  for (const row of nextReasons) {
+    if (!nextReasonIndex.has(row.patientId)) {
+      nextReasonIndex.set(row.patientId, row.reason);
+    }
+  }
 
-  return users.map((user) => {
-    const counts = statusIndex.get(user.id) ?? {};
-    return {
-      id: user.id,
-      fullName: user.fullName,
-      phone: user.phone,
-      zone: user.zone,
-      birthDate: user.birthDate ? user.birthDate.toISOString() : null,
-      isActive: user.isActive,
-      createdAt: user.createdAt.toISOString(),
-      doneCount: counts.DONE ?? 0,
-      cancelledCount: counts.CANCELLED ?? 0,
-      nextVisitAt: nextUpIndex.get(user.id)?.toISOString() ?? null,
-      lastVisitAt: lastDoneIndex.get(user.id)?.toISOString() ?? null,
-    };
-  });
+  return {
+    total,
+    zoneCounts,
+    patients: users.map((user) => {
+      const counts = statusIndex.get(user.id) ?? {};
+      return {
+        id: user.id,
+        fullName: user.fullName,
+        phone: user.phone,
+        zone: user.zone,
+        birthDate: user.birthDate ? user.birthDate.toISOString() : null,
+        isActive: user.isActive,
+        createdAt: user.createdAt.toISOString(),
+        doneCount: counts.DONE ?? 0,
+        cancelledCount: counts.CANCELLED ?? 0,
+        nextVisitAt: nextUpIndex.get(user.id)?.toISOString() ?? null,
+        lastVisitAt: lastDoneIndex.get(user.id)?.toISOString() ?? null,
+        nextVisitReason: nextReasonIndex.get(user.id) ?? null,
+      };
+    }),
+  };
 }
 
 /**
