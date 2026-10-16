@@ -1467,3 +1467,27 @@ Stage Summary:
 - Après fusion, l'accueil Médecin Chef affiche le tableau de bord **distant `AdminHomeView`** (`GET /api/admin/overview`) — notre variante `AdminOverview`/`GET /api/admin/stats` a été retirée pour éviter deux tableaux de bord concurrents
 - Validation : tsc 0 erreur hors fichiers préexistants (`examples/websocket/*`, `scripts/audit-db.ts`) ; lint 0 sur les fichiers touchés ; endpoint `GET /api/admin/stats` (notre variante, avant retrait) vérifié en conditions réelles (ADMIN Dr Kadjane) — `activeMissions` 20 = ASSIGNED 2 + IN_PROGRESS 18, `activeNurses` 11, `tokensCredited30d` 223 / 557 500 FCFA, `zones` et `statuses` cohérents
 - Blocages rencontrés : CLI `supabase` ET `prisma db execute` inutilisables (timeout sur le pooler) ⇒ DDL via `PrismaClient.$executeRawUnsafe` ; pas d'outil de navigateur automatisé ⇒ test de la cloche raisonné (prop-forwarding Radix), pas cliqué en E2E
+
+---
+Task ID: RESTORE-1
+Agent: Z.ai Code (session actuelle)
+Task: Cloner https://github.com/akoun-dev/mondocpro.git et remplacer intégralement la workspace sandbox, puis configurer l'env (.env fourni par le PO) et vérifier le boot.
+
+Work Log:
+- Workspace vidée (préservation du point de montage upload/) puis remplie par le repo cloné (commit cc02b5c, branche main, 381 fichiers — copie vérifiée).
+- .env écrit avec les variables fournies par le PO (DATABASE_URL pooler aws-0-eu-west-1:5432 session mode, clés Supabase, SUPABASE_SERVICE_ROLE_KEY, ADMIN_INITIAL_PASSWORD) ; vérifié git check-ignore (.gitignore:34 .env*).
+- .zscripts/.env.supabase (re)créé chmod 600 avec les MÊMES variables — sans lui, un rebuild conteneur écraserait .env (file:...custom.db) et dev.sh n'aurait rien à restaurer (SYS-010).
+- scripts/dev-with-env.sh : port 4000 → 3000 (le gateway preview de CETTE sandbox proxifie localhost:3000 ; l'ancienne sandbox utilisait 4000).
+- scripts/dev-boot.sh : idem port 3000 (vérifications single-call).
+- bun.lock corrigé : versions caniuse-lite corrompues 1.0.40001579/1759/1764 → 1.0.30001579/1759/1764 (404 npm install) ; lockfile reformaté par bun 1.3.14 (1022 packages préservés, install OK, prisma generate OK).
+- Commit local 98b9aab : fix port + lockfile (non poussé vers origin).
+- Archive de persistance /home/sync/repo.tar (91 Mo, 713 entrées, SANS node_modules/.next/upload) créée manuellement + extraction testée — garantit la restauration workspace au prochain rebuild conteneur même sans prestop.
+- Vérifications single-call (modèle « sandbox ne survit que process du boot plateforme », cf. Task 30) : boot via scripts/dev-boot.sh → /api/health {"status":"ok","database":"up"} (pooler Supabase joignable, schéma sslmode/pg OK) ; GET / 200 ; /api/specialties et /api/tariffs → 401 (auth requise, comportement attendu) ; POST /api/auth/login → 401 « Numéro ou mot de passe incorrect » (API fonctionnelle ; le mot de passe ADMIN_INITIAL_PASSWORD du .env ne correspond PAS au compte admin de production — seed volontairement NON exécuté pour ne pas écraser le mot de passe prod).
+- Agent Browser (desktop 1280×800 + mobile 390×844) : page login rendue (branding, champ +225 drapeau CI, password toggle, sticky footer ©) ; erreur « Numéro ou mot de passe incorrect » affichée proprement en alerte après soumission ; navigation « Créer un compte » → wizard Inscription 3 étapes (Identité/Zone/Sécurité) fonctionnel ; dev.log sans erreur runtime.
+
+Stage Summary:
+- Workspace = repo mondocpro HEAD (cc02b5c) + adaptations sandbox commitées (98b9aab) ; env Supabase du PO opérationnel (health database:up).
+- Trois couches de résilience en place : (1) .zscripts/dev.sh restauré + .env.supabase → tout boot conteneur redémarre le serveur sur 3000 avec la bonne base ; (2) scripts/dev-with-env.sh → tout bun run dev manuel force DATABASE_URL ; (3) /home/sync/repo.tar → le workspace survit au recyclage d'instance même sans prestop.
+- Piège persistant (inchangé, connu Task 30) : le serveur relancé manuellement meurt en fin de tool-call ; seul le boot plateforme (.zscripts/dev.sh) est persistant — le preview se stabilise après le prochain recyclage/rebuild FC (health check :81 → 412 → rebuild → boot custom).
+- Pooler session 5432 saturé côté prod (EMAXCONNSESSION pool_size 15) pendant la session : connexions ad hoc intermittentes ; le serveur dev garde son pool (health + login OK). Rappel ADR-011 : prod déjà migrée sur pooler transaction 6543.
+- Le compte admin +2250700000001 existe en prod avec un mot de passe différent de ADMIN_INITIAL_PASSWORD (normal) — NE PAS relancer le seed sans validation du PO (upsert = écrasement du mot de passe).
