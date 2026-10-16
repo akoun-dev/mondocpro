@@ -1600,3 +1600,22 @@ Stage Summary:
 - « Tout vérifier » volontairement non implémenté (risque financier) — si le PO confirme le besoin, prévoir plutôt une confirmation par lot avec double validation.
 - Sous-titre téléphone au format formatPhoneDisplay (« +225 07 01 02 03 04 ») pour la cohérence avec patients-view (au lieu du replace("+225","0") de l'ancienne vue).
 - Compteur de la ligne de résultat filtré par la recherche (avec branche dédiée quand la recherche masque des demandes existantes) ; compteurs de chips stables pendant la saisie (fidélité maquette, comportement patients-view).
+
+---
+Task ID: UI-OTHER-3 (intégration)
+Agent: Z.ai Code (orchestrateur)
+Task: Redesign des 4 vues admin restantes selon les maquettes PO (Recharges / Infirmiers / Spécialités / Tarifs) — dispatch 4 sous-agents parallèles + intégration.
+
+Work Log:
+- Dispatch parallèle (fichiers non chevauchants) : UI-RECHARGES-2A (recharges-view), UI-NURSES-2B (nurses-view), UI-SPECIALTIES-2C (specialties-view), UI-TARIFFS-2D (tariffs-view) — chacun : lecture worklog + maquette + références missions/patients, périmètre strict, worklog individuel ajouté (voir entrées 2A-2D).
+- Choix transverses documentés : « Tout vérifier » (recharges) NON implémenté (confirmation massive = risque financier) ; matricule #IDE-xxx et référence TX-XXX-YYYYYY DÉRIVÉS de l'ID réel (pas de champs dédiés en base) ; charge journalière dérivée du nb de missions (×25 %, plafonnée) ; compteur « soignants » par spécialité non inventé (absent en base) ; grip spécialités décoratif (pas d'API de réordonnancement) ; « Filtres » tarifs omis (2 postes).
+- user-dashboard : sous-titres alignés maquettes (« Rapprochement & trésorerie », « Annuaire des soignants & affectations », « Proposés aux patients & soignants », « Grille active • 1 Token = 2 500 FCFA » dynamique via TOKEN_VALUE_FCFA).
+- Fix régression UI-PATIENTS-1 : getAdminPatient ne renvoyait pas nextVisitReason (contrat PatientListItem) → findFirst motif du prochain RDV ajouté ; tsc src/ à nouveau propre hors erreurs PRÉEXISTANTES de src/lib/tokens.ts (238-275, groupBy timeout/_sum — code repo d'origine, next.config typescript.ignoreBuildErrors=true assumé, non touché).
+- Fix anti-débordement recharges : lignes méta `truncate` (nowrap) propageaient la largeur intrinsèque → scrollWidth 424 > 390 ; remplacées par `line-clamp-1` (rendu identique, min-content = mot le plus long) → 390 = 390.
+- Vérifications navigateur (dev-boot + agent-browser, session admin, AUCUNE écriture métier) : lint 0 erreur ; mobile 390×844 des 4 vues SANS débordement (scrollWidth mesuré) ; desktop 1280×800 des 4 vues OK ; dark mode recharges + tarifs lisible ; recharges : chip Confirmées → 20 cartes / 0 refusée, état vide « Aucune demande en attente » ; infirmiers : menu ⋮ → dialog « Suspendre le compte » ouvert puis ANNULÉ, « Fiche soignant » → fiche chargée (20 missions en cours, 2 en attente) ; spécialités : chip Inactives → aria-pressed OK, Switch présent (NON actionné) ; tarifs : « Modifier » → input inline ouvert puis ANNULÉ ; dev.log sans erreur.
+- Commit e2f0f8e (7 fichiers, +3223/−1584) ; /home/sync/repo.tar rafraîchi.
+
+Stage Summary:
+- Les 6 vues admin principales (Missions, Patients, Recharges, Infirmiers, Spécialités, Tarifs) partagent désormais le même langage visuel maquette : recherche pillée, chips à compteurs, avatars initiales déterministes, badges colorés, bandeaux stats, CTA primary-soft, menus ⋮ — contrats API inchangés (sauf extensions additives patients), zéro migration, zéro dépendance.
+- Dérivations transparentes à valider par le PO : matricule IDE, référence TX, % charge journalière, libellé « Infirmier diplômé d'État (IDE) » statique.
+- Erreurs tsc préexistantes src/lib/tokens.ts (repo d'origine) non corrigées — hors périmètre, n'impactent pas le build (ignoreBuildErrors) ni le runtime.
