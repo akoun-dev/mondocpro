@@ -357,9 +357,7 @@ export function NurseProfileView({ user, onLogout }: Props) {
         <ProfileSectionTitle id="profil-apparence-nurse">
           Apparence
         </ProfileSectionTitle>
-        <div className="rounded-xl bg-muted/60 p-4">
-          <ThemeChoice />
-        </div>
+        <ThemeChoice />
       </section>
 
       {/* Préférences & Alertes — interrupteurs persistés (PATCH profil) */}

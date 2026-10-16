@@ -423,9 +423,7 @@ export function ProfileView({ user, onLogout }: Props) {
         >
           Apparence
         </h3>
-        <div className="rounded-xl bg-muted/60 p-4">
-          <ThemeChoice />
-        </div>
+        <ThemeChoice />
       </section>
 
       {/* Préférences & Alertes */}

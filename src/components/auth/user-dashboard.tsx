@@ -308,7 +308,13 @@ function viewHeading(
                 subtitle: `Grille active • 1 Token = ${TOKEN_VALUE_FCFA.toLocaleString("fr-FR")} FCFA`,
             }
         case "profil":
-            return { title: "Mon profil", subtitle: ROLE_LABELS[user.role] }
+            return {
+                title: "Mon profil",
+                subtitle:
+                    user.role === "ADMIN"
+                        ? "Médecin Chef · Coordination"
+                        : ROLE_LABELS[user.role],
+            }
         default:
             return { title: "Accueil", subtitle: "Vue d'ensemble" }
     }
