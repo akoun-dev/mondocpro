@@ -1656,3 +1656,22 @@ Stage Summary:
 - Vue profil Médecin Chef alignée sur la maquette : héros carte avec statut de supervision, informations groupées (naissance/mobile/secteur/sécurité), apparence segmentée, préférences et urgences — toutes les fonctions préservées (dialogs partagés, PATCH préférences, changement de mot de passe, confidentialité médicale, stats de supervision réelles).
 - ThemeChoice désormais autoportant → profils patient et infirmier mis à jour mécaniquement (contrôle segmenté, mêmes comportements) — à re-vérifier visuellement avec leurs propres maquettes si demandé.
 - Choix honnêtes documentés : pas de « Modifié il y a 3 mois » (champ absent en base), rangée d'état réelle « Supervision active / Coordination · N zones » à la place du « Régulateur N1 » décoratif de la maquette, Activité de supervision conservée (données réelles) bien qu'absente de la maquette.
+
+---
+Task ID: DEPLOY-1
+Agent: Z.ai Code (session actuelle)
+Task: Corriger l'échec du build Vercel (npm error ETARGET — caniuse-lite@1.0.40001764 inexistante) et pousser le correctif.
+
+Work Log:
+- Diagnostic : Vercel buildait 363fdee via npm (package-lock.json détecté, pas bun.lock). package-lock.json contenu une corruption systématique 1.0.3 → 1.0.4 sur caniuse-lite UNIQUEMENT : plage browserslist ^1.0.40001759, plage next ^1.0.40001579, version épinglée 1.0.40001764 (inexistante sur registry.npmjs.org → ETARGET). bun.lock était sain (1.0.30001764, hash identique au registre réel) — d'où un dev local OK mais un déploiement cassé.
+- Vérifié via curl registry.npmjs.org : 1.0.30001764 existe, integrity sha512-9JGuzl2M… identique à bun.lock ; npm view caniuse-lite → 1.0.30001816 (registre réel, pas de proxy qui réécrit).
+- Correctif : MultiEdit sur package-lock.json (3 chaînes ^1.0.40001759→^1.0.30001759, ^1.0.40001579→^1.0.30001579, version 1.0.40001764→1.0.30001764) puis `npm install --package-lock-only --ignore-scripts` contre le vrai registre → « up to date in 20s », 0 occurrence 1.0.4 restante.
+- Découverte au passage : l'ancien lock était INCOMPLET (~240 paquets absents, dont tout @capacitor/*) → npm a complété l'arbre et normalisé les métadonnées (resolved/integrity ajoutés, ré-indentation 4→2 espaces, diff massif mais bénin).
+- Validations : drift de versions = 1 seule entrée (caniuse-lite, voulu) ; 0 entrée supprimée ; `npm ci --dry-run --ignore-scripts` dans /tmp sur copie → « added 1048 packages », exit 0 (node_modules du projet intact, dev server non touché).
+- Commit 72c8f97 « fix(deploy): réparer package-lock.json (caniuse-lite fantôme + arbre incomplet) » puis push 363fdee..72c8f97 → origin/main OK (emporte aussi le commit 6114fee resté local : worklog + image maquette upload). Arbre local = origin/main.
+- /home/sync/repo.tar rafraîchi.
+
+Stage Summary:
+- Build Vercel débloqué : la version épinglée existe désormais sur le registre, l'arbre npm est complet et verrouillé ; le push déclenche automatiquement un nouveau déploiement Vercel sur main.
+- Leçon : bun.lock sain ≠ package-lock.json sain — tout déploiement Vercel/npm doit être validé par `npm ci --dry-run` avant push.
+- Toutes les vues admin redesignées (missions, patients, vue d'ensemble 09113c4, profil 363fdee + les 4 vues UI-OTHER-3) sont maintenant sur origin/main.
