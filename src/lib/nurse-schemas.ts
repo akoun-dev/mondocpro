@@ -21,13 +21,19 @@ export const visitReportSchema = z.object({
   vitalSigns: z.record(z.string(), z.union([z.string(), z.number()])).optional(),
 });
 
+const nurseIdsField = z
+  .array(z.string().trim().min(1))
+  .min(1, "Sélectionnez au moins un infirmier");
+
 export const dispatchMissionSchema = z.object({
   appointmentId: z.string().min(1),
-  nurseId: z.string().min(1),
+  nurseIds: nurseIdsField.optional(),
+  nurseId: z.string().min(1).optional(),
 });
 
 export const reassignMissionSchema = z.object({
-  nurseId: z.string().min(1),
+  nurseIds: nurseIdsField.optional(),
+  nurseId: z.string().min(1).optional(),
 });
 
 export type MissionStatus = z.infer<typeof missionStatusSchema>;
@@ -44,7 +50,8 @@ export type MissionDto = {
   startedAt?: string | null;
   completedAt?: string | null;
   cancelledAt?: string | null;
-  nurse: { id: string; fullName: string; phone: string; zone: string };
+  nurse: { id: string; fullName: string; phone: string; zone: string } | null;
+  nurses: { id: string; fullName: string; phone: string; zone: string }[];
   patient: { id: string; fullName: string; phone: string; zone: string };
   // Champs APLATIS par serializeMission (lib/nurse.ts) au premier niveau —
   // accès direct sans passer par `appointment` (fix BUG-003, audit 2026-10).

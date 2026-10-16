@@ -7,7 +7,7 @@
 set -uo pipefail
 cd "$(dirname "$0")/.."
 
-BASE="http://localhost:3000/api"
+BASE="http://localhost:4000/api"
 JP=$(mktemp) ; JN=$(mktemp) ; JN2=$(mktemp) ; JN3=$(mktemp)
 PASS=0 ; FAIL=0
 

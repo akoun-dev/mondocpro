@@ -12,8 +12,9 @@
 // optimiste + revert en cas d'échec).
 // Task 23 : le secteur d'habitation devient éditable « sur le même modèle »
 // (dialog dédié → PATCH zone → store) ; les rappels RDV sont précisés PO :
-// UNIQUEMENT avant les RDV. Restent en état « Bientôt » honnête : mot de
-// passe (code SMS), centre d'aide.
+// UNIQUEMENT avant les RDV. Le changement de mot de passe authentifié est
+// disponible sans SMS ; seul le parcours de récupération hors session dépend
+// encore de la passerelle.
 // Task 24 : les rappels RDV arrivent aussi EN APP (centre de notifications,
 // cloche du header) dès aujourd'hui ; le canal SMS reste en attente de la
 // décision A10 (ADR-006 : comparatif des passerelles).
@@ -57,6 +58,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { FlagCI } from "@/components/auth/ci-flag";
 import { ThemeChoice } from "@/components/theme/theme-choice";
+import { PasswordChangeDialog } from "@/components/auth/password-change-dialog";
 import {
   InfoRow,
   PreferenceRow,
@@ -103,6 +105,7 @@ export function ProfileView({ user, onLogout }: Props) {
   const [prefSaving, setPrefSaving] = useState<
     "appointmentReminders" | "healthAlerts" | null
   >(null);
+  const [passwordOpen, setPasswordOpen] = useState(false);
 
   const memberSince = `Membre · ${relativePublishedLabel(user.createdAt)}`;
 
@@ -377,16 +380,15 @@ export function ProfileView({ user, onLogout }: Props) {
           <InfoRow
             icon={LockKeyhole}
             label="Modifier le mot de passe"
-            value="Par code SMS — à venir"
-            valueMuted
+            value="Par vérification du mot de passe actuel"
             accessory={
               <ChevronRight
                 className="size-4 shrink-0 text-muted-foreground"
                 aria-hidden="true"
               />
             }
-            onClick={() => soonToast("Le changement de mot de passe")}
-            actionLabel="Modifier le mot de passe (bientôt disponible)"
+            onClick={() => setPasswordOpen(true)}
+            actionLabel="Modifier le mot de passe"
           />
           {/* Bandeau conformité — loi ivoirienne sur les données personnelles */}
           <div className="flex items-start gap-3 rounded-xl bg-success-light p-4">
@@ -407,6 +409,11 @@ export function ProfileView({ user, onLogout }: Props) {
           </div>
         </div>
       </section>
+
+      <PasswordChangeDialog
+        open={passwordOpen}
+        onOpenChange={setPasswordOpen}
+      />
 
       {/* Apparence — FEATURE-DARK-MODE (Task 37) : thème par utilisateur */}
       <section aria-labelledby="profil-apparence">

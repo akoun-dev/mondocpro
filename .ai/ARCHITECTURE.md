@@ -7,7 +7,7 @@
 ```
 ┌────────────────────────────────────────────────────────────────┐
 │                        CADDY GATEWAY (:81)                     │
-│        /  → localhost:3000   |   ?XTransformPort=N → service   │
+│        /  → localhost:4000   |   ?XTransformPort=N → service   │
 └──────────────┬─────────────────────────────────────────────────┘
                │
 ┌──────────────▼──────────────────────────────┐   ┌────────────────────────┐
@@ -28,13 +28,13 @@
 
 ## 2. Séparation des couches (RÈGLE 22 — non négociable)
 
-| Couche | Localisation | Interdit |
-|---|---|---|
-| Présentation | `src/app/**`, `src/components/**` | requête DB directe, logique métier |
-| Orchestration client | hooks `src/hooks/**` (appels API, TanStack Query, Zustand) | fetch en vrac dans les composants |
-| API / Controllers | `src/app/api/**/route.ts` (validation zod, statuts HTTP) | logique métier longue non factorisée |
-| Services / logique métier | `src/lib/**` (purs, testables) | accès au DOM / React |
-| Accès données | `src/lib/db.ts` (Prisma, singleton) | exposé côté client |
+| Couche                    | Localisation                                               | Interdit                             |
+| ------------------------- | ---------------------------------------------------------- | ------------------------------------ |
+| Présentation              | `src/app/**`, `src/components/**`                          | requête DB directe, logique métier   |
+| Orchestration client      | hooks `src/hooks/**` (appels API, TanStack Query, Zustand) | fetch en vrac dans les composants    |
+| API / Controllers         | `src/app/api/**/route.ts` (validation zod, statuts HTTP)   | logique métier longue non factorisée |
+| Services / logique métier | `src/lib/**` (purs, testables)                             | accès au DOM / React                 |
+| Accès données             | `src/lib/db.ts` (Prisma, singleton)                        | exposé côté client                   |
 
 **Toute opération CRUD** : Component → Hook → fetch API → route.ts (zod) → service (src/lib) → Prisma.
 
@@ -57,11 +57,11 @@
 
 ## 5. Décisions (ADR)
 
-| ADR | Décision | Statut |
-|---|---|---|
-| [ADR-001](ADR/ADR-001-technologie-stack.md) | Conservation stack socle Next.js 16 / React 19 / Prisma SQLite | Accepté |
-| [ADR-002](ADR/ADR-002-palette-medicale.md) | Palette médicale officielle (9 couleurs PO) en tokens sémantiques Tailwind 4 | Accepté |
-| [ADR-003](ADR/ADR-003-supabase-postgresql.md) | BDD = Supabase PostgreSQL via Prisma (pooler Supavisor aws-1-eu-west-1) | Accepté |
+| ADR                                           | Décision                                                                     | Statut  |
+| --------------------------------------------- | ---------------------------------------------------------------------------- | ------- |
+| [ADR-001](ADR/ADR-001-technologie-stack.md)   | Conservation stack socle Next.js 16 / React 19 / Prisma SQLite               | Accepté |
+| [ADR-002](ADR/ADR-002-palette-medicale.md)    | Palette médicale officielle (9 couleurs PO) en tokens sémantiques Tailwind 4 | Accepté |
+| [ADR-003](ADR/ADR-003-supabase-postgresql.md) | BDD = Supabase PostgreSQL via Prisma (pooler Supavisor aws-1-eu-west-1)      | Accepté |
 
 Les décisions majeures futures (auth NextAuth, i18n next-intl, IA, temps réel…) **doivent** faire l'objet d'un ADR.
 

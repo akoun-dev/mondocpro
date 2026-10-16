@@ -67,6 +67,7 @@ model User {
   tokenTransactions   TokenTransaction[]
   updatedTariffs      TariffConfig[]
   nurseMissions       NurseMission[]       @relation("NurseMissions")
+  missionMemberships  NurseMissionMember[] @relation("MissionMembers")
   patientMissions     NurseMission[]       @relation("PatientMissions")
   assignedMissions    NurseMission[]       @relation("AssignedBy")
   visitReports        VisitReport[]
@@ -321,8 +322,12 @@ model NurseMission {
   id             String        @id @default(cuid())
   appointmentId  String        @unique
   appointment    Appointment   @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+  // Infirmier « référent » (premier sélectionné à l'affectation) — conservé
+  // pour l'historique et les notifications ; la liste complète des affectés
+  // vit dans `members` (affectation d'un groupe — mission partagée).
   nurseId        String
   nurse          User          @relation("NurseMissions", fields: [nurseId], references: [id], onDelete: Restrict)
+  members        NurseMissionMember[]
   patientId      String
   patient        User          @relation("PatientMissions", fields: [patientId], references: [id], onDelete: Restrict)
   assignedById   String
@@ -340,6 +345,25 @@ model NurseMission {
   @@index([nurseId, status, assignedAt])
   @@index([patientId, assignedAt])
   @@map("nurse_missions")
+}
+
+// ——— FEATURE-NURSE — affectation d'un groupe à une mission partagée ———
+// La mission reste unique par RDV (NurseMission.appointmentId @unique) ; cette
+// table porte l'ensemble des infirmiers affectés. Le statut et le compte-rendu
+// sont communs à tout le groupe (mission partagée).
+model NurseMissionMember {
+  id        String       @id @default(cuid())
+  missionId String
+  mission   NurseMission @relation(fields: [missionId], references: [id], onDelete: Cascade)
+  nurseId   String
+  nurse     User         @relation("MissionMembers", fields: [nurseId], references: [id], onDelete: Restrict)
+  // Premier infirmier sélectionné = référent (miroir de NurseMission.nurseId).
+  isLead    Boolean      @default(false)
+  createdAt DateTime     @default(now())
+
+  @@unique([missionId, nurseId])
+  @@index([nurseId])
+  @@map("nurse_mission_members")
 }
 
 model VisitReport {

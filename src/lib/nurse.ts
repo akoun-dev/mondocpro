@@ -11,6 +11,14 @@ export class NurseMissionError extends Error {
 
 const missionInclude = {
   nurse: { select: { id: true, fullName: true, phone: true, zone: true } },
+  members: {
+    orderBy: { isLead: "desc" },
+    select: {
+      nurseId: true,
+      isLead: true,
+      nurse: { select: { id: true, fullName: true, phone: true, zone: true } },
+    },
+  },
   patient: { select: { id: true, fullName: true, phone: true, zone: true } },
   appointment: { select: { scheduledAt: true, type: true, zone: true, reason: true, specialty: { select: { name: true } } } },
   visitReport: { select: { id: true, observations: true, actionsTaken: true, recommendations: true, vitalSigns: true, createdAt: true } },
@@ -20,10 +28,16 @@ const missionInclude = {
 // niveau + appointment.specialty.name — la vue infirmier (nurse-missions-view)
 // les consomme directement (formatSlot(mission.scheduledAt), mission.zone…).
 // Sans cet aplatissement : Date(undefined) → crash client dès la première
-// mission (incident audit 2026-10-03).
+// mission (incident audit 2026-10-03). Affectation de groupe : expose `nurses`
+// (liste complète des membres) pour la supervision admin.
 export function serializeMission(mission: any) {
+  const nurses = Array.isArray(mission?.members)
+    ? mission.members.map((m: any) => m.nurse).filter(Boolean)
+    : [];
   return {
     ...mission,
+    nurses,
+    members: undefined,
     scheduledAt: mission.appointment.scheduledAt.toISOString(),
     zone: mission.appointment.zone,
     type: mission.appointment.type,
@@ -39,7 +53,11 @@ export function serializeMission(mission: any) {
 }
 
 export async function listNurseMissions(nurseId: string) {
-  const rows = await db.nurseMission.findMany({ where: { nurseId }, orderBy: { assignedAt: "desc" }, include: missionInclude });
+  const rows = await db.nurseMission.findMany({
+    where: { members: { some: { nurseId } } },
+    orderBy: { assignedAt: "desc" },
+    include: missionInclude,
+  });
   return rows.map(serializeMission);
 }
 
@@ -101,7 +119,10 @@ export async function listAdminMissionBoard(): Promise<AdminMissionBoard> {
 }
 
 export async function getNurseMission(nurseId: string, id: string) {
-  const mission = await db.nurseMission.findFirst({ where: { id, nurseId }, include: missionInclude });
+  const mission = await db.nurseMission.findFirst({
+    where: { id, members: { some: { nurseId } } },
+    include: missionInclude,
+  });
   if (!mission) throw new NurseMissionError(404, "Mission introuvable");
   return serializeMission(mission);
 }
@@ -115,7 +136,10 @@ const transitions: Record<MissionStatus, MissionStatus[]> = {
 };
 
 export async function updateNurseMissionStatus(nurseId: string, id: string, status: MissionStatus) {
-  const mission = await db.nurseMission.findFirst({ where: { id, nurseId }, select: { id: true, patientId: true, assignedById: true, status: true } });
+  const mission = await db.nurseMission.findFirst({
+    where: { id, members: { some: { nurseId } } },
+    select: { id: true, patientId: true, assignedById: true, status: true },
+  }) as any;
   if (!mission) throw new NurseMissionError(404, "Mission introuvable");
   if (!transitions[mission.status].includes(status)) throw new NurseMissionError(409, "Transition de statut non autorisée");
   const now = new Date();
@@ -161,7 +185,10 @@ function formatSlotFr(date: Date) {
 }
 
 export async function createVisitReport(nurseId: string, id: string, input: VisitReportInput) {
-  const mission = await db.nurseMission.findFirst({ where: { id, nurseId }, include: { visitReport: true } });
+  const mission = await db.nurseMission.findFirst({
+    where: { id, members: { some: { nurseId } } },
+    include: { visitReport: true, patient: true, assignedBy: true },
+  }) as any;
   if (!mission) throw new NurseMissionError(404, "Mission introuvable");
   if (mission.status !== "IN_PROGRESS") throw new NurseMissionError(409, "La mission doit être en cours");
   if (mission.visitReport) throw new NurseMissionError(409, "Un compte-rendu existe déjà pour cette mission");
@@ -181,25 +208,76 @@ export async function createVisitReport(nurseId: string, id: string, input: Visi
   return { ...report, createdAt: report.createdAt.toISOString(), updatedAt: report.updatedAt.toISOString() };
 }
 
+function resolveNurseIds(input: { nurseIds?: string[]; nurseId?: string }): string[] {
+  const ids = input.nurseIds?.length ? input.nurseIds : input.nurseId ? [input.nurseId] : [];
+  if (!ids.length) return [];
+  return [...new Set(ids)];
+}
+
 export async function dispatchMission(adminId: string, input: DispatchMissionInput, missionId?: string) {
   const current = missionId ? await db.nurseMission.findUnique({ where: { id: missionId } }) : null;
   const appointmentId = missionId ? current?.appointmentId : input.appointmentId;
-  const [appointment, nurse] = await Promise.all([
+  const nurseIds = resolveNurseIds(input);
+  if (!nurseIds.length) throw new NurseMissionError(400, "Sélectionnez au moins un infirmier");
+  const [appointment, nurses] = await Promise.all([
     appointmentId ? db.appointment.findUnique({ where: { id: appointmentId } }) : null,
-    db.user.findUnique({ where: { id: input.nurseId }, select: { id: true, role: true, zone: true } }),
+    db.user.findMany({ where: { id: { in: nurseIds } }, select: { id: true, role: true, zone: true } }),
   ]);
   if (!appointment) throw new NurseMissionError(404, "Rendez-vous introuvable");
-  if (!nurse || nurse.role !== "NURSE") throw new NurseMissionError(400, "Utilisateur infirmier invalide");
-  if (nurse.zone !== appointment.zone) throw new NurseMissionError(400, "L'infirmier doit couvrir la zone du rendez-vous");
+  if (nurses.length !== nurseIds.length) throw new NurseMissionError(400, "Utilisateur infirmier invalide");
+  if (nurses.some(n => n.role !== "NURSE")) throw new NurseMissionError(400, "Utilisateur infirmier invalide");
+  const outOfZone = nurses.filter(n => n.zone !== appointment.zone);
+  if (outOfZone.length) throw new NurseMissionError(400, "L'infirmier doit couvrir la zone du rendez-vous");
   const existing = appointmentId ? await db.nurseMission.findUnique({ where: { appointmentId } }) : null;
   if (missionId && (!existing || existing.id !== missionId)) throw new NurseMissionError(404, "Mission introuvable");
   if (!missionId && existing) throw new NurseMissionError(409, "Ce rendez-vous est déjà dispatché");
+  const leadId = nurseIds[0];
+  const assignedAt = new Date();
   const mission = await db.$transaction(async (tx) => {
     const next = missionId
-      ? await tx.nurseMission.update({ where: { id: missionId }, data: { nurseId: input.nurseId, assignedById: adminId, assignedAt: new Date(), status: "ASSIGNED", acceptedAt: null, startedAt: null, completedAt: null, cancelledAt: null }, include: missionInclude })
-      : await tx.nurseMission.create({ data: { appointmentId: appointmentId!, patientId: appointment.patientId, nurseId: input.nurseId, assignedById: adminId }, include: missionInclude });
-    await tx.notification.create({ data: { userId: input.nurseId, type: "MISSION_ASSIGNED", title: "Nouvelle mission", body: `Une mission de soins à ${ZONE_LABELS[appointment.zone] ?? appointment.zone} vous a été attribuée pour le ${formatSlotFr(appointment.scheduledAt)}. Consultez l'onglet Missions pour l'accepter.`, entityId: `${next.id}:assignment:${next.assignedAt.getTime()}` } });
-    return next;
+      ? await tx.nurseMission.update({
+          where: { id: missionId },
+          data: {
+            nurseId: leadId,
+            assignedById: adminId,
+            assignedAt,
+            status: "ASSIGNED",
+            acceptedAt: null,
+            startedAt: null,
+            completedAt: null,
+            cancelledAt: null,
+          },
+          include: missionInclude,
+        })
+      : await tx.nurseMission.create({
+          data: {
+            appointmentId: appointmentId!,
+            patientId: appointment.patientId,
+            nurseId: leadId,
+            assignedById: adminId,
+            assignedAt,
+          },
+          include: missionInclude,
+        });
+    await tx.nurseMissionMember.deleteMany({ where: { missionId: next.id } });
+    await tx.nurseMissionMember.createMany({
+      data: nurseIds.map((nurseId, i) => ({ missionId: next.id, nurseId, isLead: i === 0 })),
+    });
+    await tx.notification.createMany({
+      data: nurseIds.map(nurseId => ({
+        userId: nurseId,
+        type: "MISSION_ASSIGNED" as const,
+        title: "Nouvelle mission",
+        body: `Une mission de soins à ${ZONE_LABELS[appointment.zone] ?? appointment.zone} vous a été attribuée pour le ${formatSlotFr(appointment.scheduledAt)}. Consultez l'onglet Missions pour l'accepter.`,
+        entityId: `${next.id}:assignment:${assignedAt.getTime()}`,
+      })),
+    });
+    const nextWithMembers = await tx.nurseMission.findUnique({
+      where: { id: next.id },
+      include: missionInclude,
+    });
+    return nextWithMembers;
   });
+  if (!mission) throw new NurseMissionError(500, "Erreur interne — réessayez");
   return serializeMission(mission);
 }

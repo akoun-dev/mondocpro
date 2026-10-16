@@ -4,17 +4,17 @@ set -u
 cd /home/z/my-project
 AB="agent-browser"
 
-if ! curl -sf http://localhost:3000/api/health >/dev/null 2>&1; then
+if ! curl -sf http://localhost:4000/api/health >/dev/null 2>&1; then
   nohup bun run dev > /tmp/dev-e2e.log 2>&1 &
-  for i in $(seq 1 75); do sleep 2; curl -sf http://localhost:3000/api/health >/dev/null 2>&1 && break; done
+  for i in $(seq 1 75); do sleep 2; curl -sf http://localhost:4000/api/health >/dev/null 2>&1 && break; done
 fi
-echo "== health: $(curl -s http://localhost:3000/api/health | head -c 80)"
+echo "== health: $(curl -s http://localhost:4000/api/health | head -c 80)"
 
-echo "== API login patient: $(curl -s -o /dev/null -w '%{http_code}' -X POST http://localhost:3000/api/auth/login -H 'Content-Type: application/json' -d '{"phone":"+2250709229992","password":"TestPatient2026!"}')"
+echo "== API login patient: $(curl -s -o /dev/null -w '%{http_code}' -X POST http://localhost:4000/api/auth/login -H 'Content-Type: application/json' -d '{"phone":"+2250709229992","password":"TestPatient2026!"}')"
 
 $AB close >/dev/null 2>&1
 $AB set viewport 1440 900 >/dev/null
-$AB open http://localhost:3000 >/dev/null
+$AB open http://localhost:4000 >/dev/null
 sleep 3
 $AB eval "localStorage.clear(); sessionStorage.clear(); 'cleared'" >/dev/null
 $AB reload >/dev/null

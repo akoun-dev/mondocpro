@@ -12,24 +12,24 @@ demandes successives de l'utilisateur, traitées via le Feature Lifecycle (`WORK
 
 ## 2. Stack détectée (à l'analyse initiale — AUDIT Task 1)
 
-| Couche | Technologie | Version |
-|---|---|---|
-| Framework | Next.js (App Router, output standalone) | 16.1.1 |
-| UI | React | 19 |
-| Langage | TypeScript | 5 |
-| Style | Tailwind CSS + tw-animate-css | 4 |
-| Composants | shadcn/ui (New York) — 44 composants dans `src/components/ui` | — |
-| Icônes | lucide-react | 0.525 |
-| ORM / DB | **Supabase (PostgreSQL managé)** via Prisma — pooler Supavisor `aws-1-eu-west-1` (ADR-003) | 6.19 |
-| Validation | Zod | 4 |
-| État client | Zustand | 5 |
-| État serveur | TanStack Query | 5 |
-| Formulaires | react-hook-form + @hookform/resolvers | — |
-| Animation | framer-motion | 12 |
-| IA backend | z-ai-web-dev-sdk (**backend uniquement**) | 0.0.18 |
-| Temps réel | socket.io (mini-services dédiés, cf. `examples/websocket`) | — |
-| Gateway | Caddy :81 → 3000, routage `?XTransformPort=` vers mini-services | — |
-| Runtime | Bun | 1.3.x |
+| Couche       | Technologie                                                                                | Version |
+| ------------ | ------------------------------------------------------------------------------------------ | ------- |
+| Framework    | Next.js (App Router, output standalone)                                                    | 16.1.1  |
+| UI           | React                                                                                      | 19      |
+| Langage      | TypeScript                                                                                 | 5       |
+| Style        | Tailwind CSS + tw-animate-css                                                              | 4       |
+| Composants   | shadcn/ui (New York) — 44 composants dans `src/components/ui`                              | —       |
+| Icônes       | lucide-react                                                                               | 0.525   |
+| ORM / DB     | **Supabase (PostgreSQL managé)** via Prisma — pooler Supavisor `aws-1-eu-west-1` (ADR-003) | 6.19    |
+| Validation   | Zod                                                                                        | 4       |
+| État client  | Zustand                                                                                    | 5       |
+| État serveur | TanStack Query                                                                             | 5       |
+| Formulaires  | react-hook-form + @hookform/resolvers                                                      | —       |
+| Animation    | framer-motion                                                                              | 12      |
+| IA backend   | z-ai-web-dev-sdk (**backend uniquement**)                                                  | 0.0.18  |
+| Temps réel   | socket.io (mini-services dédiés, cf. `examples/websocket`)                                 | —       |
+| Gateway      | Caddy :81 → 4000, routage `?XTransformPort=` vers mini-services                            | —       |
+| Runtime      | Bun                                                                                        | 1.3.x   |
 
 ## 3. État initial (preuves d'audit)
 
@@ -43,10 +43,10 @@ demandes successives de l'utilisateur, traitées via le Feature Lifecycle (`WORK
 
 ## 4. Contraintes d'environnement
 
-- Port unique exposé : 3000 (Next.js) ; mini-services via `XTransformPort` (jamais de port dans l'URL).
+- Port unique exposé : 4000 (Next.js) ; mini-services via `XTransformPort` (jamais de port dans l'URL).
 - `z-ai-web-dev-sdk` réservé au backend (routes API / mini-services).
 - Route utilisateur visible : `/` uniquement (tout nouveau module s'intègre dans la page principale).
-- Dev server : `bun run dev` (port 3000, log `dev.log`) — jamais `bun run build` en dev.
+- Dev server : `bun run dev` (port 4000, log `dev.log`) — jamais `bun run build` en dev.
 - ⚠️ **Boot plateforme** : `/start.sh` écrase `.env` (`DATABASE_URL=file:…`) à chaque cold start → flux custom `.zscripts/dev.sh` (restaure l'env Supabase depuis `.zscripts/.env.supabase`, non versionné) puis démarre le serveur ; OPS-T02.
 - ⚠️ Le shell sandbox exporte `DATABASE_URL=file:…` (héritage scaffold, chemin supprimé) qui PRIME sur `.env` :
   les scripts `db:*` et `.zscripts/dev.sh` réexportent la valeur du `.env` (cf. ADR-003 §4) ;

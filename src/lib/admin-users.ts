@@ -358,40 +358,57 @@ export async function listAdminNurseLoads(
   if (ids.length === 0) return [];
 
   const monthStart = startOfCurrentMonth();
-  const [byStatus, lastMission, completedThisMonth] = await Promise.all([
-    db.nurseMission.groupBy({
-      by: ["nurseId", "status"],
+  const [memberRows, memberCompletedThisMonth] = await Promise.all([
+    db.nurseMissionMember.findMany({
       where: { nurseId: { in: ids } },
-      _count: { _all: true },
+      select: {
+        nurseId: true,
+        mission: {
+          select: {
+            status: true,
+            assignedAt: true,
+            completedAt: true,
+          },
+        },
+      },
     }),
-    db.nurseMission.groupBy({
-      by: ["nurseId"],
-      where: { nurseId: { in: ids } },
-      _max: { assignedAt: true },
-    }),
-    db.nurseMission.groupBy({
-      by: ["nurseId"],
+    db.nurseMissionMember.findMany({
       where: {
         nurseId: { in: ids },
-        status: "COMPLETED",
-        completedAt: { gte: monthStart },
+        mission: {
+          status: "COMPLETED",
+          completedAt: { gte: monthStart },
+        },
       },
-      _count: { _all: true },
+      select: { nurseId: true },
     }),
   ]);
 
-  const statusIndex = new Map<string, Record<string, number>>();
-  for (const row of byStatus) {
-    const entry = statusIndex.get(row.nurseId) ?? {};
-    entry[row.status] = row._count._all;
-    statusIndex.set(row.nurseId, entry);
+  const byStatus = memberRows.reduce((acc, row) => {
+    const key = row.nurseId;
+    const status = row.mission.status;
+    if (!acc.has(key)) acc.set(key, {} as Record<string, number>);
+    const e = acc.get(key)!;
+    e[status] = (e[status] ?? 0) + 1;
+    return acc;
+  }, new Map<string, Record<string, number>>());
+
+  const lastMissionMap = new Map<string, Date>();
+  for (const row of memberRows) {
+    const cur = lastMissionMap.get(row.nurseId);
+    if (!cur || row.mission.assignedAt > cur) {
+      lastMissionMap.set(row.nurseId, row.mission.assignedAt);
+    }
   }
-  const lastIndex = new Map(
-    lastMission.map((r) => [r.nurseId, r._max.assignedAt]),
-  );
-  const monthIndex = new Map(
-    completedThisMonth.map((r) => [r.nurseId, r._count._all]),
-  );
+
+  const completedMonthMap = new Map<string, number>();
+  for (const row of memberCompletedThisMonth) {
+    completedMonthMap.set(row.nurseId, (completedMonthMap.get(row.nurseId) ?? 0) + 1);
+  }
+
+  const statusIndex = byStatus;
+  const lastIndex = lastMissionMap;
+  const monthIndex = completedMonthMap;
 
   return users.map((user) => {
     const counts = statusIndex.get(user.id) ?? {};
@@ -510,7 +527,7 @@ export async function setAccountActive(
   if (!isActive && target.role === "NURSE") {
     const open = await db.nurseMission.count({
       where: {
-        nurseId: target.id,
+        members: { some: { nurseId: target.id } },
         status: { in: [...ACTIVE_MISSION_STATUSES] },
       },
     });

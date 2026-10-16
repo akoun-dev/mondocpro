@@ -4,10 +4,10 @@
 #   recharges (déclaration → alerte admin → décision → notification patient),
 #   RDV à domicile (demande → file dispatch → affectation → réaffectation),
 #   clôtures/annulations (notification patient, Tokens consommés/libérés).
-# Pré-requis : serveur dev démarré sur :3000 (bash scripts/dev-boot.sh).
+# Pré-requis : serveur dev démarré sur :4000 (bash scripts/dev-boot.sh).
 # Usage : bash scripts/audit-e2e-admin-notifications.sh
 set -u
-BASE="http://localhost:3000/api"
+BASE="http://localhost:4000/api"
 PASS=0; FAIL=0
 
 check() {

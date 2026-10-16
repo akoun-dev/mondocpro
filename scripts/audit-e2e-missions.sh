@@ -1,9 +1,9 @@
 #!/bin/bash
 # Audit E2E — FEATURE-NURSE (cycle de vie complet d'une mission) + sondes globales.
-# Pré-requis : serveur dev démarré sur :3000 (boot .zscripts/dev.sh).
+# Pré-requis : serveur dev démarré sur :4000 (boot .zscripts/dev.sh).
 # Usage : bash scripts/audit-e2e-missions.sh
 set -u
-BASE="http://localhost:3000/api"
+BASE="http://localhost:4000/api"
 PASS=0; FAIL=0
 
 check() { # $1 libellé, $2 attendu, $3 obtenu
@@ -16,7 +16,7 @@ json() { # $1 json, $2 chemin jq-like basique via node
 
 echo "=== 1. Sondes globales ==="
 check "GET /health" 200 "$(curl -s -o /dev/null -w '%{http_code}' $BASE/health --max-time 10)"
-check "GET / (page)" 200 "$(curl -s -o /dev/null -w '%{http_code}' http://localhost:3000/ --max-time 20)"
+check "GET / (page)" 200 "$(curl -s -o /dev/null -w '%{http_code}' http://localhost:4000/ --max-time 20)"
 
 echo "=== 2. Connexions par rôle ==="
 JP=$(mktemp); JN=$(mktemp); JA=$(mktemp)

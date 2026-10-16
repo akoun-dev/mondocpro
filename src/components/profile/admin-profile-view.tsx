@@ -19,14 +19,9 @@
 import { useEffect, useState } from "react";
 import {
   Ambulance,
-  Cake,
   ChevronRight,
   CircleCheck,
-  Coins,
-  ExternalLink,
   Flame,
-  Globe,
-  LifeBuoy,
   LockKeyhole,
   MapPin,
   Megaphone,
@@ -44,12 +39,11 @@ import {
   InfoRow,
   PreferenceRow,
   ProfileSectionTitle,
-  soonToast,
 } from "@/components/profile/profile-primitives";
 import { toast } from "@/hooks/use-toast";
 import { useAuthStore, type AppUser } from "@/stores/auth-store";
 import { ZONE_LABELS } from "@/lib/auth-schemas";
-import { formatDateUTC, relativePublishedLabel } from "@/lib/datetime";
+import { relativePublishedLabel } from "@/lib/datetime";
 import { formatPhoneDisplay } from "@/lib/phone";
 import { getInitials } from "@/lib/utils";
 
@@ -248,19 +242,6 @@ export function AdminProfileView({ user, onLogout }: Props) {
         </ProfileSectionTitle>
         <div className="flex flex-col gap-2.5">
           <InfoRow
-            icon={Cake}
-            label="Date de naissance"
-            value={
-              user.birthDate ? formatDateUTC(user.birthDate) : "Non renseignée"
-            }
-            valueMuted={!user.birthDate}
-            accessory={
-              <Pencil className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-            }
-            onClick={() => setEditOpen(true)}
-            actionLabel="Modifier mes informations (nom et date de naissance)"
-          />
-          <InfoRow
             icon={Smartphone}
             label="Numéro de mobile actif"
             value={
@@ -285,16 +266,6 @@ export function AdminProfileView({ user, onLogout }: Props) {
             }
             onClick={() => setZoneOpen(true)}
             actionLabel="Modifier le secteur d'habitation"
-          />
-          <InfoRow
-            icon={Coins}
-            label="Portefeuille central des recharges"
-            value="Rapprochement des paiements patients"
-            accessory={
-              <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-            }
-            onClick={() => soonToast("Le raccourci portefeuille")}
-            actionLabel="Rappel du circuit des recharges (à venir)"
           />
         </div>
       </section>
@@ -363,22 +334,6 @@ export function AdminProfileView({ user, onLogout }: Props) {
               updatePreference("healthAlerts", checked)
             }
           />
-          <div className="flex items-center gap-3 rounded-xl bg-muted/60 p-4">
-            <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
-              <Globe className="size-4.5" aria-hidden="true" />
-            </span>
-            <span className="min-w-0 flex-1">
-              <span className="block text-sm font-semibold">
-                Langue de l&apos;interface
-              </span>
-              <span className="mt-0.5 block text-xs text-muted-foreground">
-                Français (Côte d&apos;Ivoire)
-              </span>
-            </span>
-            <Badge className="shrink-0" aria-label="Langue : français">
-              FR
-            </Badge>
-          </div>
         </div>
       </section>
 
@@ -417,18 +372,6 @@ export function AdminProfileView({ user, onLogout }: Props) {
           </a>
         </div>
       </section>
-
-      {/* Centre d'aide & Assistance */}
-      <InfoRow
-        icon={LifeBuoy}
-        label="Centre d'aide & Assistance Mondoc"
-        value="FAQ, contact et signalements"
-        accessory={
-          <ExternalLink className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-        }
-        onClick={() => soonToast("Le centre d'aide")}
-        actionLabel="Centre d'aide et assistance (bientôt disponible)"
-      />
 
       <Button
         variant="outline"

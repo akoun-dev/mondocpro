@@ -12,7 +12,7 @@ Un fichier SQL plat par changement logique, nommé `<timestamp>_<nom>.sql` :
 20261002150810_create_enum_zone.sql
 20261002232735_create_specialties_table.sql
 …
-20261003130000_create_notifications_table.sql
+20261003140000_create_notifications_table.sql
 ```
 
 - Les enums sont créés **avant** les tables qui les référencent.
@@ -22,14 +22,14 @@ Un fichier SQL plat par changement logique, nommé `<timestamp>_<nom>.sql` :
 
 ## Workflow
 
-| Commande                     | Effet                                                        |
-| ---------------------------- | ------------------------------------------------------------ |
-| `bun run db:migration <nom>`  | Crée `supabase/migrations/<timestamp>_<nom>.sql`               |
-| `bun run db:migrate-deploy`   | Applique les migrations en attente sur le projet lié (`--linked`) |
-| `bun run db:status`           | Compare local ↔ distant (`supabase migration list`)            |
-| `bun run db:diff`             | Génère le SQL manquant si la base a dérivé du schéma           |
-| `bun run db:reset`            | ⚠️ **Réinitialise la base liée** : supprime tout, rejoue les migrations + `seed.sql` |
-| `bun run db:generate`         | `prisma generate` — regénère le client (codegen, **pas** une migration) |
+| Commande                     | Effet                                                                                |
+| ---------------------------- | ------------------------------------------------------------------------------------ |
+| `bun run db:migration <nom>` | Crée `supabase/migrations/<timestamp>_<nom>.sql`                                     |
+| `bun run db:migrate-deploy`  | Applique les migrations en attente sur le projet lié (`--linked`)                    |
+| `bun run db:status`          | Compare local ↔ distant (`supabase migration list`)                                  |
+| `bun run db:diff`            | Génère le SQL manquant si la base a dérivé du schéma                                 |
+| `bun run db:reset`           | ⚠️ **Réinitialise la base liée** : supprime tout, rejoue les migrations + `seed.sql` |
+| `bun run db:generate`        | `prisma generate` — regénère le client (codegen, **pas** une migration)              |
 
 Après `db:migration`, écrire le SQL dans le fichier généré, puis
 `bun run db:migrate-deploy`.
@@ -41,13 +41,13 @@ est mémorisé dans `supabase/.temp/` (ignoré par git). ⚠️ La CLI 2.116 lit
 ### Pourquoi `--include-all` sur `db:migrate-deploy`
 
 `supabase db push` refuse par défaut d'appliquer une migration antérieure à la
-dernière migration déjà appliquée. Or `20261003130000_create_notifications_table.sql`
+dernière migration déjà appliquée. Or `20261003140000_create_notifications_table.sql`
 est horodatée **13:00** alors que la machine était à 12:10 UTC : toute migration
 nouvelle était donc rejetée (« Found local migration files to be inserted before
 the last migration »). `--include-all` lève ce blocage.
 
 Contrepartie : une migration réellement désordonnée sera appliquée sans
-avertissement. À lever quand l'horloge aura dépassé `20261003130000` — ou en
+avertissement. À lever quand l'horloge aura dépassé `20261003140000` — ou en
 réalignant l'historique avec `bash .zscripts/migrate_realign.sh`.
 
 ## Prisma reste l'ORM, plus le gestionnaire de schéma

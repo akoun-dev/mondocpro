@@ -89,7 +89,7 @@ nohup bun run dev > /tmp/dev-e2e.log 2>&1 &
 OK=0
 for i in $(seq 1 75); do
   sleep 2
-  if curl -sf http://localhost:3000/api/health >/dev/null 2>&1; then OK=1; echo "HEALTH OK (${i}x2s)"; break; fi
+  if curl -sf http://localhost:4000/api/health >/dev/null 2>&1; then OK=1; echo "HEALTH OK (${i}x2s)"; break; fi
 done
 [ $OK -eq 1 ] || { echo "SERVER DOWN"; tail -20 /tmp/dev-e2e.log; exit 1; }
 
@@ -102,7 +102,7 @@ echo "  [fixture] patient E2E = $E2E_PHONE (local $E2E_PHONE_LOCAL)"
 [ -n "$E2E_PHONE" ] || { echo "FIXTURE KO"; exit 1; }
 
 # ── 1. Suite API — routes tarifs ────────────────────────────────────────────
-BASE=http://localhost:3000/api
+BASE=http://localhost:4000/api
 rm -f $JAR $JAR_ADMIN
 CODE=$(curl -s -o /tmp/tf-t0.json -w "%{http_code}" $BASE/tariffs)
 check "API — tarifs sans session → 401" "401" "$CODE"
@@ -184,7 +184,7 @@ curl -s -o /dev/null -b $JAR -X PATCH $BASE/appointments/$APPT2 -H "Content-Type
 # ── 3. Navigateur — Médecin Chef (édition) puis patient (wizard) ────────────
 $AB close >/dev/null 2>&1
 $AB set viewport 1440 900 >/dev/null
-$AB open http://localhost:3000 >/dev/null
+$AB open http://localhost:4000 >/dev/null
 sleep 3
 $AB eval "localStorage.clear(); sessionStorage.clear(); 'ok'" >/dev/null
 echo "== login Médecin Chef: $(login "+2250700000001" "Admin#MonDocPro2026")"

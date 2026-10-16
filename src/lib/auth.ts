@@ -94,7 +94,7 @@ export function generateResetCode(): string {
 export const PASSWORD_RESET_TTL_MINUTES = 15
 
 // Options du cookie de session selon le contexte de service :
-// - localhost (http://localhost:3000, E2E curl/playwright) : SameSite=Lax,
+// - localhost (http://localhost:4000, E2E curl/playwright) : SameSite=Lax,
 //   comportement historique — inchangé.
 // - proxy de prévisualisation / production (HTTPS, potentiellement affiché en
 //   iframe cross-site) : SameSite=None + Secure + Partitioned (CHIPS). Un cookie
@@ -207,9 +207,7 @@ export type RequireRoleResult =
     | { ok: true; user: PublicUser }
     | { ok: false; response: NextResponse }
 
-export async function requireRole(
-    allowed: Role[]
-): Promise<RequireRoleResult> {
+export async function requireRole(allowed: Role[]): Promise<RequireRoleResult> {
     const user = await getCurrentUser()
 
     if (!user) {

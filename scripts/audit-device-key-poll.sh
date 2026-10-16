@@ -4,7 +4,7 @@
 # révocation (logout), purge au reset de mot de passe, exclusions de types.
 # Usage : bash scripts/audit-device-key-poll.sh
 set -u
-BASE="http://localhost:3000"
+BASE="http://localhost:4000"
 PASS=0; FAIL=0
 check() { # check <nom> <attendu> <obtenu>
   if [ "$2" = "$3" ]; then PASS=$((PASS+1)); echo "PASS  $1 ($3)";

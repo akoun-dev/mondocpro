@@ -71,13 +71,13 @@ nohup bun run dev > /tmp/dev-e2e.log 2>&1 &
 OK=0
 for i in $(seq 1 75); do
   sleep 2
-  if curl -sf http://localhost:3000/api/health >/dev/null 2>&1; then OK=1; echo "HEALTH OK (${i}x2s)"; break; fi
+  if curl -sf http://localhost:4000/api/health >/dev/null 2>&1; then OK=1; echo "HEALTH OK (${i}x2s)"; break; fi
 done
 [ $OK -eq 1 ] || { echo "SERVER DOWN"; tail -20 /tmp/dev-e2e.log; exit 1; }
-echo "health: $(curl -s http://localhost:3000/api/health)"
+echo "health: $(curl -s http://localhost:4000/api/health)"
 
 # ── 1. Suite API — PATCH /api/auth/profile ───────────────────────────────────
-BASE=http://localhost:3000/api
+BASE=http://localhost:4000/api
 rm -f $JAR
 # NB : la base stocke les téléphones au format international (+225…) — le
 # formulaire de login normalise la saisie locale, pas curl. Les corps API
@@ -125,7 +125,7 @@ check "API — fixture restaurée (nom + prefs true)" "yes/yes" "$(grep -q 'Pati
 # ── 2. Navigateur — PATIENT desktop 1440×900 : dialog + toggles ──────────────
 $AB close >/dev/null 2>&1
 $AB set viewport 1440 900 >/dev/null
-$AB open http://localhost:3000 >/dev/null
+$AB open http://localhost:4000 >/dev/null
 sleep 3
 $AB eval "localStorage.clear(); sessionStorage.clear(); 'ok'" >/dev/null
 echo "== login patient: $(login "0709229992" "TestPatient2026!")"

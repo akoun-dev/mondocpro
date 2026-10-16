@@ -18,12 +18,12 @@
 
 ## 1. Prérequis (une seule fois)
 
-| Outil | Version | Rôle |
-|---|---|---|
-| Node.js ou Bun | ≥ 20 / ≥ 1.2 | dépendances web |
-| **JDK 21** | Temurin/Adoptium | compilation Gradle |
-| **Android Studio** | Ladybug+ | SDK Android 36, émulateur, signature |
-| Compte **Firebase** | gratuit | projet + `google-services.json` (push uniquement) |
+| Outil               | Version          | Rôle                                              |
+| ------------------- | ---------------- | ------------------------------------------------- |
+| Node.js ou Bun      | ≥ 20 / ≥ 1.2     | dépendances web                                   |
+| **JDK 21**          | Temurin/Adoptium | compilation Gradle                                |
+| **Android Studio**  | Ladybug+         | SDK Android 36, émulateur, signature              |
+| Compte **Firebase** | gratuit          | projet + `google-services.json` (push uniquement) |
 
 Variables d'environnement (Android Studio les propose automatiquement) :
 `ANDROID_HOME=~/Android/Sdk`, `JAVA_HOME=<jdk-21>`.
@@ -47,21 +47,21 @@ Les identifiants de connexion sont ceux de l'app web — aucune donnée locale.
 ### Tester contre un serveur local (émulateur/LAN)
 
 ```bash
-CAPACITOR_SERVER_URL=http://10.0.2.2:3000 npx cap sync android   # émulateur
-CAPACITOR_SERVER_URL=http://192.168.x.x:3000 npx cap sync android # appareil (même Wi-Fi)
+CAPACITOR_SERVER_URL=http://10.0.2.2:4000 npx cap sync android   # émulateur
+CAPACITOR_SERVER_URL=http://192.168.x.x:4000 npx cap sync android # appareil (même Wi-Fi)
 # cleartext HTTP n'est autorisé QUE pour ces builds (config refusée en prod)
 ```
 
 ⚠️ Les cookies de session en dev non-HTTPS peuvent être refusés par le WebView :
-privilégier la prod (HTTPS) pour tester les flux authentifiés, ou `adb reverse tcp:3000 tcp:3000`.
+privilégier la prod (HTTPS) pour tester les flux authentifiés, ou `adb reverse tcp:4000 tcp:4000`.
 
 ## 3. Identifiants de l'app (à VALIDER avant publication)
 
-| Champ | Valeur actuelle | Note |
-|---|---|---|
-| `appId` (package) | `ci.mondopro.app` | **immuable** après publication Play Store |
-| `appName` | `Mon doc Pro` | affiché sous l'icône |
-| `versionCode` / `versionName` | `5` / `"1.0.4"` | `android/app/build.gradle` — incrémenter à chaque release |
+| Champ                         | Valeur actuelle   | Note                                                      |
+| ----------------------------- | ----------------- | --------------------------------------------------------- |
+| `appId` (package)             | `ci.mondopro.app` | **immuable** après publication Play Store                 |
+| `appName`                     | `Mon doc Pro`     | affiché sous l'icône                                      |
+| `versionCode` / `versionName` | `5` / `"1.0.4"`   | `android/app/build.gradle` — incrémenter à chaque release |
 
 Icônes et splash : sources dans `assets/` (générées par `scripts/gen-cap-assets.py`
 depuis `public/img/logo.png`), régénérer via :
@@ -112,6 +112,7 @@ Le serveur ne contient plus `firebase-admin` ni aucun code d'envoi FCM
 mais ne sont plus appelées en pratique (client dormant).
 
 **Ré-activation éventuelle du push distant** (si la décision change un jour) :
+
 1. Projet Firebase + `google-services.json` dans `android/app/` (gitigné).
 2. `FIREBASE_SERVICE_ACCOUNT_JSON` sur Vercel (Production + Preview).
 3. `git revert` du commit « ADR-009 » (rétablit l'envoi `src/lib/push.ts` +
@@ -126,15 +127,15 @@ les plugins officiels suffisent — le seul plugin custom reste **Diagnostics**,
 
 - **Bouton retour Android** (`@capacitor/app`, listener `backButton` dans
   `src/lib/native.ts`) — ordre de priorité :
-  1. **Modale/popover Radix ouverte** (dialog, alert-dialog, sheet, select,
-     dropdown…) → **Escape synthétique** (`dismissTopRadixLayer`) : la couche
-     LA PLUS HAUTE se ferme — un appui = une fermeture (le top layer Radix
-     consomme l'event via `preventDefault`). Lève la limite historique « les
-     modales n'empilent pas l'historique ».
-  2. **Historique de navigation dispo** → `history.back()`.
-  3. **Sinon (accueil)** → **double-appui pour quitter** : 1er appui = toast
-     natif « Appuyez à nouveau sur Retour pour quitter » + haptique légère ;
-     2e appui sous 2,5 s = `App.exitApp()`. Jamais de sortie accidentelle.
+    1. **Modale/popover Radix ouverte** (dialog, alert-dialog, sheet, select,
+       dropdown…) → **Escape synthétique** (`dismissTopRadixLayer`) : la couche
+       LA PLUS HAUTE se ferme — un appui = une fermeture (le top layer Radix
+       consomme l'event via `preventDefault`). Lève la limite historique « les
+       modales n'empilent pas l'historique ».
+    2. **Historique de navigation dispo** → `history.back()`.
+    3. **Sinon (accueil)** → **double-appui pour quitter** : 1er appui = toast
+       natif « Appuyez à nouveau sur Retour pour quitter » + haptique légère ;
+       2e appui sous 2,5 s = `App.exitApp()`. Jamais de sortie accidentelle.
 - **Feuille d'actions native** (`@capacitor/action-sheet`, `showNativeActions`
   dans `src/lib/native.ts`) — sur APK, les cartes **Mes missions** (infirmier)
   affichent UN bouton « Actions » qui ouvre le bottom sheet système
@@ -163,15 +164,15 @@ cd android && ./gradlew assembleRelease   # APK signé
 
 ## 6. Dépannage
 
-| Symptôme | Cause probable | Correctif |
-|---|---|---|
-| Splash figé sur « Chargement » | serveur injoignable (avion, DNS) | le shell bascule sur le message hors-ligne ; vérifier https://mondocpro.vercel.app/api/health |
-| Aucune push reçue | **Comportement attendu** : canal push distant DORMANT sans projet Firebase (ADR-009) — notifications InApp + rappels locaux + sondage app fermée (ADR-010) actifs | §4 (ré-activation : projet Firebase + revert ADR-009) |
-| Pas d'alerte « app fermée » | APK < v1.0.2 (pas de runner), ou optimisations batterie constructeur, ou clé jamais provisionnée (se connecter une fois) | installer v1.0.2+ ; exclure l'app de l'optimisation batterie (dontkillmyapp.com) ; vérifier `adb logcat | grep BackgroundRunner` |
-| Notification locale qui ne s'affiche pas | canal Android inexistant au moment du post (les canaux sont créés au boot du shell — APK ≥ v1.0.2 uniquement) | ouvrir l'app une fois (création des canaux), puis re-provisionner |
-| L'app se ferme à l'acceptation des notifications | APK v1 sans `google-services.json` : crash `IllegalStateException: Default FirebaseApp is not initialized` via le bridge | Installer un APK ≥ v2 (garde `Diagnostics.firebaseAvailable()`) ; depuis le correctif web ADR-009, le canal push distant n'est plus jamais activé sans Firebase |
-| Permission notifications jamais demandée | Android 13+ : demandée à la 1re ouverture après connexion **via LocalNotifications** (rappels RDV) — indépendante de Firebase depuis ADR-009 | se déconnecter/reconnecter, ou réinstaller ; vérifier les permissions système de l'app |
-| Rappels RDV avec quelques minutes de retard | alarmes inexactes | **corrigé v1.0.2** : `SCHEDULE_EXACT_ALARM` ajouté (Android 12+) — sur Android ≤ 11 le comportement reste à ±quelques minutes |
-| Le retour système ferme l'app alors qu'une modale est ouverte | APK < v1.0.4 (ancien handler retour MVP) | installer v1.0.4+ — le retour ferme d'abord la modale, puis remonte la navigation, puis double-appui pour quitter |
-| Pas de bouton « Actions » sur les cartes mission | APK < v1.0.4 (plugin ActionSheet absent du natif) | installer v1.0.4+ ; le web garde les boutons inline (comportement normal) |
-| `cap sync` échoue | dépendances natives désynchronisées | `bun install` puis `npx cap sync android` |
+| Symptôme                                                      | Cause probable                                                                                                                                                    | Correctif                                                                                                                                                       |
+| ------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------- |
+| Splash figé sur « Chargement »                                | serveur injoignable (avion, DNS)                                                                                                                                  | le shell bascule sur le message hors-ligne ; vérifier https://mondocpro.vercel.app/api/health                                                                   |
+| Aucune push reçue                                             | **Comportement attendu** : canal push distant DORMANT sans projet Firebase (ADR-009) — notifications InApp + rappels locaux + sondage app fermée (ADR-010) actifs | §4 (ré-activation : projet Firebase + revert ADR-009)                                                                                                           |
+| Pas d'alerte « app fermée »                                   | APK < v1.0.2 (pas de runner), ou optimisations batterie constructeur, ou clé jamais provisionnée (se connecter une fois)                                          | installer v1.0.2+ ; exclure l'app de l'optimisation batterie (dontkillmyapp.com) ; vérifier `adb logcat                                                         | grep BackgroundRunner` |
+| Notification locale qui ne s'affiche pas                      | canal Android inexistant au moment du post (les canaux sont créés au boot du shell — APK ≥ v1.0.2 uniquement)                                                     | ouvrir l'app une fois (création des canaux), puis re-provisionner                                                                                               |
+| L'app se ferme à l'acceptation des notifications              | APK v1 sans `google-services.json` : crash `IllegalStateException: Default FirebaseApp is not initialized` via le bridge                                          | Installer un APK ≥ v2 (garde `Diagnostics.firebaseAvailable()`) ; depuis le correctif web ADR-009, le canal push distant n'est plus jamais activé sans Firebase |
+| Permission notifications jamais demandée                      | Android 13+ : demandée à la 1re ouverture après connexion **via LocalNotifications** (rappels RDV) — indépendante de Firebase depuis ADR-009                      | se déconnecter/reconnecter, ou réinstaller ; vérifier les permissions système de l'app                                                                          |
+| Rappels RDV avec quelques minutes de retard                   | alarmes inexactes                                                                                                                                                 | **corrigé v1.0.2** : `SCHEDULE_EXACT_ALARM` ajouté (Android 12+) — sur Android ≤ 11 le comportement reste à ±quelques minutes                                   |
+| Le retour système ferme l'app alors qu'une modale est ouverte | APK < v1.0.4 (ancien handler retour MVP)                                                                                                                          | installer v1.0.4+ — le retour ferme d'abord la modale, puis remonte la navigation, puis double-appui pour quitter                                               |
+| Pas de bouton « Actions » sur les cartes mission              | APK < v1.0.4 (plugin ActionSheet absent du natif)                                                                                                                 | installer v1.0.4+ ; le web garde les boutons inline (comportement normal)                                                                                       |
+| `cap sync` échoue                                             | dépendances natives désynchronisées                                                                                                                               | `bun install` puis `npx cap sync android`                                                                                                                       |

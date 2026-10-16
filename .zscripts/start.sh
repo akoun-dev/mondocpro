@@ -74,7 +74,7 @@ if [ -f "./next-service-dist/server.js" ]; then
     
     # 设置环境变量
     export NODE_ENV=production
-    export PORT="${PORT:-3000}"
+    export PORT="${PORT:-4000}"
     export HOSTNAME="${HOSTNAME:-0.0.0.0}"
     export DATABASE_URL="${DATABASE_URL:-}"
 

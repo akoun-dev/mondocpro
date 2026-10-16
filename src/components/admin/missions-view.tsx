@@ -32,13 +32,7 @@ import {
     DialogTitle,
 } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select"
+import { Checkbox } from "@/components/ui/checkbox"
 import { Skeleton } from "@/components/ui/skeleton"
 import { toast } from "@/hooks/use-toast"
 import {
@@ -82,57 +76,82 @@ function nursesForZone(
 // Dialog de sélection d'infirmier — partagé dispatch / réaffectation.
 // Déclaré hors de AdminMissionsView : sinon React le démonte et le remonte à
 // chaque render, ce qui fait clignoter le Select pendant la saisie.
-function NursePicker({
+function NurseMultiPicker({
     nurses,
     zone,
     value,
-    onChange,
+    onToggle,
     error,
 }: {
     nurses: NurseDirectoryItem[]
     zone: string
-    value: string
-    onChange: (id: string) => void
+    value: string[]
+    onToggle: (id: string) => void
     error?: string
 }) {
     const candidates = nursesForZone(nurses, zone)
+    const sameZone = candidates.filter(n => n.zone === zone)
+    const otherZone = candidates.filter(n => n.zone !== zone)
     return (
         <div className="flex flex-col gap-1.5">
             <Label>
-                Infirmier(e) — zone{" "}
+                Infirmier(e)s — zone{" "}
                 {ZONE_LABELS[zone as keyof typeof ZONE_LABELS] ?? zone}
             </Label>
-            <Select value={value} onValueChange={onChange}>
-                <SelectTrigger
-                    aria-invalid={error ? true : undefined}
-                    className="w-full"
-                >
-                    <SelectValue placeholder="Sélectionner un(e) infirmier(ère)" />
-                </SelectTrigger>
-                <SelectContent>
-                    {candidates.length === 0 ? (
-                        <div className="px-3 py-2 text-sm text-muted-foreground">
-                            Aucun(e) infirmier(ère) enregistré(e).
-                        </div>
-                    ) : (
-                        candidates.map(nurse => (
-                            <SelectItem key={nurse.id} value={nurse.id}>
-                                {nurse.fullName}
-                                {nurse.zone !== zone
-                                    ? ` — autre zone (${ZONE_LABELS[nurse.zone as keyof typeof ZONE_LABELS] ?? nurse.zone})`
-                                    : ""}
-                            </SelectItem>
-                        ))
-                    )}
-                </SelectContent>
-            </Select>
-            {candidates.some(n => n.zone !== zone) && (
-                <p className="text-xs text-muted-foreground">
-                    L&apos;infirmier(e) doit couvrir la zone du rendez-vous —
-                    les autres zones sont indiquées entre parenthèses et seront
-                    refusées par le serveur.
-                </p>
-            )}
+            <div className="max-h-64 overflow-y-auto rounded-xl border">
+                {sameZone.length === 0 && otherZone.length === 0 ? (
+                    <div className="px-3 py-2 text-sm text-muted-foreground">
+                        Aucun(e) infirmier(ère) enregistré(e).
+                    </div>
+                ) : (
+                    <>
+                        {sameZone.map(nurse => {
+                            const checked = value.includes(nurse.id)
+                            return (
+                                <label
+                                    key={nurse.id}
+                                    className="flex items-center gap-3 px-3 py-2 hover:bg-muted"
+                                >
+                                    <Checkbox
+                                        checked={checked}
+                                        onCheckedChange={() => onToggle(nurse.id)}
+                                    />
+                                    <span className="text-sm">{nurse.fullName}</span>
+                                </label>
+                            )
+                        })}
+                        {otherZone.length > 0 && (
+                            <>
+                                <div className="px-3 py-1.5 text-xs text-muted-foreground">
+                                    Autres zones (à refuser si hors zone du RDV)
+                                </div>
+                                {otherZone.map(nurse => {
+                                    const checked = value.includes(nurse.id)
+                                    return (
+                                        <label
+                                            key={nurse.id}
+                                            className="flex items-center gap-3 px-3 py-2 opacity-60"
+                                        >
+                                            <Checkbox
+                                                checked={checked}
+                                                onCheckedChange={() => onToggle(nurse.id)}
+                                            />
+                                            <span className="text-sm">
+                                                {nurse.fullName} — {ZONE_LABELS[nurse.zone as keyof typeof ZONE_LABELS] ?? nurse.zone}
+                                            </span>
+                                        </label>
+                                    )
+                                })}
+                            </>
+                        )}
+                    </>
+                )}
+            </div>
+            <p className="text-xs text-muted-foreground">
+                L&apos;infirmier(e) doit couvrir la zone du rendez-vous. Si vous
+                sélectionnez un(e) infirmier(ère) hors zone, le serveur refusera
+                l&apos;affectation.
+            </p>
             {error ? (
                 <p
                     className="text-xs font-medium text-destructive"
@@ -150,19 +169,19 @@ export function AdminMissionsView() {
     const [loadError, setLoadError] = useState(false)
     const [busyId, setBusyId] = useState<string | null>(null)
 
-    // Dispatch : RDV ciblé + infirmier sélectionné dans le dialog.
+    // Dispatch : RDV ciblé + infirmiers sélectionnés dans le dialog.
     const [dispatchTarget, setDispatchTarget] =
         useState<DispatchQueueItem | null>(null)
-    const [dispatchNurseId, setDispatchNurseId] = useState<string>("")
+    const [dispatchNurseIds, setDispatchNurseIds] = useState<string[]>([])
     const [dispatchError, setDispatchError] = useState<string | undefined>(
         undefined
     )
 
-    // Réaffectation : mission ciblée + nouvel infirmier.
+    // Réaffectation : mission ciblée + nouveaux infirmiers.
     const [reassignTarget, setReassignTarget] = useState<MissionDto | null>(
         null
     )
-    const [reassignNurseId, setReassignNurseId] = useState<string>("")
+    const [reassignNurseIds, setReassignNurseIds] = useState<string[]>([])
     const [reassignError, setReassignError] = useState<string | undefined>(
         undefined
     )
@@ -187,21 +206,22 @@ export function AdminMissionsView() {
 
     function openDispatch(item: DispatchQueueItem) {
         setDispatchTarget(item)
-        setDispatchNurseId("")
+        setDispatchNurseIds([])
         setDispatchError(undefined)
     }
 
     function openReassign(mission: MissionDto) {
         setReassignTarget(mission)
-        setReassignNurseId("")
+        const initial = (mission as any)?.nurses?.map((n: any) => n.id) ?? (mission.nurse?.id ? [mission.nurse.id] : [])
+        setReassignNurseIds([...initial])
         setReassignError(undefined)
     }
 
     async function submitDispatch(event: React.FormEvent) {
         event.preventDefault()
         if (!dispatchTarget) return
-        if (!dispatchNurseId) {
-            setDispatchError("Sélectionnez un infirmier à affecter")
+        if (dispatchNurseIds.length === 0) {
+            setDispatchError("Sélectionnez au moins un infirmier à affecter")
             return
         }
         setBusyId(dispatchTarget.id)
@@ -211,14 +231,16 @@ export function AdminMissionsView() {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     appointmentId: dispatchTarget.id,
-                    nurseId: dispatchNurseId,
+                    nurseIds: dispatchNurseIds,
                 }),
             })
             if (res.ok) {
-                const nurse = board?.nurses.find(n => n.id === dispatchNurseId)
+                const names = dispatchNurseIds
+                    .map(id => board?.nurses.find(n => n.id === id)?.fullName)
+                    .filter(Boolean)
                 toast({
                     title: "Mission affectée",
-                    description: `${nurse?.fullName ?? "L'infirmier"} a été notifié(e) — la mission apparaît dans son onglet Missions.`,
+                    description: `${names.length === 1 ? names[0] : `${names.length} infirmier(ère)s`} ${names.length === 1 ? "a été notifié(e)" : "ont été notifié(e)s"} — la mission apparaît dans l'onglet Missions.`,
                 })
                 setDispatchTarget(null)
                 await loadAll()
@@ -242,8 +264,8 @@ export function AdminMissionsView() {
     async function submitReassign(event: React.FormEvent) {
         event.preventDefault()
         if (!reassignTarget) return
-        if (!reassignNurseId) {
-            setReassignError("Sélectionnez le nouvel infirmier")
+        if (reassignNurseIds.length === 0) {
+            setReassignError("Sélectionnez au moins un infirmier")
             return
         }
         setBusyId(reassignTarget.id)
@@ -253,14 +275,16 @@ export function AdminMissionsView() {
                 {
                     method: "PATCH",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ nurseId: reassignNurseId }),
+                    body: JSON.stringify({ nurseIds: reassignNurseIds }),
                 }
             )
             if (res.ok) {
-                const nurse = board?.nurses.find(n => n.id === reassignNurseId)
+                const names = reassignNurseIds
+                    .map(id => board?.nurses.find(n => n.id === id)?.fullName)
+                    .filter(Boolean)
                 toast({
                     title: "Mission réaffectée",
-                    description: `${nurse?.fullName ?? "Le nouvel infirmier"} a été notifié(e) — la mission lui est désormais assignée.`,
+                    description: `${names.length === 1 ? names[0] : `${names.length} infirmier(ère)s`} ${names.length === 1 ? "a été notifié(e)" : "ont été notifié(e)s"} — la mission leur est désormais assignée.`,
                 })
                 setReassignTarget(null)
                 await loadAll()
@@ -420,8 +444,8 @@ export function AdminMissionsView() {
                                                         aria-hidden="true"
                                                     />
                                                 )}
-                                                Affecter un(e) infirmier(ère)
-                                            </Button>
+                                                 Affecter des infirmier(ère)s
+                                             </Button>
                                             {item.patientPhone && (
                                                 <Button
                                                     size="sm"
@@ -486,9 +510,9 @@ export function AdminMissionsView() {
                                                         "Patient"}{" "}
                                                     <span className="font-medium text-muted-foreground">
                                                         →{" "}
-                                                        {mission.nurse
-                                                            ?.fullName ??
-                                                            "Infirmier"}
+                                                        {(mission as any)?.nurses?.length > 0
+                                                            ? (mission as any).nurses.map((n: any) => n.fullName).join(", ")
+                                                            : mission.nurse?.fullName ?? "Infirmier"}
                                                     </span>
                                                 </p>
                                                 <p className="truncate text-xs text-muted-foreground">
@@ -666,13 +690,16 @@ export function AdminMissionsView() {
                         onSubmit={submitDispatch}
                         className="flex flex-col gap-4"
                     >
-                        <NursePicker
+                        <NurseMultiPicker
                             nurses={board?.nurses ?? []}
                             zone={dispatchTarget?.zone ?? ""}
-                            value={dispatchNurseId}
-                            onChange={id => {
-                                setDispatchNurseId(id)
-                                setDispatchError(undefined)
+                            value={dispatchNurseIds}
+                            onToggle={id => {
+                                setDispatchNurseIds(prev => {
+                                    const next = prev.includes(id) ? prev.filter(v => v !== id) : [...prev, id]
+                                    if (next.length > 0) setDispatchError(undefined)
+                                    return next
+                                })
                             }}
                             error={dispatchError}
                         />
@@ -728,13 +755,16 @@ export function AdminMissionsView() {
                         onSubmit={submitReassign}
                         className="flex flex-col gap-4"
                     >
-                        <NursePicker
+                        <NurseMultiPicker
                             nurses={board?.nurses ?? []}
                             zone={reassignTarget?.zone ?? ""}
-                            value={reassignNurseId}
-                            onChange={id => {
-                                setReassignNurseId(id)
-                                setReassignError(undefined)
+                            value={reassignNurseIds}
+                            onToggle={id => {
+                                setReassignNurseIds(prev => {
+                                    const next = prev.includes(id) ? prev.filter(v => v !== id) : [...prev, id]
+                                    if (next.length > 0) setReassignError(undefined)
+                                    return next
+                                })
                             }}
                             error={reassignError}
                         />

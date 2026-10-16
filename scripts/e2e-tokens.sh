@@ -95,7 +95,7 @@ nohup bun run dev > /tmp/dev-e2e.log 2>&1 &
 OK=0
 for i in $(seq 1 75); do
   sleep 2
-  if curl -sf http://localhost:3000/api/health >/dev/null 2>&1; then OK=1; echo "HEALTH OK (${i}x2s)"; break; fi
+  if curl -sf http://localhost:4000/api/health >/dev/null 2>&1; then OK=1; echo "HEALTH OK (${i}x2s)"; break; fi
 done
 [ $OK -eq 1 ] || { echo "SERVER DOWN"; tail -20 /tmp/dev-e2e.log; exit 1; }
 
@@ -109,7 +109,7 @@ echo "  [fixture] patient E2E = $E2E_PHONE (local $E2E_PHONE_LOCAL)"
 [ -n "$E2E_PHONE" ] || { echo "FIXTURE KO"; exit 1; }
 
 # ── 1. Suite API ────────────────────────────────────────────────────────────
-BASE=http://localhost:3000/api
+BASE=http://localhost:4000/api
 rm -f $JAR $JAR_ADMIN
 CODE=$(curl -s -o /tmp/tk-login.json -w "%{http_code}" -c $JAR -X POST $BASE/auth/login -H "Content-Type: application/json" -d "{\"phone\":\"$E2E_PHONE\",\"password\":\"$E2E_PWD\"}")
 check "API — login patient E2E" "200" "$CODE"
@@ -122,7 +122,7 @@ check "API — compte neuf : 0 mouvement" "0" "$(grep -o '"transactions":\[\]' /
 BAL_NUX=$(grep -o '"transactions":\[[^]]*\]' /tmp/tk-w1.json | grep -o ',"type"' | wc -l)
 check "API — ledger vide à la création" "0" "$BAL_NUX"
 
-CODE=$(curl -s -o /tmp/tk-r0.json -w "%{http_code}" -b $JAR -X POST $BASE/wallet/recharges -H "Content-Type: application/json" -d '{"amountFcfa":3000}')
+CODE=$(curl -s -o /tmp/tk-r0.json -w "%{http_code}" -b $JAR -X POST $BASE/wallet/recharges -H "Content-Type: application/json" -d '{"amountFcfa":4000}')
 check "API — recharge non multiple (3 000) → 400" "400" "$CODE"
 CODE=$(curl -s -o /tmp/tk-r1.json -w "%{http_code}" -b $JAR -X POST $BASE/wallet/recharges -H "Content-Type: application/json" -d '{"amountFcfa":2500}')
 check "API — recharge 2 500 → 201 PENDING" "201" "$CODE"
@@ -198,7 +198,7 @@ check "API — dépense : 2 500 FCFA" "2500" "$(sed -n 's/.*"spentFcfa":\([0-9]*
 # ── 2. Navigateur — PATIENT desktop 1440×900 ────────────────────────────────
 $AB close >/dev/null 2>&1
 $AB set viewport 1440 900 >/dev/null
-$AB open http://localhost:3000 >/dev/null
+$AB open http://localhost:4000 >/dev/null
 sleep 3
 $AB eval "localStorage.clear(); sessionStorage.clear(); 'ok'" >/dev/null
 echo "== login patient E2E: $(login "$E2E_PHONE_LOCAL" "$E2E_PWD")"

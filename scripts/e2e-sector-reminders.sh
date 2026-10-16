@@ -79,13 +79,13 @@ nohup bun run dev > /tmp/dev-e2e.log 2>&1 &
 OK=0
 for i in $(seq 1 75); do
   sleep 2
-  if curl -sf http://localhost:3000/api/health >/dev/null 2>&1; then OK=1; echo "HEALTH OK (${i}x2s)"; break; fi
+  if curl -sf http://localhost:4000/api/health >/dev/null 2>&1; then OK=1; echo "HEALTH OK (${i}x2s)"; break; fi
 done
 [ $OK -eq 1 ] || { echo "SERVER DOWN"; tail -20 /tmp/dev-e2e.log; exit 1; }
-echo "health: $(curl -s http://localhost:3000/api/health)"
+echo "health: $(curl -s http://localhost:4000/api/health)"
 
 # ── 1. Suite API — zone + scheduler de rappels ───────────────────────────────
-BASE=http://localhost:3000/api
+BASE=http://localhost:4000/api
 rm -f $JAR
 # NB : téléphones stockés au format international (+225…) — corps API en +225.
 CODE=$(curl -s -o /tmp/api-login.json -w "%{http_code}" -c $JAR -X POST $BASE/auth/login -H "Content-Type: application/json" -d '{"phone":"+2250709229992","password":"TestPatient2026!"}')
@@ -151,7 +151,7 @@ check "Stub SMS — exactement 1 envoi sur tout le run" "1" "$(grep -c 'SMS:stub
 # ── 2. Navigateur — PATIENT desktop 1440×900 : dialog secteur ────────────────
 $AB close >/dev/null 2>&1
 $AB set viewport 1440 900 >/dev/null
-$AB open http://localhost:3000 >/dev/null
+$AB open http://localhost:4000 >/dev/null
 sleep 3
 $AB eval "localStorage.clear(); sessionStorage.clear(); 'ok'" >/dev/null
 echo "== login patient: $(login "0709229992" "TestPatient2026!")"

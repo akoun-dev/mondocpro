@@ -295,6 +295,14 @@ Validation: schéma zod de référence (src/lib/<domaine>.ts)
 - Exclusions: les `APPOINTMENT_REMINDER` ne passent JAMAIS par le poll (rappels déjà planifiés localement à la réservation — un poll les livrerait en doublon).
 - Notes: consommé UNIQUEMENT par `capacitor-shell/custom-background.js` (tâche WorkManager ~15 min, même app fermée). Chaque item devient une notification locale Android (canaux `critical`/`updates` créés par l'app, lib/native.ts). Le curseur n'avance qu'après un tick réussi (panne réseau → aucune alerte perdue).
 
+### [GET] /api/admin/stats — Tableau de bord de l'accueil Médecin Chef
+
+- Feature: FEATURE-ANNUAIRE-ADMIN (« Espace Médecin Chef ») | Owner: Backend | Statut: **IMPLÉMENTÉ** (2026-10-16)
+- Auth: rôle `ADMIN` uniquement (401 non authentifié · 403 hors ADMIN).
+- Request: — (cookie de session)
+- Response: 200 `{ "generatedAt": ISO, "kpis": { "toDispatch": number, "rechargesPending": number, "activeMissions": number, "rdvToday": number, "activeNurses": number, "inactiveNurses": number, "patients": number, "tokensCredited30d": number, "fcfaCredited30d": number, "completedThisMonth": number }, "days": [{ "date": "AAAA-MM-JJ", "label": "JJ/MM", "missionsAssigned": number, "missionsCompleted": number, "rechargeTokens": number, "rechargeFcfa": number }], "zones": [...ZoneLoad], "statuses": [{ "status": MissionStatus, "label": string, "count": number }] }`
+- Notes: payload UNIQUE de l'accueil (`src/components/admin/admin-overview.tsx`) — un seul appel pour KPI + séries + charge par zone, afin que les chiffres ne se contredisent pas. Journées en **UTC (= heure d'Abidjan, UTC+0 sans heure d'été)** ; `days` couvre 14 jours glissants (jours vides inclus) ; `activeMissions` compte les missions (statuts ASSIGNED/ACCEPTED/IN_PROGRESS), pas les effectifs ; `toDispatch`, `zones` et les effectifs viennent de `getAdminTeamBoard()` (même source que la vue Équipes) ; `statuses` = cumul de toutes les missions, lignes à 0 retirées. Agrégation `completedThisMonth`/`tokensCredited30d` recalculée à chaque requête (pas de cache). `tokensCredited30d`/`fcfaCredited30d` = recharges CONFIRMED sur 30 jours.
+
 ---
 
 ## Contrats à venir

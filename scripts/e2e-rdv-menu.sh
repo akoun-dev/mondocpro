@@ -47,16 +47,16 @@ echo "server lancé (DATABASE_URL exportée)"
 OK=0
 for i in $(seq 1 75); do
   sleep 2
-  if curl -sf http://localhost:3000/api/health >/dev/null 2>&1; then OK=1; echo "HEALTH OK (${i}x2s)"; break; fi
+  if curl -sf http://localhost:4000/api/health >/dev/null 2>&1; then OK=1; echo "HEALTH OK (${i}x2s)"; break; fi
 done
 [ $OK -eq 1 ] || { echo "SERVER DOWN"; tail -20 /tmp/dev-e2e.log; exit 1; }
-echo "health: $(curl -s http://localhost:3000/api/health)"
+echo "health: $(curl -s http://localhost:4000/api/health)"
 
 $AB close >/dev/null 2>&1
 
 # ── 1. PATIENT desktop 1440×900 ─────────────────────────────────────────────
 $AB set viewport 1440 900 >/dev/null
-$AB open http://localhost:3000 >/dev/null
+$AB open http://localhost:4000 >/dev/null
 sleep 3
 $AB eval "localStorage.clear(); sessionStorage.clear(); 'ok'" >/dev/null
 echo "== login patient: $(login "0709229992" "TestPatient2026!")"

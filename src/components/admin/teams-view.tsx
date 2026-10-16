@@ -37,6 +37,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -68,51 +69,83 @@ const EMPTY_BOARD: TeamBoard = {
   },
 };
 
-/** Sélecteur d'infirmier — les soignants de la zone d'abord. */
-function NurseSelect({
+/** Sélecteur d'infirmiers — les soignants de la zone du RDV d'abord. */
+function NurseMultiSelect({
+  itemZone,
   nurses,
   value,
-  onChange,
+  onToggle,
   error,
   id,
 }: {
+  itemZone: string;
   nurses: NurseLoadItem[];
-  value: string;
-  onChange: (id: string) => void;
+  value: string[];
+  onToggle: (id: string) => void;
   error?: string;
   id: string;
 }) {
-  const zone = nurses.find(n => n.id === value)?.zone;
   const sorted = [...nurses].sort((a, b) => {
-    if (a.zone === zone && b.zone !== zone) return -1;
-    if (a.zone !== zone && b.zone === zone) return 1;
+    if (a.zone === itemZone && b.zone !== itemZone) return -1;
+    if (a.zone !== itemZone && b.zone === itemZone) return 1;
     return a.activeMissions - b.activeMissions;
   });
+  const same = sorted.filter(n => n.zone === itemZone);
+  const other = sorted.filter(n => n.zone !== itemZone);
   return (
-    <Select value={value} onValueChange={onChange}>
-      <SelectTrigger
-        id={id}
-        aria-invalid={error ? true : undefined}
-        className="w-full"
-      >
-        <SelectValue placeholder="Sélectionner un(e) infirmier(ère)" />
-      </SelectTrigger>
-      <SelectContent>
+    <div className="flex flex-col gap-1.5">
+      <Label htmlFor={id}>Infirmier(ère)s</Label>
+      <div className="max-h-64 overflow-y-auto rounded-xl border">
         {sorted.length === 0 ? (
           <div className="px-3 py-2 text-sm text-muted-foreground">
             Aucun(e) infirmier(ère) disponible.
           </div>
         ) : (
-          sorted.map(nurse => (
-            <SelectItem key={nurse.id} value={nurse.id}>
-              {nurse.fullName}
-              {nurse.activeMissions > 0 ? ` · ${nurse.activeMissions} en cours` : ""}
-              {nurse.zone !== zone ? " (hors zone)" : ""}
-            </SelectItem>
-          ))
+          <>
+            {same.map(nurse => {
+              const checked = value.includes(nurse.id);
+              return (
+                <label
+                  key={nurse.id}
+                  className="flex items-center gap-3 px-3 py-2 hover:bg-muted"
+                >
+                  <Checkbox checked={checked} onCheckedChange={() => onToggle(nurse.id)} />
+                  <span className="text-sm">
+                    {nurse.fullName}
+                    {nurse.activeMissions > 0 ? ` · ${nurse.activeMissions} en cours` : ""}
+                  </span>
+                </label>
+              );
+            })}
+            {other.length > 0 && (
+              <>
+                <div className="px-3 py-1.5 text-xs text-muted-foreground">
+                  Autres zones (hors zone du RDV)
+                </div>
+                {other.map(nurse => {
+                  const checked = value.includes(nurse.id);
+                  return (
+                    <label key={nurse.id} className="flex items-center gap-3 px-3 py-2 opacity-60">
+                      <Checkbox checked={checked} onCheckedChange={() => onToggle(nurse.id)} />
+                      <span className="text-sm">
+                        {nurse.fullName}
+                        {nurse.activeMissions > 0 ? ` · ${nurse.activeMissions} en cours` : ""}
+                        {" "}({ZONE_LABELS[nurse.zone as keyof typeof ZONE_LABELS] ?? nurse.zone})
+                      </span>
+                    </label>
+                  );
+                })}
+              </>
+            )}
+          </>
         )}
-      </SelectContent>
-    </Select>
+      </div>
+      {error && (
+        <p role="alert" className="text-sm text-destructive">
+          {error}
+        </p>
+      )}
+    </div>
   );
 }
 
@@ -128,13 +161,13 @@ function DispatchDialog({
   onClose: () => void;
   onDone: () => Promise<void>;
 }) {
-  const [nurseId, setNurseId] = useState("");
+  const [nurseIds, setNurseIds] = useState<string[]>([]);
   const [error, setError] = useState<string | undefined>(undefined);
   const [busy, setBusy] = useState(false);
 
   function handleOpenChange(open: boolean) {
     if (!open) {
-      setNurseId("");
+      setNurseIds([]);
       setError(undefined);
       onClose();
     }
@@ -143,8 +176,8 @@ function DispatchDialog({
   async function submit(event: React.FormEvent) {
     event.preventDefault();
     if (!item) return;
-    if (!nurseId) {
-      setError("Sélectionnez un infirmier à affecter");
+    if (nurseIds.length === 0) {
+      setError("Sélectionnez au moins un infirmier à affecter");
       return;
     }
     setBusy(true);
@@ -153,13 +186,13 @@ function DispatchDialog({
       const res = await fetch("/api/admin/missions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ appointmentId: item.id, nurseId }),
+        body: JSON.stringify({ appointmentId: item.id, nurseIds }),
       });
       if (res.ok) {
-        const nurse = nurses.find(n => n.id === nurseId);
+        const names = nurseIds.map(id => nurses.find(n => n.id === id)?.fullName).filter(Boolean);
         toast({
           title: "Mission affectée",
-          description: `${nurse?.fullName ?? "L'infirmier"} a été notifié(e).`,
+          description: `${names.length === 1 ? names[0] : `${names.length} infirmier(ère)s`} ${names.length === 1 ? "a été notifié(e)" : "ont été notifié(e)s"}.`,
         });
         handleOpenChange(false);
         await onDone();
@@ -198,19 +231,20 @@ function DispatchDialog({
           </DialogHeader>
 
           <div className="py-4">
-            <Label htmlFor="teams-dispatch-nurse">Infirmier(ère)</Label>
-            <NurseSelect
+            <NurseMultiSelect
               id="teams-dispatch-nurse"
+              itemZone={item?.zone ?? ""}
               nurses={nurses}
-              value={nurseId}
-              onChange={setNurseId}
+              value={nurseIds}
+              onToggle={id => {
+                setNurseIds(prev => {
+                  const next = prev.includes(id) ? prev.filter(v => v !== id) : [...prev, id];
+                  if (next.length > 0) setError(undefined);
+                  return next;
+                });
+              }}
               error={error}
             />
-            {error && (
-              <p role="alert" className="mt-1.5 text-sm text-destructive">
-                {error}
-              </p>
-            )}
           </div>
 
           <DialogFooter>
@@ -410,8 +444,8 @@ export function AdminTeamsView() {
                   className="mt-4 h-9 w-full gap-2 rounded-xl text-sm font-semibold"
                 >
                   <Send className="size-4" aria-hidden="true" />
-                  Affecter un infirmier
-                </Button>
+                   Affecter des infirmier(ère)s
+               </Button>
               </li>
             ))}
           </ul>

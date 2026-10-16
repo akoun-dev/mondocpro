@@ -11,7 +11,11 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   if (!parsed.success) return NextResponse.json({ error: "Réaffectation invalide", details: parsed.error.issues }, { status: 400 });
   try {
     const missionId = (await params).id;
-    const mission = await dispatchMission(guard.user.id, { appointmentId: "", nurseId: parsed.data.nurseId }, missionId);
+    const mission = await dispatchMission(
+      guard.user.id,
+      { appointmentId: "", nurseId: parsed.data.nurseId, nurseIds: parsed.data.nurseIds },
+      missionId,
+    );
     return NextResponse.json({ mission });
   } catch (error) {
     if (error instanceof NurseMissionError) return NextResponse.json({ error: error.message }, { status: error.status });

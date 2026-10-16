@@ -11,7 +11,6 @@ import { AnimatePresence, motion } from "framer-motion"
 import {
     Activity,
     BarChart3,
-    Bell,
     BellRing,
     CalendarCheck,
     ChevronRight,
@@ -43,14 +42,8 @@ import {
     CardHeader,
     CardTitle,
 } from "@/components/ui/card"
-import {
-    Popover,
-    PopoverContent,
-    PopoverTrigger,
-} from "@/components/ui/popover"
 import { ZONE_LABELS } from "@/lib/auth-schemas"
 import { TOKEN_VALUE_FCFA } from "@/lib/token-schemas"
-import { relativePublishedLabel, relativeSlotLabel } from "@/lib/datetime"
 import { formatPhoneDisplay } from "@/lib/phone"
 import { getInitials } from "@/lib/utils"
 import { useAuth } from "@/hooks/use-auth"
@@ -84,9 +77,11 @@ import { AdminMissionsView } from "@/components/admin/missions-view"
 import { AdminTeamsView } from "@/components/admin/teams-view"
 import { AdminPatientsView } from "@/components/admin/patients-view"
 import { AdminNursesView } from "@/components/admin/nurses-view"
+import { NotificationsBell } from "@/components/auth/notifications-panel"
 import { NurseMissionsView } from "@/components/nurse/nurse-missions-view"
 import { NurseProfileView } from "@/components/nurse/nurse-profile-view"
 import { AdminProfileView } from "@/components/profile/admin-profile-view"
+import { AdminOverview } from "@/components/admin/admin-overview"
 import {
     AdminMenuButton,
     AdminSidebar,
@@ -376,47 +371,6 @@ function notificationDestination(type: string, role: AppRole): DashboardTab {
     return family === "recharge" ? "recharges" : "missions"
 }
 
-// Icône + couleur par FAMILLE (lecture instantanée du fil) : Coins pour le
-// cycle financier, CalendarCheck pour le cycle RDV, ClipboardCheck pour le
-// cycle missions — le BellRing générique ne reste que pour les futurs types.
-function notificationVisual(type: string): {
-    Icon: LucideIcon
-    classes: string
-} {
-    const family = notificationFamily(type)
-    if (family === "recharge")
-        return {
-            Icon: Wallet,
-            classes: "bg-warning/15 text-warning-foreground",
-        }
-    if (family === "appointment")
-        return { Icon: CalendarCheck, classes: "bg-primary/10 text-primary" }
-    return {
-        Icon: ClipboardCheck,
-        classes: "bg-success/15 text-success-foreground",
-    }
-}
-
-// Séparateur de groupe dans le panneau de notifications. Le panneau fusionne
-// trois sources sans les distinguer (notifications persistées, prochain
-// rendez-vous, conseils santé) : sans étiquette, une ligne de conseil de
-// santé se lit comme une alerte de mission. `role="presentation"` car ce n'est
-// pas une entrée de liste.
-function NotificationGroupLabel({
-    children,
-}: {
-    children: React.ReactNode
-}) {
-    return (
-        <li
-            role="presentation"
-            className="border-t border-dashed px-4 pb-1 pt-3 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground first:border-t-0 first:pt-2"
-        >
-            {children}
-        </li>
-    )
-}
-
 // Compteurs de travail du Médecin Chef (accueil admin) — files RÉELLES des
 // deux piliers opérationnels : recharges à valider (GET /api/admin/recharges)
 // et consultations à domicile à affecter (GET /api/admin/missions —
@@ -486,7 +440,6 @@ export function UserDashboard() {
     const [openArticle, setOpenArticle] = useState<SensibilisationDto | null>(
         null
     )
-    const [notifOpen, setNotifOpen] = useState(false)
     const [bookingOpen, setBookingOpen] = useState(false)
     const [rechargeRequested, setRechargeRequested] = useState(false)
     const [adminSidebarOpen, setAdminSidebarOpen] = useState(false)
@@ -741,239 +694,27 @@ export function UserDashboard() {
                             <div className="flex items-center gap-1 sm:gap-1.5">
                                 {/* FEATURE-DARK-MODE (Task 37) — bascule clair/sombre */}
                                 <ThemeToggle />
-                                <Popover
-                                    open={notifOpen}
-                                    onOpenChange={open => {
-                                        setNotifOpen(open)
-                                        if (open) void refreshNotifications()
-                                    }}
-                                >
-                                    <PopoverTrigger asChild>
-                                        <button
-                                            type="button"
-                                            aria-label={
-                                                unreadCount > 0
-                                                    ? `Notifications (${unreadCount} non lue${unreadCount > 1 ? "s" : ""})`
-                                                    : "Notifications"
-                                            }
-                                            className="relative flex size-11 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:size-9"
-                                        >
-                                            <Bell
-                                                className="size-5 sm:size-4.5"
-                                                aria-hidden="true"
-                                            />
-                                            {unreadCount > 0 && (
-                                                <span
-                                                    aria-hidden="true"
-                                                    className="absolute right-0.5 top-0.5 flex size-4 items-center justify-center rounded-full bg-destructive text-[10px] font-bold leading-none text-destructive-foreground"
-                                                >
-                                                    {unreadCount > 9
-                                                        ? "9+"
-                                                        : unreadCount}
-                                                </span>
-                                            )}
-                                        </button>
-                                    </PopoverTrigger>
-                                    <PopoverContent
-                                        align="end"
-                                        collisionPadding={12}
-                                        className="w-[calc(100vw-1.5rem)] max-w-[22rem] overflow-hidden rounded-2xl p-0"
-                                    >
-                                        {/* Panneau adaptatif : la largeur suit
-                                        l'écran (w-80 = 320px déborde sous 320px
-                                        de large) et la hauteur de la liste est
-                                        bornée par la fenêtre, pas en dur —
-                                        sinon la liste recouvre tout l'écran
-                                        sur un petit téléphone.
-                                        L'en-tête reste hors zone de défilement :
-                                        « tout marquer comme lu » doit rester
-                                        atteignable quel que soit le scroll. */}
-                                        <div className="flex items-center justify-between gap-2 border-b bg-popover px-4 py-3">
-                                            <p className="text-sm font-semibold">
-                                                Notifications
-                                            </p>
-                                            {unreadCount > 0 && (
-                                                <button
-                                                    type="button"
-                                                    onClick={() =>
-                                                        void markAllNotificationsRead()
-                                                    }
-                                                    className="shrink-0 rounded-lg px-1 py-1 text-xs font-medium text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                                                >
-                                                    Tout marquer comme lu
-                                                </button>
-                                            )}
-                                        </div>
-                                        <ul className="max-h-[min(70dvh,26rem)] overscroll-contain overflow-y-auto pb-[env(safe-area-inset-bottom)]">
-                                            {/* Rappels de RDV — notifications InApp
-                                            persistées (Task 24) : pastille + titre
-                                            gras tant que non lues, horodatage
-                                            relatif, clic → « Mes rendez-vous ». */}
-                                            {notifications.length > 0 && (
-                                                <NotificationGroupLabel>
-                                                    Alertes & rappels
-                                                </NotificationGroupLabel>
-                                            )}
-                                            {notifications.map(n => {
-                                                const visual =
-                                                    notificationVisual(n.type)
-                                                const NotifIcon = visual.Icon
-                                                return (
-                                                    <li key={n.id}>
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => {
-                                                                setNotifOpen(
-                                                                    false
-                                                                )
-                                                                if (!n.readAt) {
-                                                                    markOneNotificationRead(
-                                                                        n.id
-                                                                    )
-                                                                }
-                                                                // Task 35 — destination
-                                                                // par rôle + famille :
-                                                                // la notification mène
-                                                                // à l'outil d'action.
-                                                                setTab(
-                                                                    notificationDestination(
-                                                                        n.type,
-                                                                        user.role
-                                                                    )
-                                                                )
-                                                            }}
-                                                            className="flex w-full items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/60"
-                                                        >
-                                                            <span
-                                                                className={`relative mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg ${visual.classes}`}
-                                                            >
-                                                                <NotifIcon
-                                                                    className="size-4"
-                                                                    aria-hidden="true"
-                                                                />
-                                                                {!n.readAt && (
-                                                                    <span
-                                                                        aria-hidden="true"
-                                                                        className="absolute -right-0.5 -top-0.5 size-2.5 rounded-full bg-primary ring-2 ring-background"
-                                                                    />
-                                                                )}
-                                                            </span>
-                                                            <span className="min-w-0 flex-1">
-                                                                <span
-                                                                    className={`block truncate text-sm ${n.readAt ? "font-medium text-muted-foreground" : "font-semibold"}`}
-                                                                >
-                                                                    {n.title}
-                                                                </span>
-                                                                <span className="block line-clamp-2 text-xs text-muted-foreground">
-                                                                    {n.body}
-                                                                </span>
-                                                                <span
-                                                                    className="text-xs text-muted-foreground"
-                                                                    suppressHydrationWarning
-                                                                >
-                                                                    {relativePublishedLabel(
-                                                                        n.createdAt
-                                                                    )}
-                                                                </span>
-                                                            </span>
-                                                        </button>
-                                                    </li>
-                                                )
-                                            })}
-                                            {nextPatientAppointment && (
-                                                <NotificationGroupLabel>
-                                                    Prochain rendez-vous
-                                                </NotificationGroupLabel>
-                                            )}
-                                            {nextPatientAppointment && (
-                                                <li>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => {
-                                                            setNotifOpen(false)
-                                                            setTab("rdv")
-                                                        }}
-                                                        className="flex w-full items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/60"
-                                                    >
-                                                        <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                                                            <CalendarCheck
-                                                                className="size-4"
-                                                                aria-hidden="true"
-                                                            />
-                                                        </span>
-                                                        <span className="min-w-0 flex-1">
-                                                            <span
-                                                                className="block truncate text-sm font-medium"
-                                                                suppressHydrationWarning
-                                                            >
-                                                                Rendez-vous{" "}
-                                                                {relativeSlotLabel(
-                                                                    nextPatientAppointment.scheduledAt
-                                                                )}
-                                                            </span>
-                                                            <span className="text-xs text-muted-foreground">
-                                                                Mes rendez-vous
-                                                            </span>
-                                                        </span>
-                                                    </button>
-                                                </li>
-                                            )}
-                                            {(patientData.sensibilisations ?? [])
-                                                .length > 0 && (
-                                                <NotificationGroupLabel>
-                                                    Conseils santé
-                                                </NotificationGroupLabel>
-                                            )}
-                                            {(patientData.sensibilisations ?? [])
-                                                .slice(0, 5)
-                                                .map(item => (
-                                                    <li key={item.id}>
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => {
-                                                                setNotifOpen(
-                                                                    false
-                                                                )
-                                                                setOpenArticle(
-                                                                    item
-                                                                )
-                                                            }}
-                                                            className="flex w-full items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/60"
-                                                        >
-                                                            <span
-                                                                aria-hidden="true"
-                                                                className={`mt-1.5 size-2 shrink-0 rounded-full ${item.category === "ALERT" ? "bg-destructive" : "bg-success"}`}
-                                                            />
-                                                            <span className="min-w-0 flex-1">
-                                                                <span className="block truncate text-sm font-medium">
-                                                                    {item.title}
-                                                                </span>
-                                                                <span
-                                                                    className="text-xs text-muted-foreground"
-                                                                    suppressHydrationWarning
-                                                                >
-                                                                    {relativePublishedLabel(
-                                                                        item.publishedAt
-                                                                    )}
-                                                                </span>
-                                                            </span>
-                                                        </button>
-                                                    </li>
-                                                ))}
-                                            {notifications.length === 0 &&
-                                                !nextPatientAppointment &&
-                                                (
-                                                    patientData.sensibilisations ??
-                                                    []
-                                                ).length === 0 && (
-                                                    <li className="px-4 py-6 text-center text-sm text-muted-foreground">
-                                                        Aucune notification pour
-                                                        le moment
-                                                    </li>
-                                                )}
-                                        </ul>
-                                    </PopoverContent>
-                                </Popover>
+                                <NotificationsBell
+                                    notifications={notifications}
+                                    unreadCount={unreadCount}
+                                    nextAppointment={nextPatientAppointment}
+                                    sensibilisations={
+                                        patientData.sensibilisations ?? []
+                                    }
+                                    onRefresh={refreshNotifications}
+                                    onMarkAllRead={markAllNotificationsRead}
+                                    onMarkOneRead={markOneNotificationRead}
+                                    onSelectNotification={type =>
+                                        setTab(
+                                            notificationDestination(
+                                                type,
+                                                user.role
+                                            )
+                                        )
+                                    }
+                                    onOpenAppointments={() => setTab("rdv")}
+                                    onOpenArticle={setOpenArticle}
+                                />
                                 <button
                                     type="button"
                                     onClick={() => setTab("profil")}
@@ -1289,9 +1030,16 @@ export function UserDashboard() {
                                             </button>
                                         )}
 
-                                        {/* Espace par rôle — cartes fonctionnalités : passées en
-                                live = raccourcis cliquables (badge vert), les autres
-                                restent annoncées « à venir » */}
+                                        {/* Espace par rôle — le Médecin Chef a un VRAI
+                                tableau de bord (indicateurs temps réel + séries 14 j,
+                                AdminOverview) ; les autres rôles gardent les cartes
+                                fonctionnalités (live = raccourci cliquable, sinon
+                                annoncées « à venir »). */}
+                                        {user.role === "ADMIN" ? (
+                                            <AdminOverview
+                                                onOpenTab={setTab}
+                                            />
+                                        ) : (
                                         <Card className="rounded-2xl">
                                             <CardHeader>
                                                 <CardTitle className="flex items-center gap-2.5">
@@ -1373,6 +1121,7 @@ export function UserDashboard() {
                                                 </ul>
                                             </CardContent>
                                         </Card>
+                                        )}
                                     </>
                                 )}
                             </motion.section>
