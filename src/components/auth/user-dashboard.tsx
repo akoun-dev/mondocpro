@@ -78,10 +78,11 @@ import { AdminTeamsView } from "@/components/admin/teams-view"
 import { AdminPatientsView } from "@/components/admin/patients-view"
 import { AdminNursesView } from "@/components/admin/nurses-view"
 import { NotificationsBell } from "@/components/auth/notifications-panel"
+import { SensibilisationsAdminView } from "@/components/admin/sensibilisations-view"
+import { AdminHomeView } from "@/components/admin/admin-home-view"
 import { NurseMissionsView } from "@/components/nurse/nurse-missions-view"
 import { NurseProfileView } from "@/components/nurse/nurse-profile-view"
 import { AdminProfileView } from "@/components/profile/admin-profile-view"
-import { AdminOverview } from "@/components/admin/admin-overview"
 import {
     AdminMenuButton,
     AdminSidebar,
@@ -215,6 +216,7 @@ type DashboardTab =
     | "equipes"
     | "patients"
     | "infirmiers"
+    | "sensibilisations"
     | "wallet"
     | "senso"
     | "specialties"
@@ -272,6 +274,13 @@ function viewHeading(
             return {
                 title: "Infirmiers",
                 subtitle: "Annuaire des soignants, charge de travail et historique de missions",
+            }
+        // FEATURE-SENSO phase 2 — rédaction éditoriale du Médecin Chef
+        // (le fil lu par les patients est l'onglet « senso »).
+        case "sensibilisations":
+            return {
+                title: "Conseils & Sensibilisations",
+                subtitle: "Publiez des conseils et alertes santé pour vos patients — par zone ou partout",
             }
         case "wallet":
             return {
@@ -371,57 +380,6 @@ function notificationDestination(type: string, role: AppRole): DashboardTab {
     return family === "recharge" ? "recharges" : "missions"
 }
 
-// Compteurs de travail du Médecin Chef (accueil admin) — files RÉELLES des
-// deux piliers opérationnels : recharges à valider (GET /api/admin/recharges)
-// et consultations à domicile à affecter (GET /api/admin/missions —
-// dispatchQueue, Task 35). Chargement une fois au montage ; les vues
-// elles-mêmes rechargent à l'ouverture (source de vérité fraîche). Échec =
-// compteurs absents (les raccourcis restent utilisables).
-type AdminCounters = {
-    rechargesPending: number
-    toDispatch: number
-    activeMissions: number
-} | null
-
-function useAdminCounters(enabled: boolean): AdminCounters {
-    const [counters, setCounters] = useState<AdminCounters>(null)
-    useEffect(() => {
-        if (!enabled) return
-        let cancelled = false
-        ;(async () => {
-            try {
-                const [rechargesRes, missionsRes] = await Promise.all([
-                    fetch("/api/admin/recharges", { cache: "no-store" }),
-                    fetch("/api/admin/missions", { cache: "no-store" }),
-                ])
-                if (!rechargesRes.ok || !missionsRes.ok) return
-                const recharges = (await rechargesRes.json()) as {
-                    pending?: unknown[]
-                }
-                const board = (await missionsRes.json()) as {
-                    dispatchQueue?: unknown[]
-                    missions?: Array<{ status: string }>
-                }
-                if (cancelled) return
-                setCounters({
-                    rechargesPending: recharges.pending?.length ?? 0,
-                    toDispatch: board.dispatchQueue?.length ?? 0,
-                    activeMissions: (board.missions ?? []).filter(m =>
-                        ["ASSIGNED", "ACCEPTED", "IN_PROGRESS"].includes(
-                            m.status
-                        )
-                    ).length,
-                })
-            } catch {
-                // silencieux — compteurs non critiques
-            }
-        })()
-        return () => {
-            cancelled = true
-        }
-    }, [enabled])
-    return counters
-}
 
 export function UserDashboard() {
     const { user, logout } = useAuth()
@@ -454,8 +412,8 @@ export function UserDashboard() {
     // garde reste dans l'effet pour couvrir le premier rendu de transition.
     const isNotificationUser = true
     const patientData: PatientData = usePatientData(isPatient)
-    // Task 35 — compteurs de travail du Médecin Chef (files réelles, accueil).
-    const adminCounters = useAdminCounters(isAdmin)
+    // (Les compteurs de l'accueil admin vivent désormais dans AdminHomeView
+    // via GET /api/admin/overview — FEATURE-ADMIN-DASHBOARD.)
 
     // ——— Notifications InApp (Task 24) — rappels de RDV persistés ———
     // Fetch au montage (badge visible sans ouvrir le panneau), toutes les
@@ -528,6 +486,7 @@ export function UserDashboard() {
                 "equipes",
                 "patients",
                 "infirmiers",
+                "sensibilisations",
                 "tarifs",
             ],
         }
@@ -662,7 +621,14 @@ export function UserDashboard() {
             <div className="flex min-w-0 flex-1 flex-col">
                 {/* Barre d'app — sticky avec flou en verre dépoli */}
                 <header className="sticky top-0 z-20 border-b bg-card/80 backdrop-blur-md">
-                    <div className="mx-auto flex w-full max-w-5xl items-center justify-between gap-3 px-4 py-3">
+                    {/* Demande PO 2026-10 : les écrans du Médecin Chef s'étendent
+                        sur toute la largeur (sidebar + contenu w-full) ; les
+                        autres rôles restent centrés sur max-w-5xl. */}
+                    <div
+                        className={`flex w-full items-center justify-between gap-3 px-4 py-3 ${
+                            user.role === "ADMIN" ? "" : "mx-auto max-w-5xl"
+                        }`}
+                    >
                         <div className="flex min-w-0 items-center gap-2.5">
                             {user.role === "ADMIN" && (
                                 <AdminMenuButton
@@ -760,8 +726,12 @@ export function UserDashboard() {
           un seul élément <main> par page). */}
                 <h1 className="sr-only">Mon espace Mon doc Pro</h1>
 
+                {/* Demande PO 2026-10 : vues admin en pleine largeur (w-full,
+                    plus de max-w-5xl) — les tableaux de supervision (équipes,
+                    annuaires, missions) gagnent la place des grands écrans.
+                    Patient / infirmier restent bornés à max-w-3xl. */}
                 <div
-                    className={`mx-auto w-full px-4 py-6 sm:py-8 ${user.role === "ADMIN" ? "max-w-5xl pb-8" : "max-w-3xl pb-32"}`}
+                    className={`w-full px-4 py-6 sm:py-8 ${user.role === "ADMIN" ? "pb-8" : "mx-auto max-w-3xl pb-32"}`}
                 >
                     <AnimatePresence mode="wait" initial={false}>
                         {tab === "accueil" && (
@@ -784,6 +754,15 @@ export function UserDashboard() {
                                             setRechargeRequested(true)
                                             setTab("wallet")
                                         }}
+                                    />
+                                ) : user.role === "ADMIN" ? (
+                                    /* FEATURE-ADMIN-DASHBOARD — tableau de bord
+                                        du Médecin Chef : KPI réels, statistiques
+                                        7 jours, répartition par zone et files
+                                        d'action (replaces les raccourcis). */
+                                    <AdminHomeView
+                                        userName={user.fullName}
+                                        onNavigate={setTab}
                                     />
                                 ) : (
                                     <>
@@ -842,92 +821,8 @@ export function UserDashboard() {
                                             </div>
                                         </div>
 
-                                        {/* Raccourci ADMIN — Missions & Dispatch (Task 35 :
-                                FEATURE-NURSE exposée au Médecin Chef) + validation des
-                                recharges de Tokens (FEATURE-TOKENS) — les deux piliers
-                                opérationnels, avec compteurs de file RÉELS. */}
-                                        {user.role === "ADMIN" && (
-                                            <button
-                                                type="button"
-                                                onClick={() =>
-                                                    setTab("missions")
-                                                }
-                                                className="mb-6 flex w-full items-center gap-3 rounded-2xl border bg-card p-4 text-left shadow-sm transition-colors hover:border-primary/40 hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:p-5"
-                                            >
-                                                <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                                                    <ClipboardCheck
-                                                        className="size-5"
-                                                        aria-hidden="true"
-                                                    />
-                                                </span>
-                                                <span className="min-w-0 flex-1">
-                                                    <span className="block text-sm font-bold">
-                                                        Missions &amp; Dispatch
-                                                    </span>
-                                                    <span className="block text-xs text-muted-foreground">
-                                                        Affectez les
-                                                        consultations à domicile
-                                                        et suivez les équipes
-                                                    </span>
-                                                    {adminCounters &&
-                                                        adminCounters.toDispatch >
-                                                            0 && (
-                                                            <Badge className="mt-1.5 bg-warning text-warning-foreground">
-                                                                {
-                                                                    adminCounters.toDispatch
-                                                                }{" "}
-                                                                à affecter
-                                                            </Badge>
-                                                        )}
-                                                </span>
-                                                <ChevronRight
-                                                    className="size-5 shrink-0 text-muted-foreground"
-                                                    aria-hidden="true"
-                                                />
-                                            </button>
-                                        )}
-
-                                        {user.role === "ADMIN" && (
-                                            <button
-                                                type="button"
-                                                onClick={() =>
-                                                    setTab("recharges")
-                                                }
-                                                className="mb-6 flex w-full items-center gap-3 rounded-2xl border bg-card p-4 text-left shadow-sm transition-colors hover:border-primary/40 hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:p-5"
-                                            >
-                                                <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                                                    <Wallet
-                                                        className="size-5"
-                                                        aria-hidden="true"
-                                                    />
-                                                </span>
-                                                <span className="min-w-0 flex-1">
-                                                    <span className="block text-sm font-bold">
-                                                        Recharges de Tokens
-                                                    </span>
-                                                    <span className="block text-xs text-muted-foreground">
-                                                        Valider les paiements
-                                                        patients (Wave, OM, MTN,
-                                                        Visa)
-                                                    </span>
-                                                    {adminCounters &&
-                                                        adminCounters.rechargesPending >
-                                                            0 && (
-                                                            <Badge className="mt-1.5 bg-warning text-warning-foreground">
-                                                                {
-                                                                    adminCounters.rechargesPending
-                                                                }{" "}
-                                                                en attente
-                                                            </Badge>
-                                                        )}
-                                                </span>
-                                                <ChevronRight
-                                                    className="size-5 shrink-0 text-muted-foreground"
-                                                    aria-hidden="true"
-                                                />
-                                            </button>
-                                        )}
-
+                                        {/* Raccourci infirmier — missions du jour (l'accueil
+                                admin est désormais le tableau de bord dédié) */}
                                         {user.role === "NURSE" && (
                                             <button
                                                 type="button"
@@ -959,87 +854,9 @@ export function UserDashboard() {
                                             </button>
                                         )}
 
-                                        {/* Raccourci ADMIN — gestion du catalogue de spécialités
-                                consommé par l'étape 2 du wizard patient (feature live,
-                                contrairement aux modules « à venir » ci-dessous) */}
-                                        {user.role === "ADMIN" && (
-                                            <button
-                                                type="button"
-                                                onClick={() =>
-                                                    setTab("specialties")
-                                                }
-                                                className="mb-6 flex w-full items-center gap-3 rounded-2xl border bg-card p-4 text-left shadow-sm transition-colors hover:border-primary/40 hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:p-5"
-                                            >
-                                                <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                                                    <Stethoscope
-                                                        className="size-5"
-                                                        aria-hidden="true"
-                                                    />
-                                                </span>
-                                                <span className="min-w-0 flex-1">
-                                                    <span className="block text-sm font-bold">
-                                                        Gérer les spécialités
-                                                    </span>
-                                                    <span className="block text-xs text-muted-foreground">
-                                                        Catalogue proposé aux
-                                                        patients à la prise de
-                                                        RDV
-                                                    </span>
-                                                </span>
-                                                <span className="flex shrink-0 items-center gap-0.5 text-sm font-semibold text-primary">
-                                                    Ouvrir
-                                                    <ChevronRight
-                                                        className="size-4"
-                                                        aria-hidden="true"
-                                                    />
-                                                </span>
-                                            </button>
-                                        )}
-
-                                        {/* Raccourci ADMIN — grille tarifaire des consultations
-                                (FEATURE-TOKENS : tarifs configurables, demande PO
-                                2026-10-03 — le Médecin Chef fixe le prix en Tokens) */}
-                                        {user.role === "ADMIN" && (
-                                            <button
-                                                type="button"
-                                                onClick={() => setTab("tarifs")}
-                                                className="mb-6 flex w-full items-center gap-3 rounded-2xl border bg-card p-4 text-left shadow-sm transition-colors hover:border-primary/40 hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:p-5"
-                                            >
-                                                <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                                                    <Tags
-                                                        className="size-5"
-                                                        aria-hidden="true"
-                                                    />
-                                                </span>
-                                                <span className="min-w-0 flex-1">
-                                                    <span className="block text-sm font-bold">
-                                                        Tarifs des consultations
-                                                    </span>
-                                                    <span className="block text-xs text-muted-foreground">
-                                                        Fixer le prix en Tokens
-                                                        de chaque consultation
-                                                    </span>
-                                                </span>
-                                                <span className="flex shrink-0 items-center gap-0.5 text-sm font-semibold text-primary">
-                                                    Ouvrir
-                                                    <ChevronRight
-                                                        className="size-4"
-                                                        aria-hidden="true"
-                                                    />
-                                                </span>
-                                            </button>
-                                        )}
-
-                                        {/* Espace par rôle — le Médecin Chef a un VRAI
-                                tableau de bord (indicateurs temps réel + séries 14 j,
-                                AdminOverview) ; les autres rôles gardent les cartes
-                                fonctionnalités (live = raccourci cliquable, sinon
-                                annoncées « à venir »). */}
-                                        {user.role === "ADMIN" ? (
-                                            <AdminOverview
-                                                onOpenTab={setTab}
-                                            />
-                                        ) : (
+                                        {/* Espace par rôle — cartes fonctionnalités : passées en
+                                live = raccourcis cliquables (badge vert), les autres
+                                restent annoncées « à venir */}
                                         <Card className="rounded-2xl">
                                             <CardHeader>
                                                 <CardTitle className="flex items-center gap-2.5">
@@ -1121,7 +938,6 @@ export function UserDashboard() {
                                                 </ul>
                                             </CardContent>
                                         </Card>
-                                        )}
                                     </>
                                 )}
                             </motion.section>
@@ -1211,6 +1027,23 @@ export function UserDashboard() {
                                 aria-label="Annuaire des infirmiers"
                             >
                                 <AdminNursesView />
+                            </motion.section>
+                        )}
+
+                        {/* FEATURE-SENSO phase 2 — rédaction des conseils et
+                            alertes santé (le fil patient reste l'onglet
+                            « senso », l'admin gère ici la publication). */}
+                        {tab === "sensibilisations" &&
+                            user.role === "ADMIN" && (
+                            <motion.section
+                                key="sensibilisations"
+                                variants={tabVariants}
+                                initial="enter"
+                                animate="center"
+                                exit="exit"
+                                aria-label="Conseils et sensibilisations"
+                            >
+                                <SensibilisationsAdminView />
                             </motion.section>
                         )}
 

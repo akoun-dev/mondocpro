@@ -80,6 +80,19 @@ export function WalletSection({ openRecharge = false, onRechargeOpened }: Props)
   const [submitting, setSubmitting] = useState(false);
 
   const loadWallet = useCallback(async () => {
+    // Relance unique après 700 ms (Task 48) — un échec isolé (réseau mobile,
+    // redéploiement serveur) ne doit pas laisser la vue en erreur.
+    try {
+      const res = await fetch("/api/wallet");
+      if (res.ok) {
+        setWallet((await res.json()) as WalletDto);
+        setLoadError(false);
+        return;
+      }
+      throw new Error();
+    } catch {
+      await new Promise(resolve => setTimeout(resolve, 700));
+    }
     try {
       const res = await fetch("/api/wallet");
       if (!res.ok) throw new Error();

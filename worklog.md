@@ -1321,24 +1321,149 @@ Stage Summary:
 ---
 
 Task ID: 44
-Agent: AGENT DÉVELOPPEMENT (frontend + backend)
-Task: Corrections UX admin — (1) affectation de missions à plusieurs infirmiers (mission partagée), (2) nettoyage du profil Médecin Chef, (3) correctif de la cloche de notifications inerte, (4) nouveau tableau de bord « Espace Médecin Chef ».
+Agent: Super Z (principal)
+Task: « récupère le dernier commit, mets le vues admins en w-full et aussi permet de cree ou ajouter des infirmiers avec les workflow complet » (PO, 2026-10-05)
 
 Work Log:
 
-- **Affectation de groupe (multi-infirmiers)** — décisisons PO : mission PARTAGÉE unique (un seul statut/compte-rendu commun pour le groupe), sélection multiple manuelle. Schéma : modèle `NurseMissionMember` + `User.missionMemberships` + `NurseMission.members` (le `nurseId` existant reste le référent/lead historique) ; migration additive `supabase/migrations/20261016120000_add_nurse_mission_members.sql` appliquée via `scripts/apply-nurse-mission-members-migration.ts` (DDL + tracking `supabase_migrations.schema_migrations`, le CLI supabase et `prisma db execute` étant indisponibles) ; `prisma generate` rejoué.
+- Alignement Git : branches divergées (local 67a2030 = Task 43 réécrite vs origin e573179 + NOUVEAU commit 2f710cc « feat(admin): ajouter les annuaires et la gestion des équipes » qui supersède l'ancien users-view local) — backup branche backup-local-task44 puis reset --hard origin/main (arbre propre sur 2f710cc)
+- w-full admin : src/components/auth/user-dashboard.tsx — conteneur de contenu (`max-w-5xl` → pleine largeur, ADMIN uniquement ; patient/infirmier restent max-w-3xl) ET div interne du header (même condition de rôle) — mesuré E2E : contenu 1312 px à viewport 1600 px (1600 − sidebar 288) contre 1024 px avant, max-width: none vérifié via getComputedStyle
+- Backend création infirmier : createNurseSchema dans src/lib/auth-schemas.ts (registerBase en source unique DRY — mêmes règles nom/téléphone/zone ; password optionnel : absent/vide = généré serveur ; confirmPassword suit seulement si password saisi) ; re-export admin-users-schemas.ts + types CreatedNurse/CreateNurseResult ; service createAdminNurse dans src/lib/admin-users.ts (génération 10 caractères sur alphabet sans 0/O/1/l/I via node:crypto randomInt — dictée téléphonique ; unicité phone pré-vérifiée + course P2002 → AdminUserError 409 ; hashPassword bcrypt ; rôle NURSE forcé serveur — même convention que /api/auth/register ; compte créé isActive=true) ; POST /api/admin/nurses (requireRole ADMIN, zod 400 {error,details}, 201 {nurse, generatedPassword|null} — le mot de passe généré n'est renvoyé qu'une fois, seul le bcrypt est stocké)
+- Frontend : dialog « Ajouter un infirmier » dans src/components/admin/nurses-view.tsx (bouton primaire UserRoundPlus en tête de vue à gauche, rafraîchissement à droite) — validation client via le MÊME createNurseSchema (zodIssuesToFieldErrors), erreurs inline + restitution des details serveur 400, mot de passe masqué + confirmation conditionnelle, panneau de succès (récap nom/téléphone formaté/zone + bloc « Mot de passe temporaire » affiché une seule fois avec bouton copier + note « à communiquer à l'infirmier », boutons « Créer un autre » (reset, onboarding en série) / « Terminer »), toast + hapticSuccess, rechargement annuaire en arrière-plan dès le 201 ; état global réinitialisé à chaque ouverture ; Select de zone TOUJOURS contrôlé (sentinelle ZONE_UNSET "__unset__" + item désactivé « Choisir une zone ») — l'aller-retour uncontrolled→controlled générait un warning React, corrigé et vérifié console vide
+- Contrat : .ai/API_CONTRACTS.md — section [GET|POST] /api/admin/nurses (statut IMPLÉMENTÉ, filtres GET, payload/réponse POST, 400/401/403/409/500, notes rôle forcé + actif immédiat)
+- DIAGNOSTIC AUDITS (bloquant résolu) : les 3 suites échouaient massivement (4/23, 2/47, 7/17 — 401/403 partout) — cause : le serveur dev tournait depuis AVANT le prisma generate de la migration isActive (2f710cc) : client Prisma périmé ⇒ user.isActive = undefined dans le DMMF ⇒ login « Compte suspendu » pour TOUS les comptes + 500 sur GET /api/admin/missions (catch muet) ; la base Supabase était saine (4 comptes actifs, vérifié par script Prisma direct avec connection_limit=1 puis port transactionnel 6543 — pooler session 5432 saturé EMAXCONNSESSION à 15 clients, pattern déjà documenté Task 42) ; correctif = kill + redémarrage propre du serveur (dev.log capturé) ; improvement au passage : console.error ajouté au catch de GET /api/admin/missions (un 500 muet ne se débogue pas)
+- E2E navigateur (agent-browser, 1600×900, compte admin) : login 200 → vue Infirmiers (?tab=infirmiers) → bouton « Ajouter un infirmier » → création réelle « Aya Konan E2E » +2250799887766 / Yopougon / mot de passe généré → panneau succès (identité formatée +225 07 99 88 77 66 + mot de passe FZ7WRAMgAm affiché une fois) → ligne présente dans l'annuaire (« Disponible », boutons Ouvrir la fiche / Suspendre) → PROUVE le workflow complet : login HTTP 200 du nouveau compte NURSE avec le mot de passe généré (connexion immédiate) → console 0 warning/0 erreur → compte de test SUPPRIMÉ (deleteMany, retour à 4 comptes)
+- Validation finale : bun run lint 0 ; tsc 0 erreur dans src/ (bruit hors périmètre inchangé : examples/, scripts/audit-db.ts, skills/) ; audits non-régression 23/23 + PASS=47 FAIL=0 + 17/17 ; .ai/CHANGELOG.md entrée Ajouté Task 44 ; inspection users ad-hoc retirée (scripts/inspect-users.ts supprimé après usage)
+
+Stage Summary:
+
+- Les vues du Médecin Chef sont en pleine largeur (w-full, header aligné) : annuaires, équipes et missions exploitent les grands écrans — patient/infirmier inchangés
+- L'onboarding infirmier est complet dans l'app : création ACTIVE en un seul formulaire (mot de passe choisi ou généré, affiché une seule fois avec copie), connectable immédiatement (prouvé E2E par un vrai login), déjà présent dans l'annuaire et affectable au dispatch — plus aucun passage par SQL manuel pour ajouter un soignant
+- Contrat POST /api/admin/nurses documenté ; la suspension (PATCH /api/admin/users/:id) reste la contrepartie de fin de contrat
+- Leçon d'exploitation consignée : après toute migration Prisma, redémarrer le serveur dev (client périmé = isActive undefined = tous comptes « suspendus » + 500 silencieux) ; les audits étaient verts côté base, seule l'instance longue duréee était périmée
+- Reste au backlog PO : Task 26 (Tokens/Wallet avancé) ; secrets exposés à réinitialiser (le .env a été renouvelé côté PO le 2026-10-05)
+
+---
+
+Task ID: 45
+Agent: Super Z (principal)
+Task: « Ajoute ou permet admin aussi le menu pour faire ou pubier des conseils et sensibilisations » (PO, 2026-10-05) — FEATURE-SENSO phase 2
+
+Work Log:
+
+- Alignement Git : arbre propre sur 86ecb8b (Task 44 w-full + onboarding infirmier déjà poussée), branche à jour avec origin/main — « récupérer le dernier commit » satisfait d'office
+- Découverte : le modèle `Sensibilisation` existait déjà (lot P0/P1 : title 120, body Text, category ADVICE|ALERT, zones[], publishedAt) avec le fil de lecture `GET /api/sensibilisations[/:id]` consommé par patients et infirmiers ; la ligne « À venir » d'API_CONTRACTS.md désignait explicitement la phase 2 (rédaction ADMIN) — AUCUNE migration requise
+- Schéma zod partagé `src/lib/sensibilisations-schemas.ts` (source unique client/serveur, même convention DRY que auth-schemas) : title 4–120, body 10–8000, category enum, zones[] dédupliqué côté service ; updateSensibilisationSchema partiel avec refine « au moins un champ »
+- Service étendu `src/lib/sensibilisations.ts` : `SensibilisationError` (statut HTTP, convention SpecialtyError), `AdminSensibilisationDto` (= DTO patient + updatedAt), `listAllSensibilisations` (toutes zones confondues, 100 dernières), `createSensibilisation` (zones `[...new Set()]`), `updateSensibilisation` (404 idiologique), `deleteSensibilisation` (deleteMany + garde de comptage → 404 en course entre onglets, jamais 500 Prisma)
+- Routes ADMIN : `GET|POST /api/admin/sensibilisations` (guard `guarded()` factorisé, zod 400 {error, details}) et `PATCH|DELETE /api/admin/sensibilisations/:id` (204 corps vide / 404) — requireRole(["ADMIN"]) sur chaque verbe
+- Vue `src/components/admin/sensibilisations-view.tsx` : bouton « Nouvelle sensibilisation » + rafraîchissement (même disposition que nurses-view), filtres segmentés Tout/Conseils/Alertes avec compteurs (langage visuel du fil patient), cartes xl:grid-cols-2 avec pill catégorie rouge/vert, badges zones ou « Toutes les zones », ancienneté relative + repère « modifiée » (updatedAt > publishedAt + 60 s), dialog création/édition unique (titre avec compteur de restants, catégorie deux boutons — Alerte en rouge destructive, textarea avec compteur, 4 cases zones + aide « Aucune zone cochée = publié pour toutes les zones », validation client via le schéma partagé + restitution des details serveur 400), suppression en AlertDialog rappelant l'alternative douce, toast + hapticSuccess/hapticLight
+- Wiring : AdminTab + ITEMS (« Sensibilisations », icône Megaphone, entre Infirmiers et Recharges) dans admin-sidebar ; DashboardTab, liste autorisée ADMIN, viewHeading (« Conseils & Sensibilisations ») et rendu motion.section dans user-dashboard ; deep link ?tab=sensibilisations opérationnel
+- Contrats : API_CONTRACTS.md — deux sections complètes [GET|POST] et [PATCH|DELETE] + tableau récapitulatif mis à jour (ligne « À venir » remplacée par deux lignes IMPLÉMENTÉ) ; CHANGELOG entrée Ajouté
+- FIX au passage : `isEdit` déclaré dans le try mais utilisé dans le catch de handleSubmit (TS2304) — hissé en tête de fonction
+- Validation : bun run lint 0 ; tsc 0 erreur dans src/ ; audits non-régression 23/23 (nurse-profile) + PASS=47 FAIL=0 (admin-notifications) + 17/17 (device-key-poll) ; gardes API 401/401/401 (GET/POST/DELETE sans session) ; E2E navigateur (agent-browser 1600×900, compte admin) : menu présent dans la sidebar, vue chargée avec les 6 contenus seedés, soumission vide → erreurs inline zod, création réelle « E2E — Dormez sous moustiquaire imprégnée » ciblée Yopougon → toast + compteurs 7/5/2 + carte rendue « Conseil santé · À l'instant », édition → pré-remplissage exact, bascule Alerte santé → PATCH 200 → carte « Alerte santé », suppression → alertdialog de confirmation → 204 → compteurs 6/4/2 + carte disparue ; 0 erreur console / 0 erreur page / 0 warning hydratation
+- Changement purement web : AUCUN rebuild APK requis (le web Vercel atteint les APK installés — seuls les changements natifs exigent un bump versionCode)
+
+Stage Summary:
+
+- Le Médecin Chef publie désormais lui-même les conseils et alertes santé : nouvelle entrée « Sensibilisations » dans la sidebar admin, publication immédiate dans le fil des patients ciblés (par zone ou national), édition et suppression complètes — le seed éditorial n'est plus la seule source
+- Contrats GET|POST + PATCH|DELETE /api/admin/sensibilisations documentés ; schéma zod partagé client/serveur = zéro divergence de validation
+- Zéro migration, zéro natif : livraison purement web (Vercel), APK v1.0.4 inchangé et déjà à jour
+- Reste au backlog PO : Task 26 (Tokens/Wallet avancé) ; secrets exposés à réinitialiser (renouvelés côté PO le 2026-10-05)
+
+---
+
+Task ID: 46
+Agent: Super Z (principal)
+Task: « propose une meilleure dashboard pour admin, avec des card et states » (PO, 2026-10-05) — FEATURE-ADMIN-DASHBOARD
+
+Work Log:
+
+- Point de départ : arbre propre sur a93fd82 (Task 45 Conseils & Sensibilisations poussée) ; l'ancien accueil admin = héros + 4 raccourcis pleine largeur + cartes fonctionnalités statiques, seuls 2 compteurs de file (useAdminCounters, 2 fetchs) apportés du réel
+- Conception : photosynthèse en UN appel — nouvelle API GET /api/admin/overview (requireRole ADMIN) agrégeant ~10 requêtes bon marché (user.groupBy rôle×isActive, nurseMission.groupBy statut, appointment.count file de dispatch + count RDV du jour, nurseMission.findMany visites terminées 7 j bucketed en JS, groupBy zone des missions actives, tokenTransaction findMany/aggregate recharges PENDING, 5 dernières missions via missionInclude + serializeMission réutilisés, listDispatchQueue() réutilisée — source unique des vues Équipes/Missions) ; bornes de journée UTC = Abidjan UTC+0 (convention reminders/schedule)
+- Types partagés client-safe src/lib/admin-overview-schemas.ts (AdminOverview/Kpis/DayBucket/ZoneStat/PendingRecharge/UpcomingVisit) ; DTO admin-overview.ts server-side ; fix TS : amountFcfa nullable Prisma → ?? 0
+- Vue src/components/admin/admin-home-view.tsx : héros gradient (date, « Actualisé à HH:mm », bouton Actualiser) ; 6 cartes KPI CLIQUABLES (Patients, Infirmiers, Missions actives, À affecter, Recharges, RDV du jour — badge « ACTION » + teinte warning quand une file exige une décision) ; graphique recharts « Visites terminées — 7 derniers jours » via le wrapper shadcn ChartContainer (config var(--chart-1), tooltip fr, XAxis jours courts) ; « Missions actives par zone » en barres de progression (4 zones toujours présentes, badge « +N à affecter ») ; 3 files d'action : Dernières missions (badges statut = mêmes classes que nurse-missions-view), À affecter (créneaux formatCardSlotUTC), Recharges à valider (FCFA + tokens) — états vides distincts, squelettes, erreur + Réessayer ; grille responsive 2/3/6 colonnes, header admin w-full exploité (xl:grid-cols-2/3)
+- Wiring user-dashboard.tsx : import AdminHomeView + branche `user.role === "ADMIN" ? <AdminHomeView userName={user.fullName} onNavigate={setTab} />` dans l'accueil ; SUPPRESSION du hook useAdminCounters, du type AdminCounters et des 4 raccourcis admin devenus redondants (Missions & Dispatch, Recharges, Spécialités, Tarifs) — l'accueil infirmier (héros + raccourci Mes missions + cartes Espace) strictement inchangé ; Types/imports morts nettoyés (Tags retiré, Stethoscope conservé pour ROLE_SPACE_ICON)
+- FIX copy : « Bonjour Dr {prénom} » rendait « Dr Dr » (fullName « Dr Kadjane ») → « Bonjour, {fullName} »
+- Contrat : API_CONTRACTS.md — section [GET] /api/admin/overview (response complète documentée, notes agrégation + source unique dispatch) + ligne tableau récapitulatif ; CHANGELOG entrée Ajouté
+- Validation : bun run lint 0 ; tsc 0 erreur dans src/ ; API vérifiée curl (login 200 → overview 200 avec KPI réels : 2 patients, 1 infirmier, 16 missions actives, 0 à affecter, 2 RDV du jour, buckets mar→lun ; 401 sans session) ; audits non-régression 23/23 + PASS=47 FAIL=0 + 17/17 ; E2E navigateur (agent-browser) : desktop 1600×900 — héros « Bonjour, Dr Kadjane », 6 KPI rendus avec vraies valeurs, graphique présent (application mar-mer-jeu-ven-sam-dim-lun), zones Yopougon 16/Songon 0/PK22 0/N'Dotré 0, dernières missions avec statuts « En cours », navigation carte Patients → ?tab=patients OK ; mobile 390×844 — grille KPI 2 colonnes (largeur carte 173 px) ; accueil infirmier vérifié intact après déconnexion/relogin ; 0 erreur console / 0 erreur page
+- Purement web : aucun rebuild APK requis (Vercel atteint les APK installés)
+
+Stage Summary:
+
+- L'accueil du Médecin Chef est un vrai tableau de bord : 6 cartes KPI cliquables (patients, infirmiers, missions, à affecter, recharges, RDV du jour), graphique des visites terminées sur 7 jours, charge par zone avec file d'affectation, et trois files d'action prêtes à traiter — le tout chargé en une seule requête
+- GET /api/admin/overview documenté ; la file de dispatch du dashboard partage la source unique listDispatchQueue() (zéro divergence avec Équipes/Missions)
+- Code mort retiré (useAdminCounters + 4 raccourcis) ; accueil patient et infirmier inchangés ; APK v1.0.4 inchangé
+- Reste au backlog PO : Task 26 (Tokens/Wallet avancé) ; secrets exposés à réinitialiser
+
+---
+
+Task ID: 47
+Agent: Super Z (principal)
+Task: « les composant dashboard ne sont pas tres responsives mobile, regarde » (PO, 2026-10-06) — FIX responsive du tableau de bord admin
+
+Work Log:
+
+- Diagnostic instrumenté (agent-browser, viewport 390×844, compte admin) : `document.documentElement.scrollWidth` = **487 px au lieu de 390** sur l'accueil admin → 97 px de défilement horizontal ; les autres onglets admin (patients, infirmiers, missions, équipes, recharges, sensibilisations) mesurés propres (390) après chargement complet
+- Cause racine identifiée par mesure d'éléments : les grilles `grid gap-4 xl:grid-cols-2` / `xl:grid-cols-3` de `admin-home-view.tsx` n'ont PAS de colonne explicite en mobile → Tailwind génère des **pistes implicites `auto`** dimensionnées au *max-content* ; deux contenus non césurables les gonflent : (1) le texte `truncate` des lignes « Dernières missions » (« Médecine générale · Infirmier Maquette UI · Il y a 28 min » ≈ 471 px — `truncate` ne change PAS la taille intrinsèque), (2) le graphique recharts re-mesuré sur la piste déjà élargie (391 px) — cartes mesurées à 441/471 px dans un conteneur de 358 px ; symptômes visibles : label « lun » du graphique coupé, description « Charge des territoires — file d'affectation incluse » tronquée, barre Yopougon sortant de l'écran
+- Fix minimal (`src/components/admin/admin-home-view.tsx`, 5 lignes) : `grid-cols-1` explicite sur les 4 grilles (2 squelettes + 2 contenus) — Tailwind émet `repeat(1, minmax(0,1fr))`, piste bornée au conteneur quel que soit le contenu ; + héros compacté sur mobile (`p-5` au lieu de `p-6` avant `sm:p-8`)
+- Fix NOT applied blindément partout : vérifié d'abord que les listes `grid gap-3` des autres vues admin NE débordent pas (mesures par onglet) — inutile de les toucher
+- Validation : lint 0 ; tsc src 0 (seul bruit hors-projet `skills/`) ; E2E mobile 390 : accueil admin `scrollWidth` = 390, graphique 308 px avec les 7 labels (mar mer jeu ven sam dim lun) rendus, truncate avec ellipsis propre (« Infirmier Maqu… »), captures top/mid/bot propres ; **non-régression desktop 1600 : grilles mesurées 6/2/3 colonnes** + capture identique au Task 46 ; tablette 768 : 3 colonnes KPI, 0 débordement ; accueil infirmier mobile vérifié (login réel, 390, héros intact) ; audits non-régression **23/23 + PASS=47 FAIL=0 + 17/17** ; 0 erreur/warning console
+- Purement web (CSS classes) : aucun rebuild APK requis
+
+Stage Summary:
+
+- Le tableau de bord du Médecin Chef est pleinement responsive : plus AUCUN défilement horizontal en 390 px — graphique 7 jours entier, barres de zone dans l'écran, files d'action ellipsées proprement
+- Leçon consignée : toute grille Tailwind avec seulement des variantes `xl:`/`lg:` doit avoir un `grid-cols-1` de base — les pistes implicites `auto` se dimensionnent au max-content et débordent avec du contenu truncate/recharts
+- Reste au backlog PO : Task 26 (Tokens/Wallet avancé) ; secrets exposés à réinitialiser
+
+---
+
+Task ID: 48
+Agent: Super Z (principal)
+Task: « Au niveau de patient, la vue wallet ne charge pas correctement et je vois token indisponible sur l'accueil, regarde ce qui ne va pas » (PO, 2026-10-06) — INCIDENT production DB
+
+Work Log:
+
+- Reproduction en conditions réelles : connexion patient sur **https://mondocpro.vercel.app** (navigateur instrumenté) → accueil « **Solde indisponible** » (aucune pill Token), `GET /api/wallet` → **500** ; le MÊME appel via curl renvoyait 200 quelques minutes plus tôt, puis TOUT passait en 500 (wallet ×6, appointments ×3) tandis que `/api/health` et `/api/sensibilisations` restaient 200 → dégradation **flottante** de la couche base, pas du code métier
+- Diagnostic code écarté : hook `usePatientData` et `WalletSection` consomment `/api/wallet` (plat WalletDto) conformément au contrat ; l'API (requireRole PATIENT → `getWalletForPatient`) marche en dev (200 en ~2,5 s, données réelles 191 Tokens)
+- Preuve DB capturée (`scripts/diag-db-connections.ts`) : **`FATAL (EMAXCONNSESSION) max clients reached in session mode — pool_size: 15`** — la chaîne `DATABASE_URL` vise le **pooler de SESSION Supabase (5432)** : chaque instance Vercel chaude y garde des connexions DÉDIÉES ; à saturation, toute nouvelle connexion est refusée → 500 intermittents puis persistants ; le dev (sessions établies avant saturation) continuait de servir → bug invisible en local, bloquant en prod ; aggravant : `getWalletForPatient` tirait **7 requêtes parallèles** (6 agrégats + findMany) par appel
+- Voie de fixation validée AVANT implémentation (`scripts/diag-txn-pooler.ts`) : le **pooler de TRANSACTION (6543)** + `pgbouncer=true` accepte les requêtes (groupBy type×status, agrégat à filtre relation, findMany, transaction sérialisable courte) — prérequis Prisma du mode transaction respecté (désactivation du cache de statements préparés)
+- **Fix 1 — `src/lib/db.ts`** : `serverlessSafeDatasourceUrl()` — en production (NODE_ENV=production), réécriture idempotente de `*.pooler.supabase.com:5432` → **6543** + `pgbouncer=true` + `connection_limit=1` + `pool_timeout=20` (une connexion par instance, montage recommandé Supabase × Vercel) ; dev strictement inchangé ; le PO peut aussi baser la var Vercel en 6543, le code reste compatible
+- **Fix 2 — `src/lib/tokens.ts`** : `getWalletForPatient` refacto en **UNE `$transaction` batchée** (groupBy type×status pour les 6 familles de mouvements + 1 agrégat blocage RDV actifs + findMany ledger) = 1 connexion / 1 aller-retour / snapshot cohérent ; formule de solde STRICTEMENT inchangée (`computeBalance` demeure la source unique pour la réservation) ; sémantique conservée au détail près vérifié (CONSUMPTION sommée sur tous statuts)
+- **Fix 3 — résilience client** : relance UNIQUE du fetch wallet après 700 ms (`use-patient-data.ts` + `wallet-section.tsx`) — un échec isolé (réseau mobile, redéploiement) n'affiche plus « Solde indisponible » / vue en erreur
+- Validation : lint 0 ; tsc src 0 ; **11 vérifications unitaires** du normalisateur (`scripts/check-datasource-url.ts` : réécriture prod, dev intact, idempotence 6543, base directe intacte, undefined/URL invalide) ; **équivalence stricte service refacto ↔ `computeBalance` sur 6543 avec données réelles** (191/5/16 · 40 000 FCFA, 50 mouvements) + 3 appels consécutifs stables (`scripts/check-wallet-6543.ts`) ; audits non-régression **23/23 + 47/47 + 17/17**
+- `scripts/e2e-tokens.sh` : constaté **déjà rouge avant ce lot** (baseline mesurée via git stash : PASS=45 FAIL=14 vs PASS=42 FAIL=17 après) — le script est obsolète depuis l'évolution des onglets (Wallet devenu onglet dédié, sidebar admin complète, clinages « Profil » index 3 erronés, login admin « formulaire introuvable » faute de déconnexion préalable) ; les vérifications de VÉRITÉ données du wallet (solde crédité, solde 0 réservé, lignes coût wizard) restent PASS ; réécriture du script posée au backlog PO — ne bloque pas ce lot
+- Docs : **ADR-011** (contexte EMAXCONNSESSION, décision 6543+pgbouncer+connection_limit=1, conséquences, backlog PO) + entrée CHANGELOG « Corrigé »
+- Verification prod APRES déploiement : série de 200 sur /api/wallet et /api/appointments (voir complément ci-dessous si applicable)
+
+Stage Summary:
+
+- La cause des « Token indisponible » / wallet en erreur côté patient était une saturation du pooler de session Supabase en production — un incident d'INFRA rendu visible par l'UI (états d'erreur conformes), pas un bug du wallet
+- Le correctif en trois couches (URL normalisée 6543 en prod, wallet en 1 requête batchée, relance client unique) rétablit le service SANS migration ni changement de variable d'environnement ; équivalence de formule prouvée sur données réelles
+- Leçon consignée : une dégradation DB « flottante » (200/500 alternés) = saturation de connexions ; tester la prod AU NAVIGATEUR (session réelle) en plus de curl ; toujours mesurer la baseline d'un script E2E avant d'attribuer une régression
+- Reste au backlog PO : var Vercel DATABASE_URL → 6543 (optionnel, le code s'adapte) ; réécrire e2e-tokens.sh sur les deep links ; Task 26 (Tokens/Wallet avancé) ; secrets exposés à réinitialiser
+
+---
+
+Task ID: 49
+Agent: AGENT DÉVELOPPEMENT (frontend + backend)
+Task: Corrections UX admin — (1) affectation de missions à plusieurs infirmiers (mission partagée), (2) nettoyage du profil Médecin Chef, (3) correctif de la cloche de notifications inerte, (4) tableau de bord « Espace Médecin Chef » (variante `admin-overview.tsx`/`admin-stats.ts`).
+
+Work Log:
+
+- **Affectation de groupe (multi-infirmiers)** — décisions PO : mission PARTAGÉE unique (un seul statut/compte-rendu commun pour le groupe), sélection multiple manuelle. Schéma : modèle `NurseMissionMember` + `User.missionMemberships` + `NurseMission.members` (le `nurseId` existant reste le référent/lead historique) ; migration additive `supabase/migrations/20261016120000_add_nurse_mission_members.sql` appliquée via `scripts/apply-nurse-mission-members-migration.ts` (DDL + tracking `supabase_migrations.schema_migrations`, le CLI supabase et `prisma db execute` étant indisponibles) ; `prisma generate` rejoué.
 - Services : `src/lib/nurse-schemas.ts` (`dispatchMissionSchema`/`reassignMissionSchema` acceptent `nurseIds` — `nurseId` conservé en legacy ; `MissionDto.nurses` exposé) ; `src/lib/nurse.ts` (`missionInclude` charge `members`, `serializeMission` expose `nurses`, liste/détail/statut/compte-rendu filtrés via `members.some.nurseId`, `dispatchMission` multi : dédup, contrôle rôle+zone de CHAQUE infirmier, lead = 1er, remplacement des membres, notification de chaque infirmier) ; `src/app/api/admin/missions/[id]/route.ts` transmet `nurseId` + `nurseIds` ; `src/lib/admin-users.ts` (charge infirmiers via `NurseMissionMember`, verrou de suspension via `members`).
 - UI admin : `src/components/admin/missions-view.tsx` (`NurseMultiPicker` à cases, états `dispatchNurseIds`/`reassignNurseIds`, affichage du groupe) ; `src/components/admin/teams-view.tsx` (`NurseMultiSelect` + bouton « Affecter des infirmier(ère)s »).
 - **Seed** : `scripts/seed-test-accounts.ts` — 10 infirmiers de test supplémentaires (`+2250755000110`…`119`, mot de passe `TestInfirmier2026!`, zones réparties) ; seed rejoué (idempotent) → 11 NURSE en base (un par zone au moins).
 - **Profil Médecin Chef** : `src/components/profile/admin-profile-view.tsx` — suppression de 4 blocs devenus inutiles (« Portefeuille central des recharges / Rapprochement des paiements patients », « Date de naissance », « Langue de l'interface », « Centre d'aide & Assistance Mondoc ») + imports morts (`Coins`, `Cake`, `formatDateUTC`, `Globe`, `LifeBuoy`, `ExternalLink`, `soonToast`).
 - **FIX cloche de notifications** (`src/components/auth/notifications-panel.tsx`) : `BellTrigger` (enfant direct de `PopoverTrigger`/`SheetTrigger` en `asChild`) ne réétalait pas les props injectées par Radix `Slot` — `onClick` d'ouverture perdu ⇒ aucun clic n'ouvrait le panneau (desktop ET mobile). Correctif : `...buttonProps` (`React.ComponentProps<"button">`) étalés sur le `<button>` ; commentaire d'intention corrigé.
-- **« Espace Médecin Chef » — vrai tableau de bord** : `src/lib/admin-stats-schemas.ts` (DTO client-safe), `src/lib/admin-stats.ts` (service server-only, agrégats en SQL + série 14 jours recomposée, journées UTC = Abidjan), `src/app/api/admin/stats/route.ts` (GET ADMIN), `src/components/admin/admin-overview.tsx` (KPI cliquables, bandeau de contexte, 4 graphiques recharts via `ui/chart`, Actualiser/skeleton/erreur) ; accueil ADMIN (`src/components/auth/user-dashboard.tsx`) : la carte « Espace Médecin Chef » (features à venir) devient `<AdminOverview onOpenTab={setTab} />` (les autres rôles gardent leurs cartes).
+- **DOUBLON TRANCHÉ (PO) — « Espace Médecin Chef »** : ce lot avait livré `src/lib/admin-stats-schemas.ts`, `src/lib/admin-stats.ts`, `src/app/api/admin/stats/route.ts`, `src/components/admin/admin-overview.tsx` (4 KPI + 4 graphiques 14 j), alors que le commit distant Task 46 (Super Z) livrait le MÊME besoin (`src/lib/admin-overview.ts`, `GET /api/admin/overview`, `src/components/admin/admin-home-view.tsx`, 9 KPI + files d'action + graphique 7 j, validé E2E navigateur et responsive Task 47). **Décision PO : on garde la variante distante `AdminHomeView`** (la plus complète, déjà documentée en CHANGELOG/contrat et validée en navigateur) — nos 4 fichiers `admin-stats`/`admin-overview` ont été **supprimés** ainsi que le contrat `GET /api/admin/stats` d'`API_CONTRACTS.md` et la mention CHANGELOG. Restent livrés sans équivalent distant : le **correctif de la cloche** et le **multi-infirmiers**.
 - Docs : `.ai/API_CONTRACTS.md` (+ contrat `GET /api/admin/stats`), `.ai/CHANGELOG.md` (Ajouté tableau de bord + Corrigé cloche).
 
 Stage Summary:
 
 - Un RDV à domicile peut être affecté à PLUSIEURS infirmiers (mission partagée, historique `MissionDto.nurses`) ; les annuaires et la supervision sont cohérents avec les groupes
 - La cloche de notifications ouvre de nouveau son panneau (le clic était absorbé par le composant intermédiaire `BellTrigger`)
-- L'accueil Médecin Chef affiche des indicateurs RÉELS (files à traiter, activité 14 j, charge par zone, répartition des missions) au lieu de cartes « à venir »
-- Validation : tsc 0 erreur hors fichiers préexistants (`examples/websocket/*`, `scripts/audit-db.ts`) ; lint 0 sur les fichiers touchés ; `GET /api/admin/stats` vérifié en conditions réelles (ADMIN Dr Kadjane) — `activeMissions` 20 = ASSIGNED 2 + IN_PROGRESS 18, `activeNurses` 11, `tokensCredited30d` 223 / 557 500 FCFA, `zones` et `statuses` cohérents
+- Après fusion, l'accueil Médecin Chef affiche le tableau de bord **distant `AdminHomeView`** (`GET /api/admin/overview`) — notre variante `AdminOverview`/`GET /api/admin/stats` a été retirée pour éviter deux tableaux de bord concurrents
+- Validation : tsc 0 erreur hors fichiers préexistants (`examples/websocket/*`, `scripts/audit-db.ts`) ; lint 0 sur les fichiers touchés ; endpoint `GET /api/admin/stats` (notre variante, avant retrait) vérifié en conditions réelles (ADMIN Dr Kadjane) — `activeMissions` 20 = ASSIGNED 2 + IN_PROGRESS 18, `activeNurses` 11, `tokensCredited30d` 223 / 557 500 FCFA, `zones` et `statuses` cohérents
 - Blocages rencontrés : CLI `supabase` ET `prisma db execute` inutilisables (timeout sur le pooler) ⇒ DDL via `PrismaClient.$executeRawUnsafe` ; pas d'outil de navigateur automatisé ⇒ test de la cloche raisonné (prop-forwarding Radix), pas cliqué en E2E

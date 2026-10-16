@@ -228,21 +228,56 @@ export async function computeBalance(
 // ——— Solde & historique (GET /api/wallet) ———
 
 export async function getWalletForPatient(userId: string): Promise<WalletDto> {
-  const [summary, transactions] = await Promise.all([
-    computeBalance(db, userId),
-    db.tokenTransaction.findMany({
-      where: { userId },
-      orderBy: { createdAt: "desc" },
-      take: 50,
-    }),
-  ]);
+  // Task 48 — UNE transaction batchée = UN aller-retour pooler, UNE connexion,
+  // un snapshot cohérent. L'ancienne version tirait 6 agrégats parallèles +
+  // 1 findMany (7 connexions simultanées par requête) : c'est exactement ce
+  // qui saturait le pooler de session Supabase en production
+  // (EMAXCONNSESSION pool_size 15 → 500 intermittents, « Solde indisponible »).
+  // Le groupBy type×status remplace les 6 agrégats ; la formule de solde
+  // reste identique à computeBalance (source unique — voir ci-dessus).
+  const [grouped, reservedActive, transactions] = await db.$transaction(
+    [
+      db.tokenTransaction.groupBy({
+        by: ["type", "status"],
+        _sum: { tokens: true, amountFcfa: true },
+        where: { userId },
+      }),
+      // Blocage réel = réservations dont le RDV lié est toujours RESERVED.
+      db.tokenTransaction.aggregate({
+        where: { userId, type: "RESERVATION", appointment: { tokenState: "RESERVED" } },
+        _sum: { tokens: true },
+      }),
+      db.tokenTransaction.findMany({
+        where: { userId },
+        orderBy: { createdAt: "desc" },
+        take: 50,
+      }),
+    ],
+    { timeout: 15000 },
+  );
 
-  const { balanceTokens, reservedTokens, spentTokens, spentFcfa } = summary;
+  // Somme des tokens d'une famille (type × statut optionnel) depuis le groupBy.
+  const sumTokens = (types: readonly string[], status?: string): number =>
+    grouped
+      .filter(g => types.includes(g.type) && (!status || g.status === status))
+      .reduce((acc, g) => acc + (g._sum.tokens ?? 0), 0);
+
+  const balanceTokens =
+    sumTokens([...BALANCE_CREDITING_TYPES], "CONFIRMED") +
+    sumTokens(["ADJUSTMENT"], "CONFIRMED") -
+    sumTokens(["RESERVATION"]) +
+    sumTokens(["RELEASE"]);
+
+  // Dépenses cumulées = TOUTES les consommations, tous statuts confondus
+  // (même sémantique que l'ancien aggregate type=CONSUMPTION sans filtre).
+  const spentGroups = grouped.filter(g => g.type === "CONSUMPTION");
+  const spentTokens = spentGroups.reduce((acc, g) => acc + (g._sum.tokens ?? 0), 0);
+  const spentFcfa = spentGroups.reduce((acc, g) => acc + (g._sum.amountFcfa ?? 0), 0);
 
   return {
     balanceTokens,
     balanceFcfa: tokensToFcfa(balanceTokens),
-    reservedTokens,
+    reservedTokens: reservedActive._sum.tokens ?? 0,
     spentTokens,
     spentFcfa,
     transactions: transactions.map(toTransactionDto),

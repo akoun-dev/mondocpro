@@ -50,7 +50,7 @@ export type MissionDto = {
   startedAt?: string | null;
   completedAt?: string | null;
   cancelledAt?: string | null;
-  nurse: { id: string; fullName: string; phone: string; zone: string } | null;
+  nurse: { id: string; fullName: string; phone: string; zone: string };
   nurses: { id: string; fullName: string; phone: string; zone: string }[];
   patient: { id: string; fullName: string; phone: string; zone: string };
   // Champs APLATIS par serializeMission (lib/nurse.ts) au premier niveau —

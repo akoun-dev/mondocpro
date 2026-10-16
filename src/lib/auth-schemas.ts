@@ -87,6 +87,32 @@ export const resetPasswordSchema = z
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
 
+// ——— FEATURE-ANNUAIRE-ADMIN — création d'un compte infirmier par le Médecin Chef ———
+// Mêmes règles de champ que l'inscription (registerBase, source unique DRY).
+// Deux différences volontaires :
+// - le mot de passe est OPTIONNEL : absent ou vide = généré côté serveur
+//   (renvoyé UNE seule fois dans la réponse, à communiquer à l'infirmier) ;
+// - confirmPassword ne suit que si un mot de passe est saisi à la main.
+export const createNurseSchema = registerBase
+  .extend({
+    password: z
+      .union([
+        z
+          .string()
+          .min(8, "Le mot de passe doit contenir au moins 8 caractères")
+          .max(72, "Le mot de passe ne peut pas dépasser 72 caractères"),
+        z.literal(""),
+      ])
+      .optional(),
+    confirmPassword: z.string().optional(),
+  })
+  .refine((d) => !d.password || d.password === d.confirmPassword, {
+    message: "Les mots de passe ne correspondent pas",
+    path: ["confirmPassword"],
+  });
+
+export type CreateNurseInput = z.infer<typeof createNurseSchema>;
+
 // ——— FEATURE-NURSE-PROFIL (Task 34) — changement de mot de passe authentifié ———
 // Mêmes règles de robustesse que l'inscription (source unique : registerBase).
 // currentPassword : requise (preuve de possession avant modification) ;

@@ -90,13 +90,23 @@ Validation: schéma zod de référence (src/lib/<domaine>.ts)
 - Errors: 401 · 403 hors ADMIN · 404 `{ error }` introuvable · 409 `{ error }` des RDV y sont rattachés (désactivation recommandée) · 500
 - Notes: la suppression détache les RDV via FK `onDelete: SetNull` — refusée si des RDV existent (l'historique clinique reste rattaché à une spécialité).
 
+### [GET|POST] /api/admin/nurses — Annuaire des infirmiers & création d'un compte (Médecin Chef)
+
+- Feature: FEATURE-ANNUAIRE-ADMIN | Owner: Backend | Statut: **IMPLÉMENTÉ** (annuaire 2f710cc · création demande PO 2026-10)
+- GET Request: `?search=&zone=&status=all|active|inactive` — mêmes filtres que l'annuaire patients
+- GET Response: 200 `{ "nurses": [{ id, fullName, phone, zone, isActive, createdAt, activeMissions, pendingAcceptance, completedThisMonth, completedTotal, lastMissionAt }] }`
+- POST Request: `{ "fullName": string(2–80), "phone": téléphone E.164 souple (8–15 chiffres), "zone": YOPOUGON|SONGON|PK22|NDOTRE, "password"?: string(8–72), "confirmPassword"?: string }` — `password` absent ou vide = **généré côté serveur** (alphabet sans caractères ambigus, 10 caractères)
+- POST Response: 201 `{ "nurse": { id, fullName, phone, zone, isActive: true, createdAt }, "generatedPassword": string|null }` — `generatedPassword` n'est renvoyé qu'UNE fois, à la création (seul le bcrypt est stocké)
+- Errors: 400 `{ error, details }` (zod) · 401 · 403 hors ADMIN · 409 `{ error }` numéro déjà inscrit (unicité phone, course P2002 incluse) · 500
+- Notes: rôle NURSE forcé côté serveur (aucune confiance client) ; compte créé **actif** — connexion immédiate, présence instantanée dans l'annuaire et le dispatch (vue Équipes). Voir aussi GET/PATCH `/api/admin/nurses/:id` (fiche + charge) et PATCH `/api/admin/users/:id` (suspension).
+
 ### [GET] /api/sensibilisations — Fil de sensibilisations santé
 
 - Feature: FEATURE-SENSO | Owner: Backend | Statut: **IMPLÉMENTÉ** (lot P0/P1 2026-10-03)
 - Request: — (cookie de session, tous rôles) — filtrage par la zone du lecteur
 - Response: 200 `{ "sensibilisations": [{ "id": string, "title": string, "body": string, "category": "ADVICE" | "ALERT", "zones": Zone[], "publishedAt": string }] }` — tri décroissant publication, 50 derniers
 - Errors: 401 · 500
-- Notes: ciblage vide (`zones: []`) = visible de toutes les zones ; contenu éditorial seedé (6 contenus référence) jusqu'à la rédaction ADMIN (phase 2).
+- Notes: ciblage vide (`zones: []`) = visible de toutes les zones ; le fil est alimenté par la rédaction Médecin Chef (voir `/api/admin/sensibilisations`).
 
 ### [GET] /api/sensibilisations/:id — Détail d'une sensibilisation
 
@@ -104,6 +114,33 @@ Validation: schéma zod de référence (src/lib/<domaine>.ts)
 - Request: — (cookie de session, tous rôles)
 - Response: 200 `{ "sensibilisation": { ...idem liste } }`
 - Errors: 401 · 404 `{ error }` introuvable **ou** hors ciblage de zone du lecteur (indistinguables — pas de fuite d'existence) · 500
+
+### [GET|POST] /api/admin/sensibilisations — Annuaire éditorial + publication
+
+- Feature: FEATURE-SENSO phase 2 | Owner: Backend | Statut: **IMPLÉMENTÉ** (demande PO 2026-10-05 : « menu pour faire ou publier des conseils et sensibilisations »)
+- GET Request: — (cookie de session) — **toutes zones confondues** (le Médecin Chef gère le contenu national)
+- GET Response: 200 `{ "sensibilisations": [{ "id", "title", "body", "category": "ADVICE"|"ALERT", "zones": Zone[], "publishedAt", "updatedAt" }] }` — tri décroissant publication, 100 dernières
+- POST Request: `{ "title": string(4–120), "body": string(10–8000), "category": "ADVICE"|"ALERT", "zones": Zone[] }` — `zones` vide = publié pour toutes les zones ; dédupliquée côté serveur
+- POST Response: 201 `{ "sensibilisation": { ...dto complet + updatedAt } }`
+- Errors: 400 `{ error, details }` (zod, client et serveur partagent le même schéma `src/lib/sensibilisations-schemas.ts`) · 401 · 403 hors ADMIN · 500
+- Notes: publication immédiate (pas de brouillon) — le contenu apparaît instantanément dans `GET /api/sensibilisations` des lecteurs ciblés ; catégorie ALERT mise en avant en rouge côté fil patient.
+
+### [PATCH|DELETE] /api/admin/sensibilisations/:id — Édition / suppression
+
+- Feature: FEATURE-SENSO phase 2 | Owner: Backend | Statut: **IMPLÉMENTÉ** (demande PO 2026-10-05)
+- PATCH Request: `{ "title"?: string(4–120), "body"?: string(10–8000), "category"?: "ADVICE"|"ALERT", "zones"?: Zone[] }` — au moins un champ
+- PATCH Response: 200 `{ "sensibilisation": { ...dto complet + updatedAt } }`
+- DELETE Response: 204 (corps vide)
+- Errors: 400 `{ error, details }` · 401 · 403 hors ADMIN · 404 `{ error }` (absente ou déjà supprimée — indistinguables) · 500
+- Notes: suppression définitive (pas de soft delete) — la confirmation UI rappelle l'alternative (modifier ciblage/contenu) ; `updatedAt` alimente le repère « modifiée » de la vue admin.
+
+### [GET] /api/admin/overview — Tableau de bord du Médecin Chef
+
+- Feature: FEATURE-ADMIN-DASHBOARD | Owner: Backend | Statut: **IMPLÉMENTÉ** (demande PO 2026-10-05 : « propose une meilleure dashboard pour admin, avec des cards et stats »)
+- Request: — (cookie de session) — un seul aller-retour pour toute la photosynthèse
+- Response: 200 `{ "overview": { "kpis": { "patientsTotal", "patientsActive", "nursesTotal", "nursesActive", "missionsActive" (ASSIGNED+ACCEPTED+IN_PROGRESS), "toDispatch" (RDV domicile actifs sans mission), "rechargesPending", "rechargesPendingFcfa" (somme déclarée), "appointmentsToday" (PENDING/CONFIRMED du jour) }, "completedByDay": [{ "date": "AAAA-MM-JJ", "label": jour court fr-FR, "count" }] (7 buckets glissants, aujourd'hui inclus, bornes UTC = Abidjan UTC+0), "activeByZone": [{ "zone", "active", "queue" }] (les 4 zones toujours présentes), "recentMissions": MissionDto[] (5 dernières, DTO board dispatch), "pendingRecharges": [{ "id", "patientName", "patientPhone", "tokens", "amountFcfa", "createdAt" }] (5 plus anciennes), "upcomingVisits": [{ "id", "patientName", "zone", "scheduledAt", "specialtyName" }] (4 prochains créneaux de la file), "generatedAt": ISO } }`
+- Errors: 401 · 403 hors ADMIN · 500
+- Notes: agrégation ~10 requêtes bon marché (groupBy/count/aggregate — aucun rapatriement d'historique complet) via `src/lib/admin-overview.ts` ; la file de dispatch réutilise la source unique `listDispatchQueue()` (même définition que les vues Équipes/Missions) ; types partagés client/serveur dans `admin-overview-schemas.ts` (client-safe) ; consommé par `AdminHomeView` (nouvel accueil admin — remplace les raccourcis + hook `useAdminCounters` supprimé).
 
 ### [POST] /api/auth/register — Inscription (Patient)
 
@@ -295,14 +332,6 @@ Validation: schéma zod de référence (src/lib/<domaine>.ts)
 - Exclusions: les `APPOINTMENT_REMINDER` ne passent JAMAIS par le poll (rappels déjà planifiés localement à la réservation — un poll les livrerait en doublon).
 - Notes: consommé UNIQUEMENT par `capacitor-shell/custom-background.js` (tâche WorkManager ~15 min, même app fermée). Chaque item devient une notification locale Android (canaux `critical`/`updates` créés par l'app, lib/native.ts). Le curseur n'avance qu'après un tick réussi (panne réseau → aucune alerte perdue).
 
-### [GET] /api/admin/stats — Tableau de bord de l'accueil Médecin Chef
-
-- Feature: FEATURE-ANNUAIRE-ADMIN (« Espace Médecin Chef ») | Owner: Backend | Statut: **IMPLÉMENTÉ** (2026-10-16)
-- Auth: rôle `ADMIN` uniquement (401 non authentifié · 403 hors ADMIN).
-- Request: — (cookie de session)
-- Response: 200 `{ "generatedAt": ISO, "kpis": { "toDispatch": number, "rechargesPending": number, "activeMissions": number, "rdvToday": number, "activeNurses": number, "inactiveNurses": number, "patients": number, "tokensCredited30d": number, "fcfaCredited30d": number, "completedThisMonth": number }, "days": [{ "date": "AAAA-MM-JJ", "label": "JJ/MM", "missionsAssigned": number, "missionsCompleted": number, "rechargeTokens": number, "rechargeFcfa": number }], "zones": [...ZoneLoad], "statuses": [{ "status": MissionStatus, "label": string, "count": number }] }`
-- Notes: payload UNIQUE de l'accueil (`src/components/admin/admin-overview.tsx`) — un seul appel pour KPI + séries + charge par zone, afin que les chiffres ne se contredisent pas. Journées en **UTC (= heure d'Abidjan, UTC+0 sans heure d'été)** ; `days` couvre 14 jours glissants (jours vides inclus) ; `activeMissions` compte les missions (statuts ASSIGNED/ACCEPTED/IN_PROGRESS), pas les effectifs ; `toDispatch`, `zones` et les effectifs viennent de `getAdminTeamBoard()` (même source que la vue Équipes) ; `statuses` = cumul de toutes les missions, lignes à 0 retirées. Agrégation `completedThisMonth`/`tokensCredited30d` recalculée à chaque requête (pas de cache). `tokensCredited30d`/`fcfaCredited30d` = recharges CONFIRMED sur 30 jours.
-
 ---
 
 ## Contrats à venir
@@ -367,4 +396,6 @@ _(Le tableau se remplira au fil des features. Format exigé ci-dessus.)_
 | ---------------------------------- | --------------------- | --------------------------------------------------------------------------------- |
 | [GET] /api/tokens                  | FEATURE-TOKENS (P2)   | À venir — contrat à rédiger (ledger `TokenAccount`/`TokenTransaction`, audit §2)  |
 | [POST] /api/tokens/topup           | FEATURE-TOKENS (P2)   | À venir — crédit manuel ADMIN au MVP ; paiement Mobile Money suspendu à l'ADR-005 |
-| [POST] /api/admin/sensibilisations | FEATURE-SENSO phase 2 | À venir — rédaction ADMIN (au MVP : seed éditorial)                               |
+| [GET|POST] /api/admin/sensibilisations | FEATURE-SENSO phase 2 | **IMPLÉMENTÉ** — rédaction ADMIN (publication immédiate, ciblage zones)       |
+| [PATCH|DELETE] /api/admin/sensibilisations/:id | FEATURE-SENSO phase 2 | **IMPLÉMENTÉ** — édition partielle + suppression définitive             |
+| [GET] /api/admin/overview         | FEATURE-ADMIN-DASHBOARD | **IMPLÉMENTÉ** — KPI + séries 7 jours + files d'action en un appel       |
