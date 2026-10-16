@@ -212,7 +212,7 @@ export async function getAdminPatient(
   });
   if (!user) throw new AdminUserError(404, "Patient introuvable");
 
-  const [statusCounts, typeCounts, lastDone, nextUp, appointments] =
+  const [statusCounts, typeCounts, lastDone, nextUp, nextReason, appointments] =
     await Promise.all([
       db.appointment.groupBy({
         by: ["status"],
@@ -237,6 +237,17 @@ export async function getAdminPatient(
           scheduledAt: { gte: new Date() },
         },
         _min: { scheduledAt: true },
+      }),
+      // Motif du prochain RDV actif (le plus proche) — même sémantique que
+      // listAdminPatients.
+      db.appointment.findFirst({
+        where: {
+          patientId: id,
+          status: { in: ["PENDING", "CONFIRMED"] },
+          scheduledAt: { gte: new Date() },
+        },
+        orderBy: { scheduledAt: "asc" },
+        select: { reason: true },
       }),
       db.appointment.findMany({
         where: historyWhere(id, query),
@@ -337,6 +348,10 @@ export async function getAdminPatient(
       cancelledCount: summary.cancelled,
       nextVisitAt: nextUp[0]?._min.scheduledAt?.toISOString() ?? null,
       lastVisitAt: lastDone[0]?._max.scheduledAt?.toISOString() ?? null,
+      // Motif du prochain RDV actif — même sémantique que la liste de
+      // l'annuaire (PatientListItem). Non affiché dans le dossier aujourd'hui,
+      // mais le contrat du DTO l'exige (UI-PATIENTS-1).
+      nextVisitReason: nextReason?.reason ?? null,
     },
     summary,
     consultations,

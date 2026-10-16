@@ -273,7 +273,7 @@ function viewHeading(
         case "infirmiers":
             return {
                 title: "Infirmiers",
-                subtitle: "Annuaire des soignants, charge de travail et historique de missions",
+                subtitle: "Annuaire des soignants & affectations",
             }
         // FEATURE-SENSO phase 2 — rédaction éditoriale du Médecin Chef
         // (le fil lu par les patients est l'onglet « senso »).
@@ -295,17 +295,17 @@ function viewHeading(
         case "specialties":
             return {
                 title: "Spécialités",
-                subtitle: "Catalogue proposé aux patients à la prise de rendez-vous",
+                subtitle: "Proposés aux patients & soignants",
             }
         case "recharges":
             return {
                 title: "Recharges de Tokens",
-                subtitle: `Rapprochement des paiements patients — 1 Token = ${TOKEN_VALUE_FCFA.toLocaleString("fr-FR")} FCFA`,
+                subtitle: "Rapprochement & trésorerie",
             }
         case "tarifs":
             return {
                 title: "Tarifs des consultations",
-                subtitle: "Grille en vigueur — 1 Token = 2 500 FCFA",
+                subtitle: `Grille active • 1 Token = ${TOKEN_VALUE_FCFA.toLocaleString("fr-FR")} FCFA`,
             }
         case "profil":
             return { title: "Mon profil", subtitle: ROLE_LABELS[user.role] }
