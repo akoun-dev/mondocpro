@@ -20,6 +20,9 @@ export type AdminOverviewKpis = {
   rechargesPendingFcfa: number;
   // RDV PENDING/CONFIRMED du jour (cabinet + domicile).
   appointmentsToday: number;
+  // Missions actives dont le RDV tombe aujourd'hui (héros d'accueil :
+  // « dont N missions terrain »).
+  missionsToday: number;
 };
 
 // Bucket journalier des visites terminées — 7 jours glissants, jour courant
@@ -60,9 +63,24 @@ export type AdminUpcomingVisit = {
   specialtyName: string | null;
 };
 
+// Prochain RDV du jour — héros de l'accueil (« Prochain RDV · Spécialité
+// · HH:mm »). Premier créneau PENDING/CONFIRMED du jour à partir de
+// maintenant ; null si tout est passé ou aucun RDV aujourd'hui.
+export type AdminNextAppointment = {
+  id: string;
+  patientName: string;
+  zone: "YOPOUGON" | "SONGON" | "PK22" | "NDOTRE";
+  scheduledAt: string;
+  specialtyName: string | null;
+};
+
 export type AdminOverview = {
   kpis: AdminOverviewKpis;
+  nextAppointmentToday: AdminNextAppointment;
   completedByDay: AdminDayBucket[];
+  // Total des visites terminées sur les 7 jours PRÉCÉDANT la fenêtre du
+  // graphique — sert au badge de tendance « +X % » de la vue.
+  completedPrevious7d: number;
   activeByZone: AdminZoneStat[];
   // 5 dernières missions créées (tous statuts) — reuse du MissionDto du
   // board dispatch (champs aplatis scheduledAt/zone/type, fix BUG-003).

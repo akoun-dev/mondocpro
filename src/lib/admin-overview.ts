@@ -10,6 +10,7 @@ import { db } from "@/lib/db";
 import { serializeMission } from "@/lib/nurse";
 import { listDispatchQueue } from "@/lib/nurse";
 import type {
+    AdminNextAppointment,
     AdminOverview,
     AdminPendingRecharge,
     AdminZoneStat,
@@ -40,6 +41,9 @@ export async function getAdminOverview(): Promise<AdminOverview> {
         dispatchQueueByZone,
         appointmentsTodayCount,
         completedInRange,
+        completedPreviousCount,
+        missionsTodayCount,
+        nextAppointmentRow,
         activeMissionsZones,
         rechargesPendingRows,
         rechargesPendingAgg,
@@ -91,6 +95,43 @@ export async function getAdminOverview(): Promise<AdminOverview> {
                 completedAt: { gte: weekStart, lt: tomorrowStart },
             },
             select: { completedAt: true },
+        }),
+        // Visites terminées sur les 7 jours PRÉCÉDANT la fenêtre — un seul
+        // compte pour le badge de tendance « +X % » du graphique.
+        db.nurseMission.count({
+            where: {
+                status: "COMPLETED",
+                completedAt: {
+                    gte: new Date(weekStart.getTime() - 7 * 86_400_000),
+                    lt: weekStart,
+                },
+            },
+        }),
+        // Missions actives dont le RDV tombe aujourd'hui (« dont N missions
+        // terrain » du héros).
+        db.nurseMission.count({
+            where: {
+                status: { in: [...ACTIVE_MISSION_STATUSES] },
+                appointment: {
+                    scheduledAt: { gte: todayStart, lt: tomorrowStart },
+                },
+            },
+        }),
+        // Prochain RDV du jour (héros) — premier créneau vivant à partir de
+        // maintenant, cabinet comme domicile.
+        db.appointment.findFirst({
+            where: {
+                scheduledAt: { gte: now, lt: tomorrowStart },
+                status: { in: ["PENDING", "CONFIRMED"] },
+            },
+            orderBy: { scheduledAt: "asc" },
+            select: {
+                id: true,
+                zone: true,
+                scheduledAt: true,
+                patient: { select: { fullName: true } },
+                specialty: { select: { name: true } },
+            },
         }),
         // Zones des missions actives (petite table — lecture légère).
         db.nurseMission.findMany({
@@ -223,8 +264,19 @@ export async function getAdminOverview(): Promise<AdminOverview> {
             rechargesPending: rechargesPendingAgg._count._all,
             rechargesPendingFcfa: rechargesPendingAgg._sum.amountFcfa ?? 0,
             appointmentsToday: appointmentsTodayCount,
+            missionsToday: missionsTodayCount,
         },
+        nextAppointmentToday: (nextAppointmentRow
+            ? {
+                  id: nextAppointmentRow.id,
+                  patientName: nextAppointmentRow.patient.fullName,
+                  zone: nextAppointmentRow.zone,
+                  scheduledAt: nextAppointmentRow.scheduledAt.toISOString(),
+                  specialtyName: nextAppointmentRow.specialty?.name ?? null,
+              }
+            : null) satisfies AdminNextAppointment | null,
         completedByDay,
+        completedPrevious7d: completedPreviousCount,
         activeByZone,
         recentMissions: recentMissionRows.map(row => serializeMission(row)),
         pendingRecharges,
