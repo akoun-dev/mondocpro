@@ -13,7 +13,11 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-export DATABASE_URL="$(node -e "const m=require('fs').readFileSync('.env','utf8').match(/^DATABASE_URL=\"?([^\"]+)\"?/m);process.stdout.write(m[1])")"
+# Piège corrigé (2026-10-16) : sans ancrage de fin de ligne ni exclusion du
+# retour à la ligne, `[^"]+` avalait TOUT le reste du .env (URL + suivantes
+# dans une seule variable) et Prisma rejetait ensuite l'URL
+# (« The provided arguments are not supported in database URL »).
+export DATABASE_URL="$(node -e "const m=require('fs').readFileSync('.env','utf8').match(/^DATABASE_URL=\"?([^\"\n]+)\"?$/m);if(!m)throw new Error('DATABASE_URL introuvable dans .env');process.stdout.write(m[1])")"
 
 # Le client Prisma doit suivre le schéma avant que Next charge les routes API.
 ./node_modules/.bin/prisma generate
