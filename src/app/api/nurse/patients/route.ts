@@ -7,58 +7,50 @@ export async function GET() {
     if (!guard.ok) return guard.response
 
     try {
-        const missions = await db.nurseMission.findMany({
-            where: { nurseId: guard.user.id },
-            orderBy: { assignedAt: "desc" },
+        const patients = await db.user.findMany({
+            where: { role: "PATIENT" },
+            orderBy: { fullName: "asc" },
             select: {
-                status: true,
-                assignedAt: true,
-                patient: { select: { id: true, fullName: true, phone: true, zone: true } },
-                appointment: {
+                id: true,
+                fullName: true,
+                phone: true,
+                zone: true,
+                patientMissions: {
+                    where: { nurseId: guard.user.id },
+                    orderBy: { assignedAt: "desc" },
                     select: {
-                        scheduledAt: true,
-                        type: true,
-                        reason: true,
-                        specialty: { select: { name: true } },
+                        status: true,
+                        appointment: {
+                            select: {
+                                scheduledAt: true,
+                                type: true,
+                                reason: true,
+                                specialty: { select: { name: true } },
+                            },
+                        },
                     },
                 },
             },
         })
 
-        const patients = new Map<string, {
-            id: string
-            fullName: string
-            phone: string
-            zone: string
-            missionCount: number
-            lastMissionAt: string
-            lastMission: { status: string; scheduledAt: string; type: string; reason: string | null; specialty: string | null }
-        }>()
-
-        for (const mission of missions) {
-            const existing = patients.get(mission.patient.id)
-            if (existing) {
-                existing.missionCount += 1
-                continue
-            }
-            patients.set(mission.patient.id, {
-                id: mission.patient.id,
-                fullName: mission.patient.fullName,
-                phone: mission.patient.phone,
-                zone: mission.patient.zone,
-                missionCount: 1,
-                lastMissionAt: mission.assignedAt.toISOString(),
-                lastMission: {
-                    status: mission.status,
-                    scheduledAt: mission.appointment.scheduledAt.toISOString(),
-                    type: mission.appointment.type,
-                    reason: mission.appointment.reason,
-                    specialty: mission.appointment.specialty?.name ?? null,
-                },
-            })
-        }
-
-        return NextResponse.json({ patients: [...patients.values()] })
+        return NextResponse.json({
+            patients: patients.map(patient => ({
+                id: patient.id,
+                fullName: patient.fullName,
+                phone: patient.phone,
+                zone: patient.zone,
+                missionCount: patient.patientMissions.length,
+                lastMission: patient.patientMissions[0]
+                    ? {
+                        status: patient.patientMissions[0].status,
+                        scheduledAt: patient.patientMissions[0].appointment.scheduledAt.toISOString(),
+                        type: patient.patientMissions[0].appointment.type,
+                        reason: patient.patientMissions[0].appointment.reason,
+                        specialty: patient.patientMissions[0].appointment.specialty?.name ?? null,
+                    }
+                    : null,
+            })),
+        })
     } catch (error) {
         console.error("[nurse/patients GET]", error)
         return NextResponse.json({ error: "Erreur interne — réessayez" }, { status: 500 })
