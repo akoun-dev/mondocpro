@@ -69,7 +69,7 @@ export function AdminSidebar({
     onLogout,
 }: Props) {
     const content = (
-        <aside className="flex h-full w-72 flex-col border-r border-sidebar-border bg-sidebar p-4 text-sidebar-foreground">
+        <aside className="flex h-full w-72 flex-col overflow-y-auto border-r border-sidebar-border bg-sidebar p-4 text-sidebar-foreground">
             <div className="flex items-center justify-between gap-3 px-2 pb-6">
                 <div className="leading-tight">
                     <p className="font-bold tracking-tight">Mon doc Pro</p>
@@ -164,7 +164,12 @@ export function AdminSidebar({
 
     return (
         <>
-            <div className="hidden shrink-0 lg:block">{content}</div>
+            {/* Desktop : rail collé au viewport (sticky + h-dvh) — le contenu
+                défile à droite, la navigation reste visible. `self-start`
+                évite que l'étirement flex ne rallonge le rail. */}
+            <div className="sticky top-0 hidden h-dvh shrink-0 self-start lg:block">
+                {content}
+            </div>
             {open && (
                 <div className="fixed inset-0 z-50 lg:hidden">
                     <button

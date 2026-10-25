@@ -81,6 +81,8 @@ import { NotificationsBell } from "@/components/auth/notifications-panel"
 import { SensibilisationsAdminView } from "@/components/admin/sensibilisations-view"
 import { AdminHomeView } from "@/components/admin/admin-home-view"
 import { NurseMissionsView } from "@/components/nurse/nurse-missions-view"
+import { NurseHomeView } from "@/components/nurse/nurse-home-view"
+import { NursePatientsView } from "@/components/nurse/nurse-patients-view"
 import { NurseProfileView } from "@/components/nurse/nurse-profile-view"
 import { AdminProfileView } from "@/components/profile/admin-profile-view"
 import {
@@ -213,6 +215,7 @@ type DashboardTab =
     | "accueil"
     | "rdv"
     | "missions"
+    | "patients"
     | "equipes"
     | "patients"
     | "infirmiers"
@@ -334,6 +337,7 @@ const BASE_TABS: { id: DashboardTab; label: string; icon: LucideIcon }[] = [
 const NURSE_TABS: { id: DashboardTab; label: string; icon: LucideIcon }[] = [
     { id: "accueil", label: "Accueil", icon: Home },
     { id: "missions", label: "Missions", icon: ClipboardCheck },
+    { id: "patients", label: "Patients", icon: UsersRound },
     { id: "profil", label: "Profil", icon: UserRound },
 ]
 
@@ -482,7 +486,7 @@ export function UserDashboard() {
         }
         const allowed: Record<AppRole, DashboardTab[]> = {
             PATIENT: ["accueil", "rdv", "wallet", "senso", "profil"],
-            NURSE: ["accueil", "missions", "profil"],
+            NURSE: ["accueil", "missions", "patients", "profil"],
             ADMIN: [
                 "accueil",
                 "profil",
@@ -545,6 +549,17 @@ export function UserDashboard() {
 
     async function handleLogout() {
         await logout()
+        try {
+            const url = new URL(window.location.href)
+            url.searchParams.delete("tab")
+            window.history.replaceState(
+                { mondocproTab: "accueil" },
+                "",
+                url.pathname || "/"
+            )
+        } catch {
+            // ignore
+        }
         toast({
             title: "Déconnecté",
             description: "À bientôt sur Mon doc Pro !",
@@ -771,180 +786,7 @@ export function UserDashboard() {
                                         onNavigate={setTab}
                                     />
                                 ) : (
-                                    <>
-                                        {/* Hero de bienvenue — dégradé médical, texte blanc AA sur primary/dark */}
-                                        <div className="relative mb-6 overflow-hidden rounded-2xl bg-gradient-to-br from-primary to-primary-dark p-6 text-primary-foreground sm:p-8">
-                                            <div
-                                                aria-hidden="true"
-                                                className="pointer-events-none absolute inset-0"
-                                            >
-                                                <div className="absolute -right-16 -top-16 size-48 rounded-full bg-white/10 blur-xl" />
-                                                <div className="absolute -bottom-20 -left-10 size-56 rounded-full bg-white/[0.07] blur-xl" />
-                                            </div>
-                                            <div className="relative flex flex-col gap-3">
-                                                <p className="text-sm text-white/80">
-                                                    <Clock
-                                                        className="mr-1.5 inline size-3.5 -translate-y-px"
-                                                        aria-hidden="true"
-                                                    />
-                                                    <span
-                                                        suppressHydrationWarning
-                                                    >
-                                                        {new Date().toLocaleDateString(
-                                                            "fr-FR",
-                                                            {
-                                                                weekday: "long",
-                                                                day: "numeric",
-                                                                month: "long",
-                                                            }
-                                                        )}
-                                                    </span>
-                                                </p>
-                                                <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">
-                                                    Bonjour,{" "}
-                                                    {getFirstName(
-                                                        user.fullName
-                                                    )}
-                                                </h2>
-                                                <p className="max-w-lg text-sm leading-relaxed text-white/80">
-                                                    Votre espace santé Mon doc
-                                                    Pro — consultations, épargne
-                                                    et suivi, proches de chez
-                                                    vous.
-                                                </p>
-                                                <div className="mt-1 flex flex-wrap items-center gap-2">
-                                                    <span className="rounded-full bg-white/15 px-3 py-1 text-xs font-medium ring-1 ring-white/25">
-                                                        {ROLE_LABELS[user.role]}
-                                                    </span>
-                                                    <span className="rounded-full bg-white/15 px-3 py-1 text-xs font-medium ring-1 ring-white/25">
-                                                        <MapPin
-                                                            className="mr-1 inline size-3 -translate-y-px"
-                                                            aria-hidden="true"
-                                                        />
-                                                        {ZONE_LABELS[user.zone]}
-                                                    </span>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        {/* Raccourci infirmier — missions du jour (l'accueil
-                                admin est désormais le tableau de bord dédié) */}
-                                        {user.role === "NURSE" && (
-                                            <button
-                                                type="button"
-                                                onClick={() =>
-                                                    setTab("missions")
-                                                }
-                                                className="mb-6 flex w-full items-center gap-3 rounded-2xl border bg-card p-4 text-left shadow-sm transition-colors hover:border-primary/40 hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:p-5"
-                                            >
-                                                <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                                                    <ClipboardCheck
-                                                        className="size-5"
-                                                        aria-hidden="true"
-                                                    />
-                                                </span>
-                                                <span className="min-w-0 flex-1">
-                                                    <span className="block text-sm font-bold">
-                                                        Mes missions
-                                                    </span>
-                                                    <span className="block text-xs text-muted-foreground">
-                                                        Consultez vos
-                                                        interventions et comptes
-                                                        rendus
-                                                    </span>
-                                                </span>
-                                                <ChevronRight
-                                                    className="size-5 shrink-0 text-muted-foreground"
-                                                    aria-hidden="true"
-                                                />
-                                            </button>
-                                        )}
-
-                                        {/* Espace par rôle — cartes fonctionnalités : passées en
-                                live = raccourcis cliquables (badge vert), les autres
-                                restent annoncées « à venir */}
-                                        <Card className="rounded-2xl">
-                                            <CardHeader>
-                                                <CardTitle className="flex items-center gap-2.5">
-                                                    <span className="flex size-9 items-center justify-center rounded-lg bg-success-light text-success-foreground">
-                                                        <SpaceIcon
-                                                            className="size-4.5"
-                                                            aria-hidden="true"
-                                                        />
-                                                    </span>
-                                                    {space.title}
-                                                </CardTitle>
-                                                <CardDescription>
-                                                    {space.description}
-                                                </CardDescription>
-                                            </CardHeader>
-                                            <CardContent>
-                                                <ul className="grid gap-3 sm:grid-cols-3">
-                                                    {space.features.map(
-                                                        feature => (
-                                                            <li
-                                                                key={
-                                                                    feature.title
-                                                                }
-                                                                className="group flex flex-col gap-2.5 rounded-xl border p-4 transition-colors hover:border-primary/40 hover:bg-muted/40"
-                                                            >
-                                                                <span className="flex size-10 items-center justify-center rounded-lg bg-primary/10 text-primary transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
-                                                                    <feature.icon
-                                                                        className="size-5"
-                                                                        aria-hidden="true"
-                                                                    />
-                                                                </span>
-                                                                <span className="flex flex-col gap-1">
-                                                                    <span className="text-sm font-semibold">
-                                                                        {
-                                                                            feature.title
-                                                                        }
-                                                                    </span>
-                                                                    <span className="text-sm leading-relaxed text-muted-foreground">
-                                                                        {
-                                                                            feature.description
-                                                                        }
-                                                                    </span>
-                                                                </span>
-                                                                {feature.live &&
-                                                                feature.tab ? (
-                                                                    <button
-                                                                        type="button"
-                                                                        onClick={() =>
-                                                                            setTab(
-                                                                                feature.tab!
-                                                                            )
-                                                                        }
-                                                                        className="mt-auto flex w-fit items-center gap-1 rounded-full bg-success px-2.5 py-1 text-xs font-bold text-success-foreground transition-colors hover:bg-success/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                                                                        aria-label={`Ouvrir ${feature.title}`}
-                                                                    >
-                                                                        <CircleCheck
-                                                                            className="size-3"
-                                                                            aria-hidden="true"
-                                                                        />
-                                                                        Disponible
-                                                                        — ouvrir
-                                                                    </button>
-                                                                ) : (
-                                                                    <Badge
-                                                                        variant="secondary"
-                                                                        className="mt-auto w-fit gap-1"
-                                                                    >
-                                                                        <Clock
-                                                                            className="size-3"
-                                                                            aria-hidden="true"
-                                                                        />
-                                                                        Bientôt
-                                                                        disponible
-                                                                    </Badge>
-                                                                )}
-                                                            </li>
-                                                        )
-                                                    )}
-                                                </ul>
-                                            </CardContent>
-                                        </Card>
-                                    </>
+                                    <NurseHomeView user={user} onOpenMissions={() => setTab("missions")} />
                                 )}
                             </motion.section>
                         )}
@@ -975,6 +817,19 @@ export function UserDashboard() {
                                 aria-label="Mes missions"
                             >
                                 <NurseMissionsView />
+                            </motion.section>
+                        )}
+
+                        {tab === "patients" && user.role === "NURSE" && (
+                            <motion.section
+                                key="patients-nurse"
+                                variants={tabVariants}
+                                initial="enter"
+                                animate="center"
+                                exit="exit"
+                                aria-label="Mes patients"
+                            >
+                                <NursePatientsView />
                             </motion.section>
                         )}
 
