@@ -147,20 +147,23 @@ export function AppointmentsView({ data, onBook }: Props) {
     )
 
     const visible = tab === "upcoming" ? upcoming : history
+    const hasAppointments = (data.appointments?.length ?? 0) > 0
 
     return (
         <div className="flex flex-col gap-5">
             {/* Titre + sous-titre : rendus dans le header de l'app (helper
                 viewHeading). Seule l'action « Nouveau RDV » reste ici. */}
-            <div className="flex justify-end">
-                <Button
-                    onClick={onBook}
-                    className="h-10 shrink-0 gap-1.5 rounded-xl text-sm font-semibold"
-                >
-                    <CalendarPlus className="size-4" aria-hidden="true" />
-                    Nouveau RDV
-                </Button>
-            </div>
+            {hasAppointments && (
+                <div className="flex justify-end">
+                    <Button
+                        onClick={onBook}
+                        className="h-10 shrink-0 gap-1.5 rounded-xl text-sm font-semibold"
+                    >
+                        <CalendarPlus className="size-4" aria-hidden="true" />
+                        Nouveau RDV
+                    </Button>
+                </div>
+            )}
 
             {/* Onglets segmentés — conteneur gris, actif bleu primaire (maquette) */}
             <div
