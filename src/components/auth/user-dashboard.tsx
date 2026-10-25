@@ -786,7 +786,7 @@ export function UserDashboard() {
                                         onNavigate={setTab}
                                     />
                                 ) : (
-                                    <NurseHomeView user={user} onOpenMissions={() => setTab("missions")} />
+                                    <NurseHomeView user={user} onOpenMissions={() => setTab("missions")} onOpenPatients={() => setTab("patients")} />
                                 )}
                             </motion.section>
                         )}

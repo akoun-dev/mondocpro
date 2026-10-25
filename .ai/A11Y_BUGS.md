@@ -6,11 +6,12 @@
 **Légende sévérité :** CRITIQUE (bloque l'usage) · MAJEUR (freine fortement) · MINEUR (inconvénient sans blocage)
 **Légende statut :** ⏳ Ouvert · 🔄 En correction · 👀 En retest · ✅ Corrigé · 🚫 Rejeté
 
-**Total non-conformités ouvertes : 0**
+**Total non-conformités ouvertes : 2**
 
 | ID | Titre | Critère WCAG 2.1 AA | Sévérité | Composant | Statut | Correctif | Date |
 |---|---|---|---|---|---|---|---|
-| _—_ | _Aucune non-conformité enregistrée_ | _—_ | _—_ | _—_ | _—_ | _—_ | _—_ |
+| A11Y-001 | Progression de tournée non annoncée | 4.1.2 Nom, rôle, valeur | MINEUR | `src/components/nurse/nurse-home-view.tsx` | ⏳ Ouvert | Ajouter `role="progressbar"` et `aria-valuemin/max/now` ou utiliser `Progress`. | 2026-10-25 |
+| A11Y-002 | Sidebar admin mobile sans focus management complet | 2.1.1 Clavier, 2.4.3 Ordre du focus, 2.4.7 Focus visible | MAJEUR | `src/components/admin/admin-sidebar.tsx` | ⏳ Ouvert | Utiliser `Sheet`/`Dialog` ou ajouter focus initial, restauration, Échap et focus trap. | 2026-10-25 |
 
 ### Rappel de procédure
 1. Créer la ligne A11Y-XXX, citer le **critère WCAG 2.1 AA exact** (numéro + intitulé, ex. « 1.4.3 Contraste (minimum) »).

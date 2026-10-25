@@ -8,6 +8,7 @@
 | ID | Date | Score /100 | Déclencheur | Rapport | Statut |
 |---|---|---|---|---|---|
 | AUDIT-001 | 2026-10-04 | **84/100** | Demande PO (post-récupération ff24eaa) | [AUDITS/AUDIT-001-2026-10-04.md](AUDITS/AUDIT-001-2026-10-04.md) | ✅ Terminé — 2 incidents corrigés (BUG-002, BUG-003) |
+| AUDIT-002 | 2026-10-25 | **70/100** | Demande PO — audit complet des interfaces | [AUDITS/AUDIT-002-2026-10-25.md](AUDITS/AUDIT-002-2026-10-25.md) | ⚠️ PASS conditionnel — 8 écarts UI/a11y/fiabilité et validation authentifiée bloquée par fixture |
 
 **Seuil de conformité :** score global cible **≥ 60/100** pour toute livraison PROD (cf. `.ai/SYSTEM_COMPLIANCE.md`).
 
